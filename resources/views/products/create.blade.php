@@ -1,145 +1,139 @@
-<!-- resources/views/products/create.blade.php -->
 @extends('layouts.layout')
 
 @section('content')
-
-@if ($errors->any())
-    <div class="alert alert-danger">
-        <ul>
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
-
-@if (session('success'))
-<x-sweet-alert 
-    icon="success" 
-    title="Oh Yeah!" 
-    text="{{ session('success') }}" 
-    confirm-button-text="Ok"
-/>
-@endif
-
-@if (session('error'))
-<x-sweet-alert 
-    icon="error" 
-    title="Oops..." 
-    text="{{ session('error') }}" 
-    confirm-button-text="Ok"
-/>
-@endif
-
 <div class="container mt-4">
-    <h2>เพิ่มสินค้าใหม่</h2>
-    <form action="{{ route('products.store') }}" method="POST" enctype="multipart/form-data">
+    <h2>เพิ่มสินค้าใหม่พร้อมหน่วยนับ</h2>
+
+    <form action="{{ route('product.product.storeWithUnit') }}" method="POST" enctype="multipart/form-data">
         @csrf
-    
-        <!-- ชื่อสินค้า -->
-        <div class="form-group">
-            <label for="name">ชื่อสินค้า</label>
-            <input type="text" name="name" id="name" class="form-control" required>
+        <div class="row">
+            <!-- ฝั่งข้อมูลสินค้า -->
+            <div class="col-md-6">
+                <h4>ข้อมูลสินค้า</h4>
+                <div class="mb-3">
+                    <label for="name" class="form-label">ชื่อสินค้า</label>
+                    <input type="text" name="name" id="name" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="category_id" class="form-label">ประเภทสินค้า</label>
+                    <select name="category_id" id="category_id" class="form-control">
+                        <option value="">-- เลือกประเภทสินค้า --</option>
+                        @foreach($categories as $category)
+                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="barcode" class="form-label">บาร์โค้ดหลัก</label>
+                    <input type="text" name="barcode" id="barcode" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label for="sku" class="form-label">SKU</label>
+                    <input type="text" name="sku" id="sku" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">ของแถม</label>
+                    <textarea name="description" id="description" class="form-control"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="image" class="form-label">รูปภาพ</label>
+                    <input type="file" name="image" id="image" class="form-control">
+                </div>
+            </div>
+
+            <!-- ฝั่งข้อมูลหน่วยนับ -->
+            <div class="col-md-6">
+                <h4>ข้อมูลหน่วยนับ</h4>
+                <div id="units-container">
+                    <!-- Template หน่วยนับ -->
+                    <div class="unit-group border rounded p-3 mb-3">
+                        <div class="mb-3">
+                            <label class="form-label">ชื่อหน่วยนับ</label>
+                            <input type="text" name="units[0][unit_name]" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">จำนวนหน่วย</label>
+                            <input type="number" name="units[0][unit_quantity]" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">บาร์โค้ดหน่วยนับ</label>
+                            <input type="text" name="units[0][unit_barcode]" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">ราคาขายปีก</label>
+                            <input type="number" name="units[0][price]" step="0.01" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">ราคาขายส่ง</label>
+                            <input type="number" name="units[0][wholesale]" step="0.01" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">ราคาทุน</label>
+                            <input type="number" name="units[0][cost_price]" step="0.01" class="form-control">
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm remove-unit d-none">ลบชุดนี้</button>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-secondary mb-3" id="add-unit">+ เพิ่มหน่วยนับ</button>
+            </div>
         </div>
-    
-        <!-- บาร์โค้ด -->
-        <div class="form-group">
-            <label for="barcode">บาร์โค้ด</label>
-            <input type="text" name="barcode" id="barcode" class="form-control" required>
-        </div>
-    
-        <!-- SKU -->
-        <div class="form-group">
-            <label for="sku">รหัส SKU</label>
-            <input type="text" name="sku" id="sku" class="form-control" required>
-        </div>
-    
-        <!-- หน่วยนับ -->
-        <div class="form-group">
-            <label for="unit">หน่วยนับ</label>
-            <input type="text" name="unit" id="unit" class="form-control" value="ชิ้น" required>
-        </div>
-    
-        <!-- ราคาทุน -->
-        <div class="form-group">
-            <label for="cost_price">ราคาทุน</label>
-            <input type="number" step="0.01" name="cost_price" id="cost_price" class="form-control" required>
-        </div>
-    
-        <!-- ราคาขาย -->
-        <div class="form-group">
-            <label for="selling_price">ราคาขาย</label>
-            <input type="number" step="0.01" name="selling_price" id="selling_price" class="form-control" required>
-        </div>
-    
-        <!-- ราคาพิเศษ -->
-        <div class="form-group">
-            <label for="promotion_price">ราคาพิเศษ</label>
-            <input type="number" step="0.01" name="promotion_price" id="promotion_price" class="form-control">
-        </div>
-    
-        <!-- ของแถม -->
-        <div class="form-check mt-3">
-            <input type="checkbox" name="has_gift" id="has_gift" class="form-check-input">
-            <label for="has_gift" class="form-check-label">มีของแถม</label>
-        </div>
-        <div class="form-group">
-            <label for="gift_name">ชื่อของแถม</label>
-            <input type="text" name="gift_name" id="gift_name" class="form-control">
-        </div>
-    
-        <!-- คลังสินค้า -->
-        <div class="form-group">
-            <label for="stock">จำนวนคงเหลือ</label>
-            <input type="number" name="stock" id="stock" class="form-control" value="0" required>
-        </div>
-    
-        <div class="form-check">
-            <input type="hidden" name="track_stock" value="0">
-<input type="checkbox" name="track_stock" id="track_stock" class="form-check-input" value="1" checked>
-            <label for="track_stock" class="form-check-label">ติดตาม Stock</label>
-        </div>
-    
-        <!-- สถานะ -->
-        <div class="form-check">
-            <input type="checkbox" name="is_online" id="is_online" class="form-check-input" checked>
-            <label for="is_online" class="form-check-label">ขายออนไลน์ได้</label>
-        </div>
-        <div class="form-check">
-            <input type="checkbox" name="is_active" id="is_active" class="form-check-input" checked>
-            <label for="is_active" class="form-check-label">เปิดขายอยู่</label>
-        </div>
-    
-        <!-- รูปภาพ -->
-        <div class="form-group mt-3">
-            <label for="image">รูปภาพสินค้า</label>
-            <input type="file" name="image" id="image" class="form-control" required>
-        </div>
-    
-        <!-- คำอธิบาย -->
-        <div class="form-group">
-            <label for="description">คำอธิบาย</label>
-            <textarea name="description" id="description" rows="3" class="form-control" required></textarea>
-        </div>
-    
-        <!-- QR Code -->
-        <div class="form-group">
-            <label for="qr_code">QR Code</label>
-            <input type="text" name="qr_code" id="qr_code" class="form-control" required>
-        </div>
-    
-        <!-- หมวดหมู่ -->
-        <div class="form-group">
-            <label for="category_id">หมวดหมู่</label>
-            <select name="category_id" id="category_id" class="form-control" required>
-                <option value="">-- เลือกหมวดหมู่ --</option>
-                @foreach($categories as $category)
-                    <option value="{{ $category->id }}">{{ $category->name }}</option>
-                @endforeach
-            </select>
-        </div>
-    
-        <button type="submit" class="btn btn-primary mt-3">บันทึกสินค้า</button>
-    </form>    
+
+        <button type="submit" class="btn btn-primary">บันทึกสินค้า</button>
+        <a href="{{ route('product.product.index') }}" class="btn btn-secondary">ยกเลิก</a>
+    </form>
 </div>
+
+<script>
+   let unitIndex = 1;
+
+document.getElementById('add-unit').addEventListener('click', function () {
+    const container = document.getElementById('units-container');
+
+    const html = `
+    <div class="unit-group border rounded p-3 mb-3">
+        <div class="mb-3">
+            <label class="form-label">ชื่อหน่วยนับ</label>
+            <input type="text" name="units[${unitIndex}][unit_name]" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">จำนวนหน่วย</label>
+            <input type="number" name="units[${unitIndex}][unit_quantity]" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">บาร์โค้ดหน่วยนับ</label>
+            <input type="text" name="units[${unitIndex}][unit_barcode]" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">ราคาขายปลีก</label>
+            <input type="number" name="units[${unitIndex}][price]" step="0.01" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">ราคาขายส่ง</label>
+            <input type="number" name="units[${unitIndex}][wholesale]" step="0.01" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">ราคาทุน</label>
+            <input type="number" name="units[${unitIndex}][cost_price]" step="0.01" class="form-control">
+        </div>
+        <button type="button" class="btn btn-danger btn-sm remove-unit">ลบชุดนี้</button>
+    </div>`;
+
+    container.insertAdjacentHTML('beforeend', html);
+
+    unitIndex++;
+});
+
+// ปุ่มลบชุด
+document.addEventListener('click', function (e) {
+    if (e.target.classList.contains('remove-unit')) {
+        e.target.closest('.unit-group').remove();
+    }
+});
+</script>
 @endsection

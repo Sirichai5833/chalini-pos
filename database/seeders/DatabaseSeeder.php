@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder
         // สร้าง User 1 ตัวที่มี role เป็น 'admin'
         User::factory()->create([
             'name' => 'Test Admin',
-            'email' => 'admin@example.com',
+            'email' => 'manage@gmail.com',
             'password' => Hash::make('12345678'),
             'role' => 'admin',
         ]);
@@ -29,6 +29,8 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('12345678'),
             'role' => 'staff',
         ]);
+        \App\Models\Category::factory(5)->create();
+        \App\Models\Product::factory(20)->create();
     }
     
 }

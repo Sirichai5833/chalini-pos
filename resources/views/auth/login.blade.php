@@ -58,20 +58,47 @@
         font-weight: bold;
         color: #2c3e50;
     }
+
+    .top-right-button {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 3;
+    }
+
+    .top-right-button a {
+        padding: 10px 20px;
+        background: linear-gradient(to right, #4b6cb7, #182848);
+        color: white;
+        text-decoration: none;
+        border-radius: 10px;
+        font-weight: bold;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: background 0.3s ease;
+        display: inline-block;
+    }
+
+    .top-right-button a:hover {
+        background: linear-gradient(to right, #3a539b, #1a1f71);
+    }
 </style>
 
+<!-- ปุ่มลอยบนขวา -->
+<div class="top-right-button">
+    <a href="{{ route('online.pagenologin') }}">เข้าสู่เว็บไซต์</a>
+</div>
+
+<!-- ส่วน blur และ login form เดิม -->
 <div class="blur-overlay"></div>
 <div class="row justify-content-center align-items-center login-container" style="min-height: 100vh;">
     <div class="col-md-4">
         <div class="card">
             <h3 class="text-center mb-4">ร้านค้าตึกชาลินี</h3>
-
             @if ($errors->any())
                 <div class="alert alert-danger text-center">
                     {{ $errors->first() }}
                 </div>
             @endif
-
             <form method="post" action="{{ url('/login') }}">
                 @csrf
                 <div class="mb-3">
@@ -90,4 +117,6 @@
         </div>
     </div>
 </div>
+
+
 @endsection

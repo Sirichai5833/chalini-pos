@@ -58,29 +58,30 @@
 </div>
 
 <style>
-      body {
-        background-color: #a7a7a7; /* สีเทา */
+    body {
+        background-color: #f9f9f9; /* ขาวนวล */
+        color: #333;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
+
     .room-card {
         border-radius: 15px;
+        background: #ffffff;
+        color: #333;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
         transition: all 0.3s ease;
-        background-color: #ffffff;
-        position: relative;
-        overflow: hidden;
-        color: #000; /* default text color */
+        border: 1px solid #eee;
     }
 
     .room-card:hover {
-        background: linear-gradient(145deg, #000000, #1a1a1a, #2a2a2a);
-        color: #fff; /* ตัวอักษรขาว */
+        background: linear-gradient(135deg, #fffbe6, #fdf6e3); /* ขาวอมทอง */
         transform: translateY(-6px) scale(1.01);
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 10px 25px rgba(212, 175, 55, 0.25); /* เงาทอง */
     }
 
-    .room-card:hover a,
     .room-card:hover p,
     .room-card:hover h5 {
-        color: #fff !important; /* ทำให้ลิงก์และข้อความเป็นสีขาวทั้งหมด */
+        color: #b38f00 !important; /* ทองเข้ม */
     }
 
     .room-card .card-body {
@@ -90,48 +91,40 @@
 
     .btn-modern {
         border: none;
-        border-radius: 8px; /* 👈 เปลี่ยนจาก 30px เป็นทรงหัวมน */
+        border-radius: 8px;
         padding: 6px 14px;
         font-size: 0.9rem;
         font-weight: 500;
         transition: all 0.25s ease;
-        box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);   /* แสงนุ่มขาว */
-
+        box-shadow: 0 0 6px rgba(212, 175, 55, 0.1);
         color: white;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
     }
 
     .btn-view {
-        background: linear-gradient(135deg, #17a2b8, #138496); /* ฟ้า */
+    background: linear-gradient(135deg, #5bc0de, #0275d8);
+    color: #000 !important;
+}
+
+.btn-edit {
+    background: linear-gradient(135deg, #ffe082, #fdd835);
+    color: #000 !important;
+}
+
+.btn-delete {
+    background: linear-gradient(135deg, #ff8a80, #e53935);
+    color: #000 !important;
+}
+
+.room-card:hover .btn-modern {
+    color: #000 !important; /* คงไว้ให้ตัวหนังสือยังเป็นสีดำแม้ตอน hover */
+}
+
+    h3, h4 {
+        color: #b38f00; /* ทอง */
+        font-weight: 600;
     }
-
-    .btn-edit {
-        background: linear-gradient(135deg, #ffc107, #e0a800); /* เหลือง */
-    }
-
-    .btn-delete {
-        background: linear-gradient(135deg, #dc3545, #c82333);
-        color: rgb(0, 0, 0);
-    }
-
-    .btn-modern:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        opacity: 0.95;
-    }
-
-    .btn-modern:focus {
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
-    }
-
-    .room-card:hover .btn-modern {
-        color: #fff !important;
-    }
-
-
 </style>
+
+
 
 @endsection

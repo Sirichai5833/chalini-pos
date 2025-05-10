@@ -1,16 +1,52 @@
-
 const shopPromptPayID = "0843860015"; // เบอร์พร้อมเพย์ร้าน
-let products = [
-    { id: 'P001', name: 'ขนมปัง', freebie: '-', unit: 'ชิ้น', qty: 2, price: 20 },
-    { id: 'P002', name: 'นมกล่อง', freebie: '1 แถม 1', unit: 'กล่อง', qty: 1, price: 30 }
-];
+let products = [];
 let totalAmount = 0;
 
+// รับข้อมูลสินค้าจาก Laravel ที่แปลงเป็น JSON
+let productCatalog = window.productCatalog || {};
+
+// DOM loaded
 document.addEventListener('DOMContentLoaded', () => {
     renderProductList();
     updateTotalAmount();
     updateQRCode();
+
+    // สแกนบาร์โค้ดโดยไม่ต้อง input แบบพิมพ์เอง
+    let barcode = '';
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            if (barcode) {
+                addProductByBarcode(barcode);
+                barcode = '';
+            }
+        } else {
+            barcode += e.key;
+        }
+    });
 });
+
+function addProductByBarcode(barcode) {
+    const product = productCatalog[barcode.trim()];
+
+    if (product) {
+        const existingProduct = products.find(p => p.id === product.id);
+        if (existingProduct) {
+            existingProduct.qty += 1;
+        } else {
+            products.push({ ...product, qty: 1 });
+        }
+        renderProductList();
+        updateTotalAmount();
+        updateQRCode();
+    } else {
+        Swal.fire({
+            icon: 'error',
+            title: 'ไม่พบสินค้า',
+            text: `ไม่พบสินค้าที่มีบาร์โค้ด: ${barcode}`,
+            confirmButtonText: 'ตกลง'
+        });
+    }
+}
 
 function renderProductList() {
     const tbody = document.getElementById('product-list');
@@ -24,13 +60,25 @@ function renderProductList() {
                 <td>${product.name}</td>
                 <td>${product.freebie}</td>
                 <td>${product.unit}</td>
-                <td>${product.qty}</td>
+                <td>
+                    <input type="number" class="form-control form-control-sm text-center" value="${product.qty}" min="1" onchange="updateQty(${index}, this.value)">
+                </td>
                 <td>${product.price} ฿</td>
                 <td>${(product.qty * product.price).toFixed(2)} ฿</td>
             </tr>
         `;
         tbody.insertAdjacentHTML('beforeend', row);
     });
+}
+
+function updateQty(index, newQty) {
+    let qty = parseInt(newQty);
+    if (qty > 0) {
+        products[index].qty = qty;
+        renderProductList();
+        updateTotalAmount();
+        updateQRCode();
+    }
 }
 
 function updateTotalAmount() {
@@ -99,7 +147,7 @@ function confirmPaymentByQR() {
         confirmButtonText: 'ตกลง'
     }).then(() => {
         playSound();
-        printReceipt(0, 0); // QR ไม่รับเงินสด ไม่มีเงินทอน
+        printReceipt(0, 0);
         clearCart();
     });
 }

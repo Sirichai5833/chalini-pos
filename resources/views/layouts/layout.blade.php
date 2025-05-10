@@ -50,10 +50,11 @@
                 <i class="bi bi-shop"></i> ชาลินี
             </a>
             <div class="d-flex">
-                <a href="{{ route('logout') }}" class="btn btn-outline-light me-2">
+                <a href="{{ route('staff.edit', ['member' => Auth::user()->id]) }}" class="btn btn-outline-light me-2">
                     <i class="bi bi-person"></i> 
                     {{ Auth::user()->name }} ({{ Auth::user()->role }})
                 </a>
+                
                 <a href="{{ route('logout') }}" 
                 class="btn btn-danger" 
                 onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
@@ -94,7 +95,7 @@
                                 </a>
                             </li>
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('sale/history') ? 'active' : '' }} text-white" href="{{ url('sale/history') }}">
+                                <a class="nav-link {{ request()->is('sale/history') ? 'active' : '' }} text-white" href="{{ route('staff.sales.history') }}">
                                     <i class="bi bi-clock-history text-white"></i> ประวัติการขาย
                                 </a>
                             </li>
@@ -112,74 +113,57 @@
                         aria-expanded="false" 
                         aria-controls="collapseProducts"
                     >
-                        <span><i class="bi bi-box-seam text-white"></i> จัดการสินค้าหน้าร้าน</span>
+                        <span><i class="bi bi-box-seam text-white"></i> จัดการสินค้า</span>
                         <i class="bi bi-caret-down-fill text-white"></i>
                     </a>
                     <div class="collapse ps-3" id="collapseProducts">
                         <ul class="nav flex-column">
                             <!-- ข้อมูลสินค้า -->
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products') ? 'active' : '' }} text-white" href="{{ url('manage_products') }}">
+                                <a class="nav-link {{ request()->is('') ? 'active' : '' }} text-white" href="{{ route('product.product.index') }}">
                                     <i class="bi bi-list-ul text-white"></i> รายการสินค้าหน้าร้าน
                                 </a>
                             </li>
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/create') ? 'active' : '' }} text-white" href="{{ url('manage_products/create') }}">
+                                <a class="nav-link {{ request()->is('') ? 'active' : '' }} text-white" href="{{ route('product.product.create') }}">
                                     <i class="bi bi-plus-circle text-white"></i> เพิ่มสินค้าใหม่หน้าร้าน
                                 </a>
                             </li>
                 
                             <!-- สต็อกสินค้า -->
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/stock') ? 'active' : '' }} text-white" href="{{ url('manage_products/stock') }}">
-                                    <i class="bi bi-box text-white"></i> สต็อกสินค้า
+                                <a class="nav-link {{ request()->is('') ? 'active' : '' }} text-white" href="{{route('product.products.add-stock-form')}}">
+                                    <i class="bi bi-list-ul text-white"></i> เพิ่มสินค้าเข้าหน้าบ้าน/คลังสินค้า
                                 </a>
                             </li>
+
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/stock/adjust') ? 'active' : '' }} text-white" href="{{ url('manage_products/stock/adjust') }}">
-                                    <i class="bi bi-arrow-up-down text-white"></i> ปรับยอดสต็อก
-                                </a>
-                            </li>
-                
-                            <!-- ราคาและโปรโมชั่น -->
-                            <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/pricing') ? 'active' : '' }} text-white" href="{{ url('manage_products/pricing') }}">
-                                    <i class="bi bi-tag text-white"></i> ตั้งราคาขาย/โปรโมชั่น
+                                <a class="nav-link {{ request()->is('') ? 'active' : '' }} text-white" href="{{route('product.indexstock')}}">
+                                    <i class="bi bi-box text-white"></i> รายการสินค้าในสต็อก
                                 </a>
                             </li>
                             
                             <!-- หมวดหมู่และหน่วยสินค้า -->
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/categories') ? 'active' : '' }} text-white" href="{{ url('manage_products/categories') }}">
+                                <a class="nav-link {{ request()->is('manage_products/categories') ? 'active' : '' }} text-white" href="{{ route('categories.index')}}">
                                     <i class="bi bi-folder text-white"></i> จัดการหมวดหมู่
                                 </a>
                             </li>
-                            <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/unit') ? 'active' : '' }} text-white" href="{{ url('manage_products/unit') }}">
+                            {{-- <li class="nav-item mb-1">
+                                <a class="nav-link {{ request()->is('manage_products/unit') ? 'active' : '' }} text-white" href="{{ route('units.index')}}">
                                     <i class="bi bi-box text-white"></i> หน่วยสินค้า
                                 </a>
-                            </li>
+                            </li> --}}
                 
                             <!-- รหัสสินค้า -->
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/barcode') ? 'active' : '' }} text-white" href="{{ url('manage_products/barcode') }}">
+                                <a class="nav-link {{ request()->is('manage_products/barcode') ? 'active' : '' }} text-white" href="{{ route('product.barcodes.create') }}">
                                     <i class="bi bi-barcode text-white"></i> สร้าง Barcode/QR Code
                                 </a>
                             </li>
                 
-                            <!-- สถานะการขาย -->
-                            <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/status') ? 'active' : '' }} text-white" href="{{ url('manage_products/status') }}">
-                                    <i class="bi bi-check-circle text-white"></i> เปิด/ปิดขายออนไลน์
-                                </a>
-                            </li>
-                            
-                            <!-- รูปภาพและคำอธิบาย -->
-                            <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/image') ? 'active' : '' }} text-white" href="{{ url('manage_products/image') }}">
-                                    <i class="bi bi-image text-white"></i> จัดการรูปสินค้า
-                                </a>
-                            </li>
+                    
+
                         </ul>
                     </div>
                 </li>
@@ -244,11 +228,18 @@
                                     <i class="bi bi-plus-circle text-white"></i> ประวัติการขาย
                                 </a>
                             </li>
+                             <!-- สถานะการขาย -->
+                             <li class="nav-item mb-1">
+                                <a class="nav-link {{ request()->is('manage_products/status') ? 'active' : '' }} text-white" href="{{ url('manage_products/status') }}">
+                                    <i class="bi bi-check-circle text-white"></i> เปิด/ปิดขายออนไลน์
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </li>
             
                 <!-- จัดการพนักงาน (Dropdown เดิม) -->
+                @if(Auth::user()->role !== 'staff')
                 <li class="nav-item mb-2">
                     <a 
                         class="nav-link d-flex justify-content-between align-items-center {{ request()->is('manage_staff*') ? 'active' : '' }} text-white" 
@@ -273,10 +264,11 @@
                                     <i class="bi bi-people text-white"></i> รายชื่อพนักงาน
                                 </a>
                             </li>
-                            
                         </ul>
                     </div>
                 </li>
+            @endif
+            
                 
                 {{-- จััดการสมาชิก --}}
                 <li class="nav-item mb-2">
@@ -302,6 +294,13 @@
                                     <i class="bi bi-people text-white"></i> รายชื่อสมาชิก
                                 </a>
                             </li>
+                            @if(Auth::user()->role !== 'staff')
+                            <li class="nav-item mb-1">
+                                <a class="nav-link {{ request()->routeIs('members.index') ? 'active' : '' }} text-white" href="{{ route('staff.audits') }}">
+                                    <i class="bi bi-people text-white"></i> ประวัติการแก้ไขข้อมูลสมาชิก
+                                </a>
+                            </li>
+                            @endif
                             
                         </ul>
                     </div>

@@ -1,132 +1,140 @@
 @extends('layouts.layout')
 
 @section('content')
-
-@if ($errors->any())
-    <div class="alert alert-danger">
-        <ul>
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
-
 <div class="container mt-4">
-    <h2>แก้ไขสินค้า</h2>
-    <form action="{{ route('products.update', $product->id) }}" method="POST" enctype="multipart/form-data">
+    <h2>แก้ไขสินค้าและหน่วยนับ</h2>
+
+    <form action="{{ route('product.updateWithUnit', $product->id) }}" method="POST" enctype="multipart/form-data">
+        @method('PUT')
         @csrf
-        @method('PUT')  <!-- ระบุว่าเป็น PUT method -->
+        <div class="row">
+            <!-- ฝั่งข้อมูลสินค้า -->
+            <div class="col-md-6">
+                <h4>ข้อมูลสินค้า</h4>
+                <div class="mb-3">
+                    <label for="name" class="form-label">ชื่อสินค้า</label>
+                    <input type="text" name="name" id="name" value="{{ $product->name }}" class="form-control" required>
+                </div>
 
-        <!-- ชื่อสินค้า -->
-        <div class="form-group">
-            <label for="name">ชื่อสินค้า</label>
-            <input type="text" name="name" id="name" class="form-control" value="{{ $product->name }}" required>
-        </div>
+                <div class="mb-3">
+                    <label for="category_id" class="form-label">ประเภทสินค้า</label>
+                    <select name="category_id" id="category_id" class="form-control">
+                        <option value="">-- เลือกประเภทสินค้า --</option>
+                        @foreach($categories as $category)
+                            <option value="{{ $category->id }}" {{ $product->category_id == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
 
-        <!-- บาร์โค้ด -->
-        <div class="form-group">
-            <label for="barcode">บาร์โค้ด</label>
-            <input type="text" name="barcode" id="barcode" class="form-control" value="{{ $product->barcode }}" required>
-        </div>
+                <div class="mb-3">
+                    <label for="barcode" class="form-label">บาร์โค้ดหลัก</label>
+                    <input type="text" name="barcode" id="barcode" value="{{ $product->barcode }}" class="form-control">
+                </div>
 
-        <!-- SKU -->
-        <div class="form-group">
-            <label for="sku">รหัส SKU</label>
-            <input type="text" name="sku" id="sku" class="form-control" value="{{ $product->sku }}" required>
-        </div>
+                <div class="mb-3">
+                    <label for="sku" class="form-label">SKU</label>
+                    <input type="text" name="sku" id="sku" value="{{ $product->sku }}" class="form-control">
+                </div>
 
-        <!-- หน่วยนับ -->
-        <div class="form-group">
-            <label for="unit">หน่วยนับ</label>
-            <input type="text" name="unit" id="unit" class="form-control" value="{{ $product->unit }}" required>
-        </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">ของแถม</label>
+                    <textarea name="description" id="description" class="form-control">{{ $product->description }}</textarea>
+                </div>
 
-        <!-- ราคาทุน -->
-        <div class="form-group">
-            <label for="cost_price">ราคาทุน</label>
-            <input type="number" step="0.01" name="cost_price" id="cost_price" class="form-control" value="{{ $product->cost_price }}" required>
-        </div>
+                <div class="mb-3">
+                    <label for="image" class="form-label">รูปภาพ (อัพโหลดใหม่เพื่อเปลี่ยน)</label>
+                    <input type="file" name="image" id="image" class="form-control">
+                </div>
+            </div>
 
-        <!-- ราคาขาย -->
-        <div class="form-group">
-            <label for="selling_price">ราคาขาย</label>
-            <input type="number" step="0.01" name="selling_price" id="selling_price" class="form-control" value="{{ $product->selling_price }}" required>
-        </div>
+            <!-- ฝั่งข้อมูลหน่วยนับ -->
+            <div class="col-md-6">
+                <h4>ข้อมูลหน่วยนับ</h4>
+                <div id="units-container">
+                    @foreach($product->productUnits as $index => $unit)
+                    <div class="unit-group border rounded p-3 mb-3">
+                        <input type="hidden" name="units[{{ $index }}][id]" value="{{ $unit->id }}">
+                        <div class="mb-3">
+                            <label class="form-label">ชื่อหน่วยนับ</label>
+                            <input type="text" name="units[{{ $index }}][unit_name]" value="{{ $unit->unit_name }}" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">จำนวนหน่วย</label>
+                            <input type="number" name="units[{{ $index }}][unit_quantity]" value="{{ $unit->unit_quantity }}" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">บาร์โค้ดหน่วยนับ</label>
+                            <input type="text" name="units[{{ $index }}][unit_barcode]" value="{{ $unit->barcode }}" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">ราคาขายปลีก</label>
+                            <input type="number" name="units[{{ $index }}][price]" value="{{ $unit->price }}" step="0.01" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">ราคาขายส่ง</label>
+                            <input type="number" name="units[{{ $index }}][wholesale]" value="{{ $unit->wholesale }}" step="0.01" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">ราคาทุน</label>
+                            <input type="number" name="units[{{ $index }}][cost_price]" value="{{ $unit->cost_price }}" step="0.01" class="form-control">
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm remove-unit">ลบชุดนี้</button>
+                    </div>
+                    @endforeach
+                </div>
 
-        <!-- ราคาพิเศษ -->
-        <div class="form-group">
-            <label for="promotion_price">ราคาพิเศษ</label>
-            <input type="number" step="0.01" name="promotion_price" id="promotion_price" class="form-control" value="{{ $product->promotion_price }}">
-        </div>
-
-        <!-- ของแถม -->
-        <div class="form-check mt-3">
-            <input type="checkbox" name="has_gift" id="has_gift" class="form-check-input" {{ $product->has_gift ? 'checked' : '' }}>
-            <label for="has_gift" class="form-check-label">มีของแถม</label>
-        </div>
-        <div class="form-group">
-            <label for="gift_name">ชื่อของแถม</label>
-            <input type="text" name="gift_name" id="gift_name" class="form-control" value="{{ $product->gift_name }}">
-        </div>
-
-        <!-- คลังสินค้า -->
-        <div class="form-group">
-            <label for="stock">จำนวนคงเหลือ</label>
-            <input type="number" name="stock" id="stock" class="form-control" value="{{ $product->stock }}" required>
-        </div>
-
-        <div class="form-check">
-            <input type="hidden" name="track_stock" value="0">
-            <input type="checkbox" name="track_stock" id="track_stock" class="form-check-input" value="1" {{ $product->track_stock ? 'checked' : '' }}>
-            <label for="track_stock" class="form-check-label">ติดตาม Stock</label>
-        </div>
-
-        <!-- สถานะ -->
-        <div class="form-check">
-            <input type="checkbox" name="is_online" id="is_online" class="form-check-input" {{ $product->is_online ? 'checked' : '' }}>
-            <label for="is_online" class="form-check-label">ขายออนไลน์ได้</label>
-        </div>
-        <div class="form-check">
-            <input type="checkbox" name="is_active" id="is_active" class="form-check-input" {{ $product->is_active ? 'checked' : '' }}>
-            <label for="is_active" class="form-check-label">เปิดขายอยู่</label>
-        </div>
-
-        <!-- รูปภาพ -->
-        <div class="form-group mt-3">
-            <label for="image">รูปภาพสินค้า</label>
-            <input type="file" name="image" id="image" class="form-control">
-            @if ($product->image)
-                <img src="{{ asset('storage/' . $product->image) }}" class="img-thumbnail mt-2" width="150">
-            @endif
+                <button type="button" class="btn btn-secondary mb-3" id="add-unit">+ เพิ่มหน่วยนับ</button>
+            </div>
         </div>
 
-        <!-- คำอธิบาย -->
-        <div class="form-group">
-            <label for="description">คำอธิบาย</label>
-            <textarea name="description" id="description" rows="3" class="form-control" required>{{ $product->description }}</textarea>
-        </div>
-
-        <!-- QR Code -->
-        <div class="form-group">
-            <label for="qr_code">QR Code</label>
-            <input type="text" name="qr_code" id="qr_code" class="form-control" value="{{ $product->qr_code }}" required>
-        </div>
-
-        <!-- หมวดหมู่ -->
-        <div class="form-group">
-            <label for="category_id">หมวดหมู่</label>
-            <select name="category_id" id="category_id" class="form-control" required>
-                <option value="">-- เลือกหมวดหมู่ --</option>
-                @foreach($categories as $category)
-                    <option value="{{ $category->id }}" {{ $product->category_id == $category->id ? 'selected' : '' }}>
-                        {{ $category->name }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-
-        <button type="submit" class="btn btn-success mt-3">อัปเดตสินค้า</button>
-    </form>    
+        <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+        <a href="{{ route('product.product.index') }}" class="btn btn-secondary">ยกเลิก</a>
+    </form>
 </div>
+
+<script>
+let unitIndex = {{ $product->productUnits->count() }};
+
+document.getElementById('add-unit').addEventListener('click', function () {
+    const container = document.getElementById('units-container');
+
+    const html = `
+    <div class="unit-group border rounded p-3 mb-3">
+        <div class="mb-3">
+            <label class="form-label">ชื่อหน่วยนับ</label>
+            <input type="text" name="units[${unitIndex}][unit_name]" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">จำนวนหน่วย</label>
+            <input type="number" name="units[${unitIndex}][unit_quantity]" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">บาร์โค้ดหน่วยนับ</label>
+            <input type="text" name="units[${unitIndex}][unit_barcode]" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">ราคาขายปลีก</label>
+            <input type="number" name="units[${unitIndex}][price]" step="0.01" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">ราคาขายส่ง</label>
+            <input type="number" name="units[${unitIndex}][wholesale]" step="0.01" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">ราคาทุน</label>
+            <input type="number" name="units[${unitIndex}][cost_price]" step="0.01" class="form-control">
+        </div>
+        <button type="button" class="btn btn-danger btn-sm remove-unit">ลบชุดนี้</button>
+    </div>`;
+
+    container.insertAdjacentHTML('beforeend', html);
+    unitIndex++;
+});
+
+document.addEventListener('click', function (e) {
+    if (e.target.classList.contains('remove-unit')) {
+        e.target.closest('.unit-group').remove();
+    }
+});
+</script>
 @endsection
