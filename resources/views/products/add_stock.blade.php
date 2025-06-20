@@ -31,6 +31,7 @@
                                     <th>เพิ่มเข้าที่</th>
                                     <th>หมายเหตุ</th>
                                     <th>ลบ</th>
+                                    <th>วันหมดอายุ</th>
                                 </tr>
                             </thead>
                             <tbody id="product-body">
@@ -86,6 +87,7 @@ function addProductRow(product) {
     const tbody = document.getElementById('product-body');
     const rowKey = `${product.id}_${product.unit_id}`;
     const existingRow = Array.from(tbody.rows).find(row => row.dataset.rowKey === rowKey);
+    const defaultQty = product.unit_quantity || 1;
 
     if (existingRow) {
         const qty = existingRow.querySelector(`input[name="items[${product.id}][${product.unit_id}][quantity]"]`);
@@ -95,14 +97,15 @@ function addProductRow(product) {
         row.dataset.rowKey = rowKey;
         row.innerHTML = `
             <td>
-                ${product.name} (${product.unit_name})
+                ${product.name} (${product.unit_name})             
                 <input type="hidden" name="items[${product.id}][${product.unit_id}][product_id]" value="${product.id}">
                 <input type="hidden" name="items[${product.id}][${product.unit_id}][unit_id]" value="${product.unit_id}">
+                <input type="hidden" name="items[${product.id}][${product.unit_id}][unit_name]" value="${product.unit_name}">
                 <input type="hidden" name="items[${product.id}][${product.unit_id}][unit_quantity]" value="${product.quantity_per_unit || 1}">
             </td>
             <td>${product.unit_name || '-'}</td>
             <td>
-                <input type="number" name="items[${product.id}][${product.unit_id}][quantity]" value="1" class="form-control text-center">
+                <input type="number" name="items[${product.id}][${product.unit_id}][quantity]" value="${defaultQty}" class="form-control text-center">
             </td>
             <td>
                 <select name="items[${product.id}][${product.unit_id}][location]" class="form-select">
@@ -116,9 +119,14 @@ function addProductRow(product) {
             <td>
                 <button type="button" onclick="this.closest('tr').remove()" class="btn btn-outline-danger btn-sm">ลบ</button>
             </td>
+            <td>
+    <input type="date" name="items[${product.id}][${product.unit_id}][expiry_date]" class="form-control" required>
+</td>
+
         `;
         tbody.appendChild(row);
     }
 }
 </script>
+
 @endsection

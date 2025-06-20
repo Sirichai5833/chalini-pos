@@ -1,6 +1,8 @@
 @extends('layouts.layout')
 
 @section('content')
+
+
 <div class="container mt-4">
     <h2>จัดการหมวดหมู่สินค้า</h2>
 
@@ -15,6 +17,9 @@
         <div class="form-group">
             <label for="name">ชื่อหมวดหมู่</label>
             <input type="text" name="name" id="name" class="form-control" required>
+            @error('name')
+    <div class="text-danger">{{ $message }}</div>
+@enderror
         </div>
         <button type="submit" class="btn btn-primary mt-2">เพิ่มหมวดหมู่</button>
     </form>

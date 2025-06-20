@@ -32,14 +32,33 @@
     input.form-control {
         border-radius: 8px;
     }
+
+    .qr-code {
+        width: 200px;
+        height: 200px;
+        margin-bottom: 20px;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+    }
 </style>
 
 <div class="container py-4">
     <h2 class="mb-4 section-title"><i class="bi bi-credit-card-2-front-fill me-2"></i>ชำระเงิน</h2>
 
     <div class="checkout-card">
-        <form action="{{ route('online.checkout') }}" method="POST">
+        @if ($errors->any())
+    <div class="alert alert-danger">
+        <ul class="mb-0">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li> {{-- แสดงทุกข้อความผิดพลาด --}}
+            @endforeach
+        </ul>
+    </div>
+@endif
+        <form action="{{ route('online.online.checkout') }}" method="POST" enctype="multipart/form-data">
             @csrf
+           <input type="hidden" name="product_unit_id" value="{{ $product_unit_id->product_id ?? '0' }}">
             <div class="row mb-3">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">ชื่อ-นามสกุล</label>
@@ -58,24 +77,55 @@
                 <input type="text" name="room" class="form-control" 
                        value="{{ old('room', $member->room_number) }}" readonly>
             </div>
+             <h5 class="mb-3">ยอดรวมทั้งหมด: <strong class="text-orange">{{ number_format($total, 2) }}</strong> บาท</h5>
         
             <div class="mb-3">
                 <label class="form-label">วิธีการชำระเงิน</label>
-                <select class="form-select" name="payment_method" required>
+                <select class="form-select" name="payment_method" required onchange="showQRCode(this.value, {{ $total }})">
                     <option selected disabled>-- เลือกวิธีชำระเงิน --</option>
                     <option value="โอนผ่านบัญชีธนาคาร">โอนผ่านบัญชีธนาคาร</option>
                     <option value="เก็บเงินปลายทาง">เก็บเงินปลายทาง</option>
                 </select>
             </div>
-        
+
+           <div class="mb-3" id="slip-upload">
+    <label class="form-label">อัปโหลดสลิป</label>
+    <input type="file" name="slip" class="form-control" accept="image/*" disabled required>
+</div>
+
+
+            <div class="text-center my-4" id="qr-container" style="display: none;">
+                <img src="{{ route('online.online.generate.qr', ['amount' => $total]) }}" alt="QR Code" class="img-fluid" id="qr-code" />
+            </div>
+
             <div class="text-end mt-4">
                 <button class="btn btn-orange px-4 py-2">
                     <i class="bi bi-check-circle me-1"></i> ยืนยันคำสั่งซื้อ
                 </button>
             </div>
         </form>
-        
-        
     </div>
 </div>
+
+<script>
+  function showQRCode(paymentMethod, total) {
+    const qrContainer = document.getElementById('qr-container');
+    const slipUpload = document.getElementById('slip-upload');
+    const slipInput = slipUpload.querySelector('input[name="slip"]');
+    const qrCodeImg = document.getElementById('qr-code');
+
+    if (paymentMethod === 'โอนผ่านบัญชีธนาคาร') {
+        qrContainer.style.display = 'block';
+        slipUpload.style.display = 'block';
+        slipInput.disabled = false;
+        qrCodeImg.src = `/online/online/generate-qr?amount=${total}`;
+    } else {
+        qrContainer.style.display = 'none';
+        slipUpload.style.display = 'none';
+        slipInput.disabled = true;
+        qrCodeImg.src = '';
+    }
+}
+
+</script>
 @endsection

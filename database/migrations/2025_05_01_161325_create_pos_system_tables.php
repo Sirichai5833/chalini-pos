@@ -70,6 +70,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->integer('quantity');
+
             $table->date('expiry_date')->nullable();
             $table->timestamps();
         });

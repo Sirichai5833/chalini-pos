@@ -4,7 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 class CartController extends Controller
 {
     public function add(Request $request)
@@ -67,4 +68,19 @@ class CartController extends Controller
 
         return view('online.cart', compact('cart', 'total'));
     }
+
+    public function checkout(Request $request) {
+    $total = $request->query('total', 0); // ค่า default เป็น 0 เผื่อไม่มีส่งมา
+    
+    if ($total <= 0) {
+        // ถ้าตะกร้าว่าง ให้กลับไปหน้าตะกร้า พร้อมแจ้ง error
+        return redirect()->route('online.cart')->with('error', 'ไม่มีสินค้าในตะกร้า กรุณาเลือกสินค้าก่อนชำระเงิน');
+    }
+
+    $member = Auth::user(); // หรือดึงข้อมูลสมาชิกตาม logic ของคุณ
+
+    return view('online.checkout', compact('total', 'member'));
+}
+
+
 }

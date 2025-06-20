@@ -13,6 +13,7 @@ class Sale extends Model
          'staff_id',
         'sale_type',
         'total_price',
+        'slip',
         // เพิ่มฟิลด์อื่นๆ ที่ต้องการทำ mass assignment
     ];
 

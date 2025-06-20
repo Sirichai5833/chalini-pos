@@ -4,12 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\ProductBatch;
 use App\Models\ProductStockMovement;
 use App\Models\ProductStockMovementsTable;
 use App\Models\ProductStocks;
 use App\Models\ProductUnit;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Activitylog\Models\Activity;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Support\Facades\Auth;
+use Livewire\Livewire;
 
 class ProductController extends Controller
 {
@@ -47,6 +53,7 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'image' => 'nullable|image|max:2048',
             'units' => 'required|array|min:1',
+            'is_active' => 'required|boolean',
             'units.*.unit_name' => 'required|string|max:255',
             'units.*.unit_quantity' => 'required|integer|min:1',
             'units.*.unit_barcode' => 'nullable|string|max:255',
@@ -55,7 +62,7 @@ class ProductController extends Controller
             'units.*.cost_price' => 'nullable|numeric',
         ]);
 
-        $product = Product::create($request->only(['name', 'category_id', 'barcode', 'sku', 'description']));
+        $product = Product::create($request->only(['name', 'category_id', 'barcode', 'sku', 'description', 'is_active']));
 
         // จัดการรูปภาพ
         if ($request->hasFile('image')) {
@@ -96,6 +103,7 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'image' => 'nullable|image|max:2048',
             'units' => 'required|array|min:1',
+            'is_active' => 'required|boolean',
             'units.*.unit_name' => 'required|string|max:255',
             'units.*.unit_quantity' => 'required|integer|min:1',
             'units.*.unit_barcode' => 'required|string|max:255',
@@ -160,6 +168,7 @@ class ProductController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
+            'unit_id' => 'required|exists:units,id', // ✅ ต้อง validate ด้วย
             'location' => 'required|in:warehouse,store',
             'unit_quantity' => 'required|integer|min:1',
             'note' => 'nullable|string'
@@ -188,46 +197,83 @@ class ProductController extends Controller
         return redirect()->route('product.products.add-stock-form')->with('success', 'เพิ่มสินค้าเข้าสต็อกเรียบร้อยแล้ว');
     }
 
+public function addStockMulti(Request $request)
+{
+    if (!$request->has('items') || !is_array($request->items)) {
+        return redirect()->back()->with('error', 'กรุณาแสกนสินค้าอย่างน้อย 1 รายการก่อนบันทึก');
+    }
 
-    public function addStockMulti(Request $request)
-    {
-        if (!$request->has('items') || !is_array($request->items)) {
-            return redirect()->back()->with('error', 'กรุณาแสกนสินค้าอย่างน้อย 1 รายการก่อนบันทึก');
-        }
+    foreach ($request->items as $productItems) {
+        foreach ($productItems as $unitItems) {
+            $item = $unitItems;
+            // ตรวจสอบ expiry_date และคำนวณ batchCode
+            $expiryDate = $item['expiry_date'] ?? null;
+            $batchCode = $item['product_id'] . '-' . Carbon::now()->format('Ymd');
 
-        foreach ($request->items as $productItems) {
-            foreach ($productItems as $unitItems) {
-                $item = $unitItems;
 
-                // ที่เหลือใช้เหมือนเดิม
-                $productStock = ProductStocks::firstOrCreate(
-                    ['product_id' => $item['product_id']],
-                    ['warehouse_stock' => 0, 'store_stock' => 0]
-                );
+            // เก็บสินค้า
+           $productStock = ProductStocks::firstOrCreate(
+    [
+        'product_id' => $item['product_id'],
+        'unit_id' => $item['unit_id'],
+    ],
+    [
+        'warehouse_stock' => 0,
+        'store_stock' => 0,
+    ]
+);
 
-                if ($item['location'] === 'warehouse') {
-                    $productStock->warehouse_stock += $item['quantity'];
-                } elseif ($item['location'] === 'store') {
-                    $productStock->store_stock += $item['quantity'];
-                }
 
-                $productStock->save();
+            if ($item['location'] === 'warehouse') {
+                $productStock->warehouse_stock += $item['quantity'] * $item['unit_quantity'];
+            } elseif ($item['location'] === 'store') {
+                $productStock->store_stock += $item['quantity'] * $item['unit_quantity'];
+            }
 
-                ProductStockMovement::create([
-                    'product_id' => $item['product_id'],
-                    'type' => 'in',
-                    'quantity' => $item['quantity'],
+            $productStock->save();
+
+            // เก็บการเคลื่อนไหวสต็อก
+            ProductStockMovement::create([
+                'product_id' => $item['product_id'],
+                'type' => 'in',
+                'quantity' => $item['quantity'],
+                'unit_id' => $item['unit_id'],
+                'unit' => $item['unit_name'],
+                'unit_quantity' => $item['unit_quantity'],
+                'note' => $item['note'] ?? '',
+                'location' => $item['location'],
+            ]);
+            // บันทึก batch และวันหมดอายุ
+            ProductBatch::create([
+                'product_id' => $item['product_id'],
+                'quantity' => $item['quantity'],
+                'batch_code' => $batchCode, // ใช้ batchCode ที่คำนวณแล้ว
+                'expiry_date' => $expiryDate,  // วันหมดอายุ (ถ้ามี)
+            ]);
+// ✅ ใช้ event() แทน
+        // 👈 Trigger event
+
+            // เพิ่ม activity log
+            activity('product')
+                ->causedBy(Auth::user())
+                ->performedOn(Product::find($item['product_id']))
+                ->withProperties([
                     'unit_id' => $item['unit_id'],
+                    'location' => $item['location'],
+                    'quantity' => $item['quantity'],
                     'unit_quantity' => $item['unit_quantity'],
                     'note' => $item['note'] ?? '',
-                    'location' => $item['location'],
-                ]);
-            }
+                ])
+                ->event('stock_added')
+                ->log('เพิ่มสต็อกสินค้าแบบหลายรายการ');
         }
-
-
-        return redirect()->back()->with('success', 'เพิ่มสินค้าเรียบร้อยแล้ว');
     }
+
+    return redirect()->back()->with('success', 'เพิ่มสินค้าเรียบร้อยแล้ว');
+}
+
+
+
 
     public function indexstock(Request $request)
     {
@@ -245,4 +291,66 @@ class ProductController extends Controller
         // ไปที่ view เหมือน index หรือแยก view ก็ได้
         return view('products.show-stock', compact('products', 'categories'));
     }
+
+    public function show($id)
+{
+    $product = Product::with('activities.causer')->findOrFail($id);
+    return view('products.show-histroy', compact('product'));
+}
+public function allHistory(Request $request)
+{
+    $query = Activity::where('log_name', 'product')->with(['subject', 'causer']);
+
+    if ($request->filled('date_from')) {
+        $query->whereDate('created_at', '>=', $request->date_from);
+    }
+
+    if ($request->filled('date_to')) {
+        $query->whereDate('created_at', '<=', $request->date_to);
+    }
+
+    if ($request->filled('event')) {
+        // ถ้ามีการเลือกประเภท event
+        $query->where('event', $request->event);
+    } else {
+        // ถ้าไม่เลือกประเภท → ตัด stock_added ออก
+        $query->where('event', '!=', 'stock_added');
+    }
+
+    $activities = $query->latest()->paginate(20);
+
+    return view('products.show-histroy', compact('activities'));
+}
+
+
+public function searchStockInHistory(Request $request)
+{
+    $search = $request->input('search');
+    $from = $request->input('from');
+    $to = $request->input('to');
+    $isPrint = $request->has('print');
+
+    $query = ProductStockMovement::with('product')
+        ->where('type', 'in')
+        ->when($search, function ($query, $search) {
+            $query->whereHas('product', function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('barcode', 'like', "%$search%");
+            });
+        })
+        ->when($from, fn($q) => $q->whereDate('created_at', '>=', $from))
+        ->when($to, fn($q) => $q->whereDate('created_at', '<=', $to))
+        ->orderBy('created_at', 'desc');
+
+    $movements = $isPrint ? $query->get() : $query->paginate(20);
+
+    return view('products.stock-in-history', compact('movements', 'search', 'from', 'to', 'isPrint'));
+}
+
+
+
+
+
+
+
 }

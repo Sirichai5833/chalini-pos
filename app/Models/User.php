@@ -34,6 +34,11 @@ class User extends Authenticatable implements AuditableContract // 👈 เพ�
         ];
     }
 
+   public function getIsAdminAttribute()
+{
+    return $this->role === 'admin';
+}
+
     public function sales() {
     return $this->hasMany(Sale::class, 'staff_id');  // หรือชื่อฟิลด์ที่คุณใช้
 }

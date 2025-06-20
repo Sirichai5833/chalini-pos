@@ -20,7 +20,10 @@ class ProductUnit extends Model
         'price',
         'wholesale', // <<< อันนี้ต้องมี!
         'cost_price',
+        'store_stock',
+        'warehouse_stock',
         'barcode',
+        
     ];
     
 
@@ -29,4 +32,11 @@ class ProductUnit extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    // ถ้า 1 หน่วยมีหลาย stock
+public function productStocks()
+{
+    return $this->hasMany(ProductStocks::class, 'product_id'); // ← ตรวจว่า product_stocks มี column นี้ไหม
+}
+
 }

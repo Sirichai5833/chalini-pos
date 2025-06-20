@@ -23,7 +23,7 @@ class SaleItem extends Model
 
    public function product()
     {
-        return $this->belongsTo(Product::class, 'product_id');
+        return $this->belongsTo(Product::class, 'product_unit_id');
     }
 
     public function unit()

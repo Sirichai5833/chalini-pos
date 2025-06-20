@@ -12,6 +12,7 @@ class ProductStockMovement extends Model
         'product_id',
         'type',
         'quantity',
+        'unit',
         'reason',
         'ref_code',
           'location', // ✅ เพิ่ม location

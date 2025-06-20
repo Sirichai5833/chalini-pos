@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+
 
 class CategoryController extends Controller
 {
@@ -19,31 +22,45 @@ class CategoryController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-        ]);
+{
+    $request->validate([
+        'name' => 'required|string|max:255|unique:categories,name',
+    ], [
+        'name.required' => 'กรุณากรอกชื่อประเภท',
+        'name.unique' => 'ชื่อประเภทนี้ถูกใช้ไปแล้ว',
+    ]);
 
-        Category::create($request->all());
+    Category::create($request->all());
 
-        return redirect()->route('categories.index')->with('success', 'Category created successfully!');
-    }
+    return redirect()->route('categories.index')->with('success', 'เพิ่มประเภทเรียบร้อยแล้ว!');
+}
+
+
 
     public function edit(Category $category)
     {
         return view('categories.edit', compact('category'));
     }
 
-    public function update(Request $request, Category $category)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-        ]);
+   public function update(Request $request, Category $category)
+{
+    $request->validate([
+        'name' => [
+            'required',
+            'string',
+            'max:255',
+            Rule::unique('categories')->ignore($category->id),
+        ],
+    ], [
+        'name.required' => 'กรุณากรอกชื่อประเภท',
+        'name.unique' => 'ชื่อประเภทนี้ถูกใช้ไปแล้ว',
+    ]);
 
-        $category->update($request->all());
+    $category->update($request->all());
 
-        return redirect()->route('categories.index')->with('success', 'Category updated successfully!');
-    }
+    return redirect()->route('categories.index')->with('success', 'แก้ไขประเภทเรียบร้อยแล้ว!');
+}
+
 
     public function destroy(Category $category)
     {

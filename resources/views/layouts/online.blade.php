@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="th">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Chalini | Online Shop</title>
-        <meta name="csrf-token" content="{{ csrf_token() }}">
-    
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chalini | Online Shop</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
 
     {{-- Bootstrap & FontAwesome --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -78,11 +79,9 @@
         .nav-link:hover {
             text-decoration: underline;
         }
-
-        
-
     </style>
 </head>
+
 <body>
 
     {{-- 🔝 Navbar --}}
@@ -96,7 +95,7 @@
             <div class="collapse navbar-collapse" id="mainNavbar">
                 <ul class="navbar-nav ms-auto align-items-center gap-2">
                     @auth
-                        <li class="nav-item">
+                        <li class="nav-item d-flex align-items-center">
                             <span class="nav-link"> {{ Auth::user()->name }} ({{ Auth::user()->role }})</span>
                         </li>
                         <li class="nav-item">
@@ -106,16 +105,14 @@
                             <a class="nav-link" href="{{ route('online.track') }}">ติดตามคำสั่งซื้อ</a>
                         </li>
                         <li class="nav-item d-none d-lg-inline">
-                            <a class="nav-link" href="{{ route('online.cart') }}">
-                                ตะกร้า 
-                                <span class="badge cart-badge {{ $totalItems > 0 ? 'bg-danger' : 'bg-secondary' }}">
-                                    {{ $totalItems }}
-                                </span>
+                            <a href="{{ route('online.cart') }}"
+                                class="nav-link position-relative d-flex align-items-center">
+                                <i class="bi bi-cart3 fs-4 me-1"></i>
+                               <span class="cart-total-items cart-badge badge rounded-pill bg-danger me-1 px-2 py-1">
+    {{ session('cart') ? collect(session('cart'))->sum('quantity') : 0 }}
+</span>
+                                ตะกร้า
                             </a>
-                        </li>
-                        
-                        <li class="nav-item d-none d-lg-inline">
-                            <a class="nav-link" href="{{ route('online.checkout') }}">ชำระเงิน</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('online.edit', ['member' => Auth::user()->id]) }}">
@@ -125,25 +122,26 @@
                         <li class="nav-item">
                             <form method="POST" action="{{ route('logout') }}" class="d-inline">
                                 @csrf
-                                <button type="submit" class="btn btn-link nav-link">ออกจากระบบ</button>
+                                <button type="submit" class="btn btn-link nav-link p-0">ออกจากระบบ</button>
                             </form>
                         </li>
                     @endauth
                 </ul>
             </div>
-        </div>
+
     </nav>
 
     {{-- ✅ Mobile Bottom Bar --}}
     <div class="mobile-fixed-bottom-bar d-block d-md-none">
         <div class="d-flex justify-content-around align-items-center h-100">
-            <a href="{{ route('online.cart') }}" class="btn position-relative w-50 mx-1" >
+            <a href="{{ route('online.cart') }}" class="btn btn-primary position-relative w-100 mx-0">
                 <i class="bi bi-cart3 fs-4"></i>
-                <span id="cart-total-items" class="cart-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                    {{ session('cart') ? collect(session('cart'))->sum('quantity') : 0 }}
-                </span>ตะกร้า
+                <span class="cart-total-items cart-badge badge rounded-pill bg-danger me-1 px-2 py-1">
+    {{ session('cart') ? collect(session('cart'))->sum('quantity') : 0 }}
+</span>
+                ตะกร้า
             </a>
-            <a href="{{ route('online.checkout') }}" class="btn btn-primary w-50 mx-1">ชำระเงิน</a>
+
         </div>
     </div>
     {{-- 🔻 Main Content --}}
@@ -153,75 +151,62 @@
     </div>
 
     {{-- 🧩 JS --}}
-    <script>
-    function addToCart(productId, quantity) {
-    // อัปเดต UI ทันทีเมื่อกดเพิ่มสินค้า
-    const currentBadge = document.querySelector('.cart-badge');
-    const mobileBadge = document.querySelector('#cart-total-items');
-    const currentCount = parseInt(currentBadge.textContent) || 0;
+   <script>
+document.querySelectorAll('.add-to-cart').forEach(button => {
+    button.addEventListener('click', function () {
+        const form = this.closest('form');
+        const productId = form.querySelector('input[name="product_id"]').value;
+        const productUnitId = form.querySelector('input[name="product_unit_id"]').value;
+        const quantity = form.querySelector('input[name="quantity"]').value;
 
-    // อัปเดตจำนวนใน UI ก่อน
-    const newCount = currentCount + quantity;
-    if (currentBadge) {
-        currentBadge.textContent = newCount;
-        currentBadge.classList.remove('bg-secondary');
-        currentBadge.classList.add(newCount > 0 ? 'bg-danger' : 'bg-secondary');
-    }
-    if (mobileBadge) {
-        mobileBadge.textContent = newCount;
-        mobileBadge.classList.remove('bg-secondary');
-        mobileBadge.classList.add(newCount > 0 ? 'bg-danger' : 'bg-secondary');
-    }
-
-    // ส่งคำขอ AJAX เพื่อเพิ่มสินค้าในตะกร้าผ่านเซิร์ฟเวอร์
-    fetch('/cart/add', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({
-            product_id: productId,
-            quantity: quantity
+        fetch('{{ route('online.add') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                product_unit_id: productUnitId,
+                quantity: quantity
+            })
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log('สินค้าเพิ่มแล้ว');
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                updateCartBadge(data.total_quantity);
+            } else {
+                Swal.fire('ผิดพลาด', 'เพิ่มสินค้าไม่สำเร็จ', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเพิ่มสินค้าได้', 'error');
+        });
+    });
+});
+
+
+
+
+        function updateCartBadge(newTotal) {
+    // อัปเดต badge ทั้งหมดที่มี class cart-total-items
+    document.querySelectorAll('.cart-total-items').forEach(badge => {
+        badge.textContent = newTotal;
+        badge.classList.remove('bg-secondary', 'bg-danger');
+
+        if (newTotal > 0) {
+            badge.classList.add('bg-danger');
         } else {
-            console.error('เกิดข้อผิดพลาดในการเพิ่มสินค้า');
+            badge.classList.add('bg-secondary');
         }
-    })
-    .catch(error => {
-        console.error('เกิดข้อผิดพลาดในการติดต่อเซิร์ฟเวอร์', error);
     });
 }
-
-
-function updateCartBadge(newTotal) {
-    // อัปเดต badge ใน navbar
-    const navbarBadge = document.querySelector('.cart-badge');
-    if (navbarBadge) {
-        navbarBadge.textContent = newTotal;
-        navbarBadge.classList.remove('bg-secondary');
-        navbarBadge.classList.add(newTotal > 0 ? 'bg-danger' : 'bg-secondary');
-    }
-
-    // อัปเดต badge ใน mobile bottom bar
-    const mobileBadge = document.querySelector('#cart-total-items');
-    if (mobileBadge) {
-        mobileBadge.textContent = newTotal;
-        mobileBadge.classList.remove('bg-secondary');
-        mobileBadge.classList.add(newTotal > 0 ? 'bg-danger' : 'bg-secondary');
-    }
-}
-
-
     </script>
-    
+
     @stack('scripts')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>
