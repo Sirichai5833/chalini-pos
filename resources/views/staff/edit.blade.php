@@ -66,7 +66,7 @@
             
                 <div class="d-flex justify-content-between">
                     <button type="submit" class="btn btn-success">บันทึกการเปลี่ยนแปลง</button>
-                    <a href="{{ route('staff.index') }}" class="btn btn-secondary">ยกเลิก</a>
+                    <a href="{{ url('sale') }}" class="btn btn-secondary">ยกเลิก</a>
                 </div>
             </form>            
         </div>

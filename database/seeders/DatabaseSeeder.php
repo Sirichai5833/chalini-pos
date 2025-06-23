@@ -30,6 +30,13 @@ class DatabaseSeeder extends Seeder
             'role' => 'member',
         ]);
 
+        //   User::factory()->create([
+        //     'name' => 'StaffOnline',
+        //     'email' => 'StaffOnline@gmail.com',
+        //     'password' => Hash::make('12345678'),
+        //     'role' => 'member',
+        // ]);
+
     }
     
 }

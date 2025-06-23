@@ -22,6 +22,7 @@
     />
     @endif
 
+    {{-- สมาชิก role: member ชั้น 1-5 --}}
     @for ($floor = 1; $floor <= 5; $floor++)
         <h4 class="mt-5">ชั้น {{ $floor }}</h4>
         <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
@@ -55,8 +56,43 @@
             @endfor
         </div>
     @endfor
+
+    {{-- สมาชิก role: admin และ staff ชั้น 6 --}}
+   {{-- สมาชิก role: admin และ staff ชั้น 6 --}}
+<h4 class="mt-5">(สำหรับ Admin / Staff)</h4>
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+    @php
+    $roomNumber = '601';  // กำหนดเลขห้องสำหรับ admin/staff
+    $member = $members->get($roomNumber);
+@endphp
+    <div class="col">
+        <div class="card h-100 room-card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">ห้องพนักงาน</h5>
+                @if ($member)
+                    <p class="card-text mb-1">ชื่อ: {{ $member->name }}</p>
+                    <p class="card-text mb-1">อีเมล: {{ $member->email }}</p>
+                    <p class="card-text mb-3">รหัส: 12345678</p>
+                    {{-- <div class="d-flex flex-wrap ">
+                        <a href="{{ route('members.show', $member->id) }}" class="btn btn-info btn-sm me-2">ดู</a>
+                        <a href="{{ route('members.edit', $member->id) }}" class="btn btn-warning btn-sm me-2">แก้ไข</a>
+                        <form action="{{ route('members.destroy', $member->id) }}" method="POST" onsubmit="return confirm('ยืนยันการลบ?')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-modern btn-delete">ลบ</button>
+                        </form>
+                    </div> --}}
+                @else
+                    <p class="text-muted mt-3">ไม่มีสมาชิก</p>
+                @endif
+            </div>
+        </div>
+    </div>
 </div>
 
+
+
+</div>
 <style>
     body {
         background-color: #f9f9f9; /* ขาวนวล */

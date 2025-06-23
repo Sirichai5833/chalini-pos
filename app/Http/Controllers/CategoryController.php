@@ -63,9 +63,15 @@ class CategoryController extends Controller
 
 
     public function destroy(Category $category)
-    {
-        $category->delete();
-
-        return redirect()->route('categories.index')->with('success', 'Category deleted successfully!');
+{
+    // ตรวจสอบว่าหมวดหมู่มีสินค้าอยู่หรือไม่
+    if ($category->products()->count() > 0) {
+        return redirect()->route('categories.index')->with('error', 'ไม่สามารถลบหมวดหมู่นี้ได้ เพราะยังมีสินค้าอยู่');
     }
+
+    $category->delete();
+
+    return redirect()->route('categories.index')->with('success', 'ลบหมวดหมู่เรียบร้อยแล้ว!');
+}
+
 }

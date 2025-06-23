@@ -83,7 +83,7 @@
                                 <strong>จำนวนในสต็อก:</strong> {{ $product->stock->warehouse_stock ?? 0 }}
                             </p>
                             <p class="mb-1 text-muted">
-                                <strong>ของแถม:</strong> {{ $product->description ?? 0 }}
+                                <strong>ของแถม:</strong> {{ $product->description ?? 'ไม่มี' }}
                             </p>
 
                         </div>
@@ -296,7 +296,7 @@
     <!-- JavaScript -->
     @push('scripts')
         <script>
-            let unitIndex = 1;
+            let unitIndex = document.querySelectorAll('.unit-group').length;
 
             document.getElementById('add-unit').addEventListener('click', function() {
                 const container = document.getElementById('units-container');
@@ -360,6 +360,13 @@
                     previewDiv.style.display = "block";
                 }
             });
+
+            document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-unit')) {
+        e.target.closest('.unit-group').remove();
+    }
+});
+
         </script>
     @endpush
     </div>

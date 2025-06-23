@@ -12,12 +12,38 @@ use App\Models\Sale;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class OnlineController extends Controller
 {
 
+    public function pagenologin(Request $request)
+{
+    $categories = Category::all();
 
+    $query = Product::with('productUnits');
 
+    if ($request->filled('category')) {
+        $query->where('category_id', $request->category);
+    }
+
+    if ($request->filled('search')) {
+        $query->where('name', 'like', '%' . $request->search . '%');
+    }
+
+    $products = $query->paginate(10);
+    $products->appends($request->all());
+
+    $cart = session('cart', []);
+
+    $totalItems = collect($cart)->sum(fn($item) => $item['quantity']);
+
+    return view('online.pagenologin', [
+        'categories' => $categories,
+        'products' => $products,
+        'totalItems' => $totalItems,
+    ]);
+}
 
     public function edit(User $member)
     {
@@ -53,6 +79,7 @@ class OnlineController extends Controller
 
     public function index(Request $request)
 {
+      $systemAlert = \App\Models\Setting::where('key', 'system_alert')->value('value');
     $categories = Category::all();
 
     $query = Product::with('productUnits');
@@ -76,6 +103,7 @@ class OnlineController extends Controller
         'categories' => $categories,
         'products' => $products,
         'totalItems' => $totalItems,
+        'systemAlert' => $systemAlert,
     ]);
 }
 
@@ -258,4 +286,18 @@ if ($productStock) {
 
     return back()->with('success', 'ลบสินค้าออกจากตะกร้าแล้ว');
 }
+
+public function updateAlert(Request $request)
+    {
+        $request->validate([
+            'system_alert' => 'nullable|string|max:255',
+        ]);
+
+        DB::table('settings')->updateOrInsert(
+            ['key' => 'system_alert'],
+            ['value' => $request->input('system_alert')]
+        );
+
+        return redirect()->back()->with('success', 'อัปเดตข้อความแจ้งเตือนเรียบร้อย!');
+    }
 }

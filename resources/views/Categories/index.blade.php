@@ -2,6 +2,10 @@
 
 @section('content')
 
+@if (session('error'))
+    <div class="alert alert-danger mt-2">{{ session('error') }}</div>
+@endif
+
 
 <div class="container mt-4">
     <h2>จัดการหมวดหมู่สินค้า</h2>
@@ -43,12 +47,17 @@
 
 
                         <!-- ฟอร์มลบ -->
-                        <form action="{{ route('categories.delete', $category->id) }}" method="POST" class="d-inline-block"
-                              onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบหมวดหมู่นี้?');">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
-                        </form>
+                        <form action="{{ route('categories.delete', $category->id) }}" method="POST"
+      class="d-inline-block"
+      onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบหมวดหมู่นี้?');">
+    @csrf
+    @method('DELETE')
+    <button type="submit" class="btn btn-danger btn-sm" 
+        {{ $category->products()->count() > 0 ? 'disabled' : '' }}>
+        ลบ
+    </button>
+</form>
+
                     </td>
                 </tr>
             @empty

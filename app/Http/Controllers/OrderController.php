@@ -7,7 +7,7 @@ use App\Models\OrderItem;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
+use App\Models\ProductStocks;
 class OrderController extends Controller
 {
     public function checkout()
@@ -25,6 +25,7 @@ class OrderController extends Controller
         ]);
 
         DB::beginTransaction();
+
         try {
              $slipPath = null;
         if ($request->hasFile('slip')) {
@@ -50,7 +51,7 @@ class OrderController extends Controller
             }
 
             DB::commit();
-
+            // \Livewire\Livewire::emit('orderUpdated'); // ✅ ให้ Livewire รีโหลด
             return redirect()->route('online.track')->with('success', 'ทำรายการสำเร็จ! คำสั่งซื้อ #' . $order->order_code);
         } catch (\Exception $e) {
             DB::rollback();
@@ -79,17 +80,33 @@ class OrderController extends Controller
     return view('sale.order', compact('orders'));
 }
 
-
 public function updateStatus(Request $request, Order $order)
 {
     $request->validate([
         'status' => 'required|string',
     ]);
 
-    $order->update(['status' => $request->status]);
+    $oldStatus = $order->status;
+    $newStatus = $request->status;
+
+    if ($oldStatus !== 'ยกเลิก' && $newStatus === 'ยกเลิก') {
+        foreach ($order->orderItems as $item) {
+            if ($item->productUnit) {
+                $stock = ProductStocks::where('product_id', $item->productUnit->product_id)->first();
+                if ($stock) {
+                    // คืนสินค้าเข้า warehouse หรือ store ตามต้องการ
+                    $stock->increment('warehouse_stock', $item->quantity);
+                }
+            }
+        }
+    }
+
+    $order->update(['status' => $newStatus]);
 
     return redirect()->back()->with('success', 'อัปเดตสถานะเรียบร้อยแล้ว');
 }
+
+
 public function orderHistory()
 {
     $orders = Order::with(['orderItems.product', 'user'])

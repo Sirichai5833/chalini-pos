@@ -14,6 +14,7 @@ class ProductStockMovement extends Model
         'quantity',
         'unit',
         'reason',
+         'is_free', // ✅ เพิ่มตรงนี้
         'ref_code',
           'location', // ✅ เพิ่ม location
           'unit_quantity', // เพิ่ม unit_quantity

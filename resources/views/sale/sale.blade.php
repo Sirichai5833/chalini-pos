@@ -167,7 +167,7 @@
                 <td>${i + 1}</td>
                 <td>${p.id}</td>
                 <td>${p.name}</td>
-                <td>${p.freebie}</td>
+                <td>${p.freebie ? p.freebie : 'ไม่มี'}</td>
                 <td>${p.unit}</td>
                 <td>
                     <input type="number" class="form-control form-control-sm text-center"
@@ -258,12 +258,15 @@ function removeProduct(index) {
 
 
     function confirmPaymentByQR() {
+    submitSaleData(() => {
         showAlert('success', 'รับชำระเรียบร้อย').then(() => {
             playSound();
             printReceipt(0, 0);
             clearCart();
         });
-    }
+    });
+}
+
 
     function printReceipt(cash, change) {
         const receiptWindow = window.open('', '', 'width=800,height=600');

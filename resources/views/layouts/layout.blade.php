@@ -9,7 +9,7 @@
     <!-- Bootstrap 5.3.5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
 
 
 
@@ -80,7 +80,7 @@
 </head>
 
 <body>
-
+    <livewire:styles />
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm fixed-top">
 
@@ -130,13 +130,13 @@
                     <div class="collapse ps-3" id="collapseSale">
                         <ul class="nav flex-column">
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('sale') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('sale') ? 'active' : '' }} text-white"
                                     href="{{ url('sale') }}">
                                     <i class="bi bi-cash-stack text-white"></i> หน้าขายสินค้า
                                 </a>
                             </li>
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('sale/history') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('staff.sales.history') ? 'active' : '' }} text-white"
                                     href="{{ route('staff.sales.history') }}">
                                     <i class="bi bi-clock-history text-white"></i> ประวัติการขาย
                                 </a>
@@ -147,7 +147,7 @@
 
                 <!-- จัดการสินค้า (Dropdown) -->
                 <li class="nav-item mb-2">
-                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('manage_products*') ? 'active' : '' }} text-white"
+                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->routeIs('product.product.*') ? 'active' : '' }} text-white"
                         data-bs-toggle="collapse" href="#collapseProducts" role="button" aria-expanded="false"
                         aria-controls="collapseProducts">
                         <span><i class="bi bi-box-seam text-white"></i> จัดการสินค้า</span>
@@ -157,35 +157,35 @@
                         <ul class="nav flex-column">
                             <!-- ข้อมูลสินค้า -->
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('product.product.index') ? 'active' : '' }} text-white"
                                     href="{{ route('product.product.index') }}">
                                     <i class="bi bi-list-ul text-white"></i> รายการสินค้าหน้าร้าน
                                 </a>
                             </li>
-                            <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('') ? 'active' : '' }} text-white"
+                            {{-- <li class="nav-item mb-1">
+                                <a class="nav-link {{ request()->routeIs('product.product.create') ? 'active' : '' }} text-white"
                                     href="{{ route('product.product.create') }}">
                                     <i class="bi bi-plus-circle text-white"></i> เพิ่มสินค้าใหม่หน้าร้าน
                                 </a>
-                            </li>
+                            </li> --}}
 
                             <!-- สต็อกสินค้า -->
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('product.products.add-stock-form') ? 'active' : '' }} text-white"
                                     href="{{ route('product.products.add-stock-form') }}">
                                     <i class="bi bi-list-ul text-white"></i> เพิ่มสินค้าเข้าหน้าบ้าน/คลังสินค้า
                                 </a>
                             </li>
 
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('product.indexstock') ? 'active' : '' }} text-white"
                                     href="{{ route('product.indexstock') }}">
                                     <i class="bi bi-box text-white"></i> รายการสินค้าในสต็อก
                                 </a>
                             </li>
 
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('product.stock.to.store') ? 'active' : '' }} text-white"
                                     href="{{ route('product.stock.to.store') }}">
                                     <i class="bi bi-box-arrow-up-right text-white"></i> ย้ายสินค้าไปหน้าร้าน
                                 </a>
@@ -193,7 +193,7 @@
 
                             <!-- หมวดหมู่และหน่วยสินค้า -->
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/categories') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('categories.index') ? 'active' : '' }} text-white"
                                     href="{{ route('categories.index') }}">
                                     <i class="bi bi-folder text-white"></i> จัดการหมวดหมู่
                                 </a>
@@ -207,22 +207,22 @@
                             <!-- รหัสสินค้า -->
                             @unless (auth()->user()->role !== 'admin')
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link {{ request()->is('manage_products/barcode') ? 'active' : '' }} text-white"
+                                    <a class="nav-link {{ request()->routeIs('product.barcodes.index') ? 'active' : '' }} text-white"
                                         href="{{ route('product.barcodes.index') }}">
-                                        <i class="bi bi-barcode text-white"></i> Barcode
+                                       <i class="bi-upc-scan"></i>  Barcode
                                     </a>
                                 </li>
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link {{ request()->is('products/history') ? 'active' : '' }} text-white"
+                                    <a class="nav-link {{ request()->routeIs('product.products.allHistory') ? 'active' : '' }} text-white"
                                         href="{{ route('product.products.allHistory') }}">
                                         <i class="bi bi-clock-history text-white"></i> ประวัติการแก้ไขสินค้า
                                     </a>
                                 </li>
                             @endunless
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('stock-in-history') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('product.stock-in-history') ? 'active' : '' }} text-white"
                                     href="{{ route('product.stock-in-history') }}">
-                                    <i class="bi bi-journal-text text-white"></i> ค้นหาประวัติการเพิ่มสินค้า
+                                    <i class="bi bi-journal-text text-white"></i> ประวัติการเพิ่มสินค้า
                                 </a>
                             </li>
 
@@ -230,7 +230,7 @@
                     </div>
                 </li>
                 <li class="nav-item mb-2">
-                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('notification*') ? 'active' : '' }} text-white"
+                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->routeIs('notification*') ? 'active' : '' }} text-white"
                         data-bs-toggle="collapse" href="#Notification" role="button" aria-expanded="false"
                         aria-controls="Notification">
 
@@ -251,7 +251,7 @@
                         <ul class="nav flex-column">
                             <!-- ข้อมูลสินค้า -->
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('notification/OutStock') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('notification.OutStock') ? 'active' : '' }} text-white"
                                     href="{{ route('notification.OutStock') }}">
                                     <i class="bi bi-list-ul text-white"></i> สินค้าใกล้หมด
                                     @if (isset($lowStockCount) && $lowStockCount > 0)
@@ -261,7 +261,7 @@
                             </li>
 
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('notification/expire') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('notification.expire') ? 'active' : '' }} text-white"
                                     href="{{ route('notification.expire') }}">
                                     <i class="bi bi-plus-circle text-white"></i> สินค้าใกล้หมดอายุ
                                     @if (isset($expireCount) && $expireCount > 0)
@@ -280,7 +280,7 @@
 
                 <!-- จัดการยอดขาย (Dropdown เดิม) -->
                 <li class="nav-item mb-2">
-                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('reports*') ? 'active' : '' }} text-white"
+                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->routeIs('reports*') ? 'active' : '' }} text-white"
                         data-bs-toggle="collapse" href="#collapseReports" role="button" aria-expanded="false"
                         aria-controls="collapseReports">
                         <span><i class="bi bi-bar-chart text-white"></i> จัดการยอดขาย</span>
@@ -289,7 +289,7 @@
                     <div class="collapse ps-3" id="collapseReports">
                         <ul class="nav flex-column">
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('reports/daily') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('reports.daily') ? 'active' : '' }} text-white"
                                     href="{{ route('reports.daily') }}">
                                     <i class="bi bi-calendar-day text-white"></i> รายงานยอดขาย
                                 </a>
@@ -302,12 +302,11 @@
                     <a class="nav-link d-flex justify-content-between align-items-center text-white"
                         data-bs-toggle="collapse" href="#collapseOnline" role="button" aria-expanded="false"
                         aria-controls="collapseOnline">
-                        <span>
+                        <span class="d-flex align-items-center gap-1">
                             <i class="bi bi-box-seam text-white"></i> คำสั่งซื้อออนไลน์
-                            @if (isset($pendingOrderCount) && $pendingOrderCount > 0)
-                                <span class="badge bg-danger ms-2">{{ $pendingOrderCount }}</span>
-                            @endif
+                            @livewire('pending-order-count-badge')
                         </span>
+
                         <i class="bi bi-caret-down-fill text-white"></i>
                     </a>
                     <div class="collapse ps-3" id="collapseOnline">
@@ -316,23 +315,24 @@
                                 <a class="nav-link {{ request()->routeIs('orders.list') ? 'active' : '' }} text-white"
                                     href="{{ route('orders.list') }}">
                                     <i class="bi bi-list-ul text-white"></i> ออเดอร์
-                                    @if (isset($pendingOrderCount) && $pendingOrderCount > 0)
-                                        <span class="badge bg-danger ms-2">{{ $pendingOrderCount }}</span>
-                                    @endif
+                                    @livewire('pending-order-count-badge')
                                 </a>
                             </li>
+
                             <li class="nav-item mb-1">
-                                <a class="nav-link  text-white" href="{{ route('orders.history') }}">
+                                <a class="nav-link {{ request()->routeIs('orders.history') ? 'active' : '' }} text-white"
+                                    href="{{ route('orders.history') }}">
                                     <i class="bi bi-plus-circle text-white"></i> ประวัติการขาย
                                 </a>
                             </li>
+
                             <!-- สถานะการขาย -->
-                            <li class="nav-item mb-1">
+                            {{-- <li class="nav-item mb-1">
                                 <a class="nav-link {{ request()->is('manage_products/status') ? 'active' : '' }} text-white"
                                     href="{{ url('manage_products/status') }}">
                                     <i class="bi bi-check-circle text-white"></i> เปิด/ปิดขายออนไลน์
                                 </a>
-                            </li>
+                            </li> --}}
                         </ul>
                     </div>
                 </li>
@@ -340,7 +340,7 @@
                 <!-- จัดการพนักงาน (Dropdown เดิม) -->
                 @if (Auth::user()->role !== 'staff')
                     <li class="nav-item mb-2">
-                        <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('manage_staff*') ? 'active' : '' }} text-white"
+                        <a class="nav-link d-flex justify-content-between align-items-center {{ request()->Is('staff/create','staff') ? 'active' : '' }} text-white"
                             data-bs-toggle="collapse" href="#collapseStaff" role="button" aria-expanded="false"
                             aria-controls="collapseStaff">
                             <span><i class="bi bi-people text-white"></i> จัดการพนักงาน</span>
@@ -349,7 +349,7 @@
                         <div class="collapse ps-3" id="collapseStaff">
                             <ul class="nav flex-column">
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link {{ request()->is('staff.create') ? 'active' : '' }} text-white"
+                                    <a class="nav-link {{ request()->routeIs('staff.create') ? 'active' : '' }} text-white"
                                         href="{{ route('staff.create') }}">
                                         <i class="bi bi-person-plus text-white"></i> เพิ่มพนักงานใหม่
                                     </a>
@@ -368,7 +368,7 @@
 
                 {{-- จััดการสมาชิก --}}
                 <li class="nav-item mb-2">
-                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('manage_staff*') ? 'active' : '' }} text-white"
+                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('manage_staff*','staff/audits') ? 'active' : '' }} text-white"
                         data-bs-toggle="collapse" href="#collapsecustomer" role="button" aria-expanded="false"
                         aria-controls="collapsecustomer">
                         <span><i class="bi bi-people text-white"></i> จัดการสมาชิก</span>
@@ -377,7 +377,7 @@
                     <div class="collapse ps-3" id="collapsecustomer">
                         <ul class="nav flex-column">
                             <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('members.create') ? 'active' : '' }} text-white"
+                                <a class="nav-link {{ request()->routeIs('members.create') ? 'active' : '' }} text-white"
                                     href="{{ route('members.create') }}"> <i
                                         class="bi bi-person-plus text-white"></i> เพิ่มสมาชิก</a>
 
@@ -390,7 +390,7 @@
                             </li>
                             @if (Auth::user()->role !== 'staff')
                                 <li class="nav-item mb-1">
-                                    <a class="nav-link {{ request()->routeIs('members.index') ? 'active' : '' }} text-white"
+                                    <a class="nav-link {{ request()->routeIs('staff.audits') ? 'active' : '' }} text-white"
                                         href="{{ route('staff.audits') }}">
                                         <i class="bi bi-people text-white"></i> ประวัติการแก้ไขข้อมูลสมาชิก
                                     </a>
@@ -409,7 +409,7 @@
 
         </aside>
 
-        <div class="content-wrapper">
+        <div class="content-wrapper w-full px-4">
             @yield('content')
 
         </div>
@@ -425,6 +425,8 @@
         < /> <
         script src = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js" >
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             const toggleBtn = document.getElementById('sidebarToggle');
@@ -437,6 +439,7 @@
     </script>
 
     @stack('scripts')
+    @livewireScripts
 </body>
 
 </html>

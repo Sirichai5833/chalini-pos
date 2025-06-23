@@ -4,6 +4,10 @@
 
 @section('content')
     <style>
+        thead {
+    background-color: #fff3e0;
+}
+
         .btn-orange {
             background-color: #ff5722;
             color: white;
@@ -32,6 +36,8 @@
             object-fit: cover;
             border: 1px solid #ddd;
             border-radius: 8px;
+              border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         /* 👇 เพิ่มส่วนนี้เข้าไปเพื่อรองรับมือถือ */
@@ -96,6 +102,7 @@
                 -webkit-appearance: none;
                 margin: 0;
             }
+            
         }
     </style>
     @if(session('error'))
@@ -185,7 +192,7 @@
         </table>
     </div>
 
-    <div class="d-flex justify-content-end mt-4">
+    <div class="d-flex justify-content-end mt-4 mb-5">
         <div class="text-end">
             <h5 class="mb-3">ยอดรวมทั้งหมด: <strong class="text-orange">{{ number_format($total, 2) }}</strong> บาท</h5>
             <a href="{{ route('online.checkout.form', ['total' => $total]) }}" class="btn btn-orange px-4 py-2">

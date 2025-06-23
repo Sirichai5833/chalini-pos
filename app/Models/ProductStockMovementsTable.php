@@ -13,6 +13,7 @@ class ProductStockMovementsTable extends Model
         'reason',
         'ref_code',
         'unit',
+        'is_free',
         'note',
         'unit_quantity', // เพิ่ม unit_quantity
           'location', // ✅ เพิ่ม location

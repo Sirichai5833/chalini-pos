@@ -5,7 +5,7 @@
     <h2 class="text-2xl font-semibold text-gray-800 mb-6 border-b pb-2">📦 รายงานสินค้าคงคลังใกล้หมด</h2>
 
     <div class="bg-white shadow-md rounded-lg p-6">
-        <h3 class="text-xl font-medium text-gray-700 mb-4">รายการสินค้าที่ต้องตรวจสอบ</h3>
+        <h3 class="text-xl font-medium text-gray-700 mb-4">รายการสินค้าคงคลังน้อยกว่า30ชิ้นที่ต้องตรวจสอบ</h3>
         <table class="table-auto w-full border border-gray-300">
             <thead class="bg-gray-100">
                 <tr>

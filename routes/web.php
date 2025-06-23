@@ -76,6 +76,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/track', [OrderController::class, 'track'])->name('track');
             Route::post('/track', [OrderController::class, 'track'])->name('track.submit');
             Route::patch('/cart/{productId}/update', [CartController::class, 'updateQuantity'])->name('updateQuantity');
+            Route::post('/settings/update-alert', [OnlineController::class, 'updateAlert'])->name('settings.updateAlert');
+
         });
 
 

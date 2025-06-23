@@ -8,12 +8,15 @@ use Illuminate\Http\Request;
 class MemberController extends Controller
 {
 
-    public function index()
+   public function index()
 {
+    // ดึงสมาชิก role = member แยกตาม room_number
     $members = User::where('role', 'member')->get()->keyBy('room_number');
 
-    return view('members.index', compact('members'));
+
+    return view('members.index', compact('members', ));
 }
+
 
 public function view()
 {

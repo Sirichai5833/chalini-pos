@@ -17,9 +17,10 @@
                 <label for="room_number" class="form-label text-gold">เลือกห้อง</label>
                 <select name="room_number" class="form-select fancy-input" required>
                     <option value="">-- กรุณาเลือกห้อง --</option>
-                    @php
-                        $usedRooms = \App\Models\User::pluck('room_number')->toArray();
-                    @endphp
+                   @php
+    $usedRooms = \App\Models\User::where('role', 'member',)->pluck('room_number')->toArray();
+@endphp
+
                     @for ($floor = 1; $floor <= 5; $floor++)
                         @for ($room = 1; $room <= 24; $room++)
                             @php

@@ -92,55 +92,57 @@ class ProductController extends Controller
 
     // อัปเดตข้อมูลสินค้าพร้อมหน่วยนับ
     public function updateWithUnit(Request $request, $id)
-    {
-        $product = Product::findOrFail($id);
+{
+    $product = Product::findOrFail($id);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'category_id' => 'nullable|exists:categories,id',
-            'barcode' => 'nullable|string|max:255',
-            'sku' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'image' => 'nullable|image|max:2048',
-            'units' => 'required|array|min:1',
-            'is_active' => 'required|boolean',
-            'units.*.unit_name' => 'required|string|max:255',
-            'units.*.unit_quantity' => 'required|integer|min:1',
-            'units.*.unit_barcode' => 'required|string|max:255',
-            'units.*.price' => 'required|numeric',
-            'units.*.wholesale' => 'required|numeric',
-            'units.*.cost_price' => 'nullable|numeric',
-        ]);
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'category_id' => 'nullable|exists:categories,id',
+        'barcode' => 'nullable|string|max:255',
+        'sku' => 'nullable|string|max:255',
+        'description' => 'nullable|string',
+        'image' => 'nullable|image|max:2048',
+        'units' => 'required|array|min:1',
+        'is_active' => 'required|boolean',
+        'units.*.unit_name' => 'required|string|max:255',
+        'units.*.unit_quantity' => 'required|integer|min:1',
+        'units.*.unit_barcode' => 'required|string|max:255',
+        'units.*.price' => 'required|numeric',
+        'units.*.wholesale' => 'required|numeric',
+        'units.*.cost_price' => 'nullable|numeric',
+    ]);
 
-        // อัปเดตข้อมูลสินค้า
-        if ($request->hasFile('image')) {
-            if ($product->image) {
-                Storage::disk('public')->delete($product->image);
-            }
-            $validated['image'] = $request->file('image')->store('products', 'public');
+    // จัดการรูปภาพ
+    if ($request->hasFile('image')) {
+        if ($product->image) {
+            Storage::disk('public')->delete($product->image);
         }
-
-        $product->update($validated);
-
-        // อัปเดตหน่วยนับ
-        foreach ($request->units as $unitData) {
-            // แปลงชื่อ unit_barcode ให้กลายเป็น barcode ที่ model ใช้
-            $unitData['barcode'] = $unitData['unit_barcode'];
-            unset($unitData['unit_barcode']);
-
-            if (isset($unitData['id'])) {
-                // อัปเดตหน่วยที่มีอยู่
-                $unit = ProductUnit::findOrFail($unitData['id']);
-                $unit->update($unitData);
-            } else {
-                // เพิ่มหน่วยใหม่
-                ProductUnit::create(array_merge($unitData, ['product_id' => $product->id]));
-            }
-        }
-
-
-        return redirect()->route('product.product.index')->with('success', 'อัปเดตข้อมูลสินค้าสำเร็จ');
+        $validated['image'] = $request->file('image')->store('products', 'public');
     }
+
+    // อัปเดตข้อมูลสินค้า
+    $product->update($validated);
+
+    // ✅ ลบหน่วยนับที่ถูกลบจากฟอร์ม
+    $unitIdsInForm = collect($request->units)->pluck('id')->filter()->all();
+    $product->productUnits()->whereNotIn('id', $unitIdsInForm)->delete();
+
+    // อัปเดตหรือเพิ่มหน่วยนับ
+    foreach ($request->units as $unitData) {
+        $unitData['barcode'] = $unitData['unit_barcode'];
+        unset($unitData['unit_barcode']);
+
+        if (isset($unitData['id'])) {
+            $unit = ProductUnit::findOrFail($unitData['id']);
+            $unit->update($unitData);
+        } else {
+            ProductUnit::create(array_merge($unitData, ['product_id' => $product->id]));
+        }
+    }
+
+    return redirect()->route('product.product.index')->with('success', 'อัปเดตข้อมูลสินค้าสำเร็จ');
+}
+
 
     // ลบสินค้า
     public function destroy($id)
@@ -231,7 +233,7 @@ public function addStockMulti(Request $request)
             }
 
             $productStock->save();
-
+            $isFree = isset($item['is_free']) && $item['is_free'] == 1;
             // เก็บการเคลื่อนไหวสต็อก
             ProductStockMovement::create([
                 'product_id' => $item['product_id'],
@@ -240,6 +242,7 @@ public function addStockMulti(Request $request)
                 'unit_id' => $item['unit_id'],
                 'unit' => $item['unit_name'],
                 'unit_quantity' => $item['unit_quantity'],
+                 'is_free' => $isFree,
                 'note' => $item['note'] ?? '',
                 'location' => $item['location'],
             ]);
