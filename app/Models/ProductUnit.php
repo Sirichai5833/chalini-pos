@@ -39,4 +39,12 @@ public function productStocks()
     return $this->hasMany(ProductStocks::class, 'product_id'); // ← ตรวจว่า product_stocks มี column นี้ไหม
 }
 
+// ใน App\Models\ProductUnit.php
+public function stock()
+{
+    return $this->hasOne(ProductStocks::class, 'unit_id', 'id');
+}
+
+
+
 }

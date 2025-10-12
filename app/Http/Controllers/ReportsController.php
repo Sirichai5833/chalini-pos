@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash; // เพิ่มบรรทัดนี�
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Order;
+use Illuminate\Support\Collection;
 
 class ReportsController extends Controller
 {
@@ -18,41 +19,25 @@ class ReportsController extends Controller
     {
 
 
-        // รับค่า filter จาก GET request
-        $reportType = $request->input('report_type', 'daily');  // daily, monthly, yearly
-        $reportDate = $request->input('report_date', date('Y-m-d'));
+        $startDate = $request->input('start_date', date('Y-m-d'));
+$endDate = $request->input('end_date', date('Y-m-d'));
+
 
         // เริ่ม query รายการขาย พร้อม join พนักงาน
         $query = Sale::with('staff')->orderBy('sale_date', 'desc');
 
 
         // ดึงคำสั่งซื้อออนไลน์ที่ 'เสร็จสิ้น' ตามช่วงเวลาเดียวกัน
-        $onlineOrders = Order::where('status', 'เสร็จสิ้น');
+       $onlineOrders = Order::where('status', 'เสร็จสิ้น')
+    ->whereBetween('created_at', [$startDate, $endDate])
+    ->get();
 
-        if ($reportType === 'daily') {
-            $onlineOrders->whereDate('created_at', $reportDate);
-        } elseif ($reportType === 'monthly') {
-            $year = date('Y', strtotime($reportDate));
-            $month = date('m', strtotime($reportDate));
-            $onlineOrders->whereYear('created_at', $year)->whereMonth('created_at', $month);
-        } elseif ($reportType === 'yearly') {
-            $year = date('Y', strtotime($reportDate));
-            $onlineOrders->whereYear('created_at', $year);
-        }
 
-        $onlineOrders = $onlineOrders->get();
+      $query->whereBetween('sale_date', [$startDate, $endDate]);
 
-        // กรองตามประเภทช่วงเวลา
-        if ($reportType === 'daily') {
-            $query->whereDate('sale_date', $reportDate);
-        } elseif ($reportType === 'monthly') {
-            $year = date('Y', strtotime($reportDate));
-            $month = date('m', strtotime($reportDate));
-            $query->whereYear('sale_date', $year)->whereMonth('sale_date', $month);
-        } elseif ($reportType === 'yearly') {
-            $year = date('Y', strtotime($reportDate));
-            $query->whereYear('sale_date', $year);
-        }
+
+
+
 
         $sales = $query->get();
         // จัดกลุ่มยอดขายสำหรับกราฟ
@@ -75,14 +60,20 @@ class ReportsController extends Controller
         }
 
         // จัดกลุ่มข้อมูลตามช่วงเวลา
-        $groupedChartData = $allSalesForChart->groupBy(function ($item) use ($reportType) {
-            return match ($reportType) {
-                'daily' => \Carbon\Carbon::parse($item['datetime'])->format('H:00'),
-                'monthly' => \Carbon\Carbon::parse($item['datetime'])->format('d M'),
-                'yearly' => \Carbon\Carbon::parse($item['datetime'])->format('M Y'),
-                default => 'N/A',
-            };
-        });
+      $groupedChartData = $allSalesForChart->groupBy(function ($item) use ($startDate, $endDate) {
+    $start = \Carbon\Carbon::parse($startDate);
+    $end = \Carbon\Carbon::parse($endDate);
+    $diffInDays = $start->diffInDays($end);
+
+    if ($diffInDays <= 1) {
+        return \Carbon\Carbon::parse($item['datetime'])->format('H:00');
+    } elseif ($diffInDays <= 31) {
+        return \Carbon\Carbon::parse($item['datetime'])->format('d M');
+    } else {
+        return \Carbon\Carbon::parse($item['datetime'])->format('M Y');
+    }
+});
+
 
         $chartLabels = $groupedChartData->keys();
         $chartData = $groupedChartData->map(function ($items) {
@@ -94,20 +85,24 @@ class ReportsController extends Controller
         $onlineSalesTotal = $onlineOrders->sum('total_amount');
         $totalSales += $onlineSalesTotal;
 
-
+         $categoryId = $request->input('category_id');
         // ดึงข้อมูลสินค้าขายดี (sum quantity และยอดขาย) จาก sale_items ที่อยู่ในช่วง sales นี้
-        $topProducts = DB::table('sale_items')
-            ->join('product_units', 'sale_items.product_unit_id', '=', 'product_units.id')
-            ->join('products', 'product_units.product_id', '=', 'products.id')
-            ->select(
-                'products.name',
-                DB::raw('SUM(sale_items.quantity) as total_quantity'),
-                DB::raw('SUM(sale_items.quantity * sale_items.price) as total_sales')
-            )
-            ->whereIn('sale_items.sale_id', $sales->pluck('id'))
-            ->groupBy('products.name')
-            ->orderByDesc('total_quantity')
-            ->get();
+      $topProducts = DB::table('sale_items')
+    ->join('product_units', 'sale_items.product_unit_id', '=', 'product_units.id')
+    ->join('products', 'product_units.product_id', '=', 'products.id')
+    ->when($categoryId, function ($query) use ($categoryId) {
+        $query->where('products.category_id', $categoryId);
+    })
+    ->select(
+        'products.name',
+        DB::raw('SUM(sale_items.quantity) as total_quantity'),
+        DB::raw('SUM(sale_items.quantity * sale_items.price) as total_sales')
+    )
+    ->whereIn('sale_items.sale_id', $sales->pluck('id'))
+    ->groupBy('products.name')
+    ->orderByDesc('total_quantity')
+    ->get();
+
 
 
         $freeItems = DB::table('sale_items')
@@ -117,9 +112,15 @@ class ReportsController extends Controller
     ->whereIn('sale_items.sale_id', $sales->pluck('id'))
     ->get();
 
-        $topOnlineProducts = DB::table('order_items')
+       $categoryId = $request->input('category_id');
+
+// ดึง topOnlineProducts แบบกรองตาม category_id ถ้ามี
+$topOnlineProducts = DB::table('order_items')
     ->join('product_units', 'order_items.product_unit_id', '=', 'product_units.id')
     ->join('products', 'product_units.product_id', '=', 'products.id')
+    ->when($categoryId, function ($query) use ($categoryId) {
+        $query->where('products.category_id', $categoryId);
+    })
     ->select(
         'products.name',
         DB::raw('SUM(order_items.quantity) as total_quantity'),
@@ -129,6 +130,28 @@ class ReportsController extends Controller
     ->groupBy('products.name')
     ->orderByDesc('total_quantity')
     ->get();
+
+// ดึงหมวดหมู่ทั้งหมดไว้ใน dropdown
+$categories = DB::table('categories')->get(); // หรือ Model::all() ถ้ามี Category model
+
+
+    $topProductsByCategory = DB::table('sale_items')
+    ->join('product_units', 'sale_items.product_unit_id', '=', 'product_units.id')
+    ->join('products', 'product_units.product_id', '=', 'products.id')
+    ->join('categories', 'products.category_id', '=', 'categories.id')
+    ->select(
+        'categories.name as category_name',
+        'products.name as product_name',
+        DB::raw('SUM(sale_items.quantity) as total_quantity'),
+        DB::raw('SUM(sale_items.quantity * sale_items.price) as total_sales')
+    )
+    ->whereIn('sale_items.sale_id', $sales->pluck('id'))
+    ->groupBy('categories.name', 'products.name')
+    ->orderBy('categories.name')
+    ->orderByDesc('total_quantity')
+    ->get()
+    ->groupBy('category_name');
+
 
     // ดึงยอดขายจาก sale_items แยกตาม product_unit_id
 $saleItemsQty = DB::table('sale_items')
@@ -189,21 +212,61 @@ foreach ($totalItemsQty as $productUnitId => $qty) {
 
 $netProfit = $totalSales - $totalCost; // ✅ เพิ่มตรงนี้
 
+// รวมรายการสินค้าขายดีจากหน้าร้านและออนไลน์
+$combinedTopProducts = collect();
+
+// เพิ่มรายการจากหน้าร้าน
+foreach ($topProducts as $item) {
+    $combinedTopProducts->push([
+        'name' => $item->name,
+        'total_quantity' => $item->total_quantity,
+        'total_sales' => $item->total_sales,
+    ]);
+}
+
+// เพิ่มรายการจากออนไลน์
+foreach ($topOnlineProducts as $item) {
+    $combinedTopProducts->push([
+        'name' => $item->name,
+        'total_quantity' => $item->total_quantity,
+        'total_sales' => $item->total_sales,
+    ]);
+}
+
+// รวมยอดขายและจำนวนตามชื่อสินค้า
+// รวมยอดขายและจำนวนตามชื่อสินค้า
+$topAllProducts = $combinedTopProducts
+    ->groupBy('name')
+    ->map(function ($items, $name) {
+        return [
+            'name' => $name,
+            'total_quantity' => $items->sum('total_quantity'),
+            'total_sales' => $items->sum('total_sales'),
+        ];
+    })
+    ->values()
+    ->sortByDesc('total_quantity')
+    ->take(10);
 
 
 
         // ส่งข้อมูลไปยัง view
         return view('reports.daily', compact(
-            'sales',
-            'totalSales',
-            'topProducts',
-            'chartLabels',
-            'chartData',
-            'totalCost',
-            'netProfit',
-            'onlineSalesTotal',
-            'onlineOrders',
-            'topOnlineProducts',
-        ));
+    'sales',
+    'totalSales',
+    'topProducts',
+    'chartLabels',
+    'chartData',
+    'totalCost',
+    'netProfit',
+    'onlineSalesTotal',
+    'onlineOrders',
+    'topOnlineProducts',
+    'startDate',
+    'endDate',
+    'topProductsByCategory',
+    'categories', 
+    'topAllProducts',
+));
     }
 }

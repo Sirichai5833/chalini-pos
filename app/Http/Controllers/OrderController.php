@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\ProductStocks;
+
 class OrderController extends Controller
 {
     public function checkout()
@@ -27,10 +28,10 @@ class OrderController extends Controller
         DB::beginTransaction();
 
         try {
-             $slipPath = null;
-        if ($request->hasFile('slip')) {
-            $slipPath = $request->file('slip')->store('slips', 'public');
-        }
+            $slipPath = null;
+            if ($request->hasFile('slip')) {
+                $slipPath = $request->file('slip')->store('slips', 'public');
+            }
 
             $order = new Order();
             $order->order_code = 'ORD' . strtoupper(uniqid());
@@ -62,59 +63,110 @@ class OrderController extends Controller
     public function track()
     {
         // ดึงคำสั่งซื้อทั้งหมดของผู้ใช้ที่ล็อกอิน
-         $orders = Order::with(['orderItems.product', 'user'])
-        ->whereNotIn('status', ['เสร็จสิ้น', 'ยกเลิก'])
-        ->orderBy('created_at', 'desc')
-        ->paginate(10);
+        $orders = Order::with(['orderItems.product', 'user'])
+            ->whereNotIn('status', ['เสร็จสิ้น', 'ยกเลิก'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
 
         return view('online.track', compact('orders'));
     }
 
-   public function ordersList()
-{
-    $orders = Order::with(['orderItems.product', 'user'])
-        ->whereNotIn('status', ['เสร็จสิ้น', 'ยกเลิก'])
-        ->orderBy('created_at', 'desc')
-        ->paginate(10);
+    public function ordersList()
+    {
+        $orders = Order::with(['orderItems.product', 'user'])
+            ->whereNotIn('status', ['เสร็จสิ้น', 'ยกเลิก', 'กำลังจัดส่ง'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
 
-    return view('sale.order', compact('orders'));
-}
-
-public function updateStatus(Request $request, Order $order)
-{
-    $request->validate([
-        'status' => 'required|string',
-    ]);
-
-    $oldStatus = $order->status;
-    $newStatus = $request->status;
-
-    if ($oldStatus !== 'ยกเลิก' && $newStatus === 'ยกเลิก') {
-        foreach ($order->orderItems as $item) {
-            if ($item->productUnit) {
-                $stock = ProductStocks::where('product_id', $item->productUnit->product_id)->first();
-                if ($stock) {
-                    // คืนสินค้าเข้า warehouse หรือ store ตามต้องการ
-                    $stock->increment('warehouse_stock', $item->quantity);
-                }
-            }
-        }
+        return view('sale.order', compact('orders'));
     }
 
-    $order->update(['status' => $newStatus]);
-
-    return redirect()->back()->with('success', 'อัปเดตสถานะเรียบร้อยแล้ว');
-}
-
-
-public function orderHistory()
+    public function updateStatus(Request $request, $id)
 {
-    $orders = Order::with(['orderItems.product', 'user'])
-        ->whereIn('status', ['เสร็จสิ้น', 'ยกเลิก'])
-        ->orderBy('created_at', 'desc')
-        ->paginate(10);
+    $order = Order::findOrFail($id);
 
-    return view('sale.order-history', compact('orders'));
+    $request->validate([
+        'status' => 'required|string',
+        'proof_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        'cancel_reason' => 'nullable|string|max:500',
+    ]);
+
+    // ถ้าเสร็จสิ้นต้องมีรูป
+    if ($request->status === 'เสร็จสิ้น' && !$request->hasFile('proof_image')) {
+        return back()->with('error', 'กรุณาแนบรูปหลักฐาน!');
+    }
+
+    // ถ้ายกเลิกต้องมีหมายเหตุ
+    if ($request->status === 'ยกเลิก' && !$request->cancel_reason) {
+        return back()->with('error', 'กรุณากรอกหมายเหตุการยกเลิก!');
+    }
+
+    if ($request->hasFile('proof_image')) {
+        $filePath = $request->file('proof_image')->store('proofs', 'public');
+        $order->proof_image = $filePath;
+    }
+
+    if ($request->cancel_reason) {
+        $order->cancel_reason = $request->cancel_reason;
+    }
+
+    $order->status = $request->status;
+    $order->save();
+
+    return back()->with('success', 'อัปเดตสถานะสำเร็จ!');
 }
 
+
+
+    public function orderHistory()
+    {
+        $orders = Order::with(['orderItems.product', 'user'])
+            ->whereIn('status', ['เสร็จสิ้น', 'ยกเลิก'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return view('sale.order-history', compact('orders'));
+    }
+
+    public function acceptOrder($id)
+    {
+        $order = Order::findOrFail($id);
+
+        if ($order->assigned_to && $order->assigned_to !== Auth::id()) {
+            return redirect()->back()->with('error', 'ออเดอร์นี้ถูกรับโดยพนักงานคนอื่นแล้ว');
+        }
+
+        $order->assigned_to = Auth::id();
+        $order->status = 'กำลังดำเนินการ';
+        $order->save();
+
+        return redirect()->route('orders.my')->with('success', 'รับออเดอร์เรียบร้อยแล้ว');
+    }
+
+
+    public function myOrders()
+    {
+        $orders = Order::with(['user', 'orderItems.product', 'orderItems.productUnit'])
+            ->where('assigned_to', Auth::id())
+            ->whereNotIn('status', ['เสร็จสิ้น', 'ยกเลิก'])
+            ->orderBy('created_at', 'asc') // เรียงจากเก่ามากไปใหม่
+            ->latest()
+            ->get();
+
+        return view('sale.show-order', compact('orders'));
+    }
+
+
+
+    public function show($id)
+    {
+        $order = Order::with(['user', 'orderItems.product', 'orderItems.productUnit'])->findOrFail($id);
+
+        // ตรวจสอบว่า user คนนี้เป็นคนรับออเดอร์หรือไม่
+        if ($order->assigned_to !== Auth::id()) {
+            abort(403, 'คุณไม่มีสิทธิ์ดูคำสั่งซื้อนี้');
+        }
+
+        return view('sale.show-order', compact('order'));
+    }
 }

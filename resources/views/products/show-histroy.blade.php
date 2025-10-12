@@ -64,14 +64,45 @@
                         </td>
                         <td>{{ $activity->causer?->name ?? 'System' }}</td>
                         <td>
-                            <ul>
-                                @foreach ($activity->properties['attributes'] ?? [] as $key => $value)
-                                    @php $old = $activity->properties['old'][$key] ?? null; @endphp
-                                    <li><strong>{{ $key }}</strong>: {{ $old ?? '-' }} → <span
-                                            class="text-success">{{ $value }}</span></li>
-                                @endforeach
-                            </ul>
-                        </td>
+    <ul class="list-unstyled mb-0">
+        @foreach ($activity->properties['attributes'] ?? [] as $key => $value)
+            @php
+                $old = $activity->properties['old'][$key] ?? null;
+                $isChanged = $old !== $value;
+            @endphp
+            <li>
+    <strong>{{ ucfirst($key) }}</strong>:
+    @if ($key === 'image' && $value)
+        <br>
+        @php
+            $oldImg = $activity->properties['old']['image'] ?? null;
+        @endphp
+        @if ($oldImg && $oldImg !== $value)
+            <div class="mb-1">
+                <span class="text-muted text-decoration-line-through">เก่า</span><br>
+                <img src="{{ asset('storage/' . $oldImg) }}" style="max-width: 100px; max-height: 80px;">
+            </div>
+        @endif
+        <div>
+            <span class="text-success">ใหม่</span><br>
+            <img src="{{ asset('storage/' . $value) }}" style="max-width: 100px; max-height: 80px;">
+        </div>
+    @else
+        @php $old = $activity->properties['old'][$key] ?? null; @endphp
+        @if ($old !== $value)
+            <span class="text-muted text-decoration-line-through">{{ $old ?? '-' }}</span>
+            <i class="bi bi-arrow-right mx-1"></i>
+            <span class="text-success">{{ $value }}</span>
+        @else
+            <span>{{ $value }}</span>
+        @endif
+    @endif
+</li>
+
+        @endforeach
+    </ul>
+</td>
+
                     </tr>
                 @endforeach
             </tbody>

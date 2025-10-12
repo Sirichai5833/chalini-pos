@@ -14,6 +14,7 @@ class ProductBatch extends Model
         'product_id',
         'quantity',
         'expiry_date',
+        'product_unit_id', // เพิ่ม product_unit_id
         'batch_code', // เพิ่ม batch_code
     ];
 
@@ -27,4 +28,15 @@ class ProductBatch extends Model
     {
         return $this->belongsTo(Product::class);
     }
+    public function productUnit()
+{
+    return $this->belongsTo(ProductUnit::class, 'product_unit_id');
+}
+
+public function stocks()
+{
+    return $this->hasMany(ProductStocks::class, 'product_id');
+}
+
+
 }

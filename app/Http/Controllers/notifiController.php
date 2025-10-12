@@ -4,38 +4,42 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductBatch;
+use App\Models\ProductStocks;
 use Illuminate\Http\Request;
 
 class NotifiController extends Controller
 {
     // แสดงสินค้าคงคลังใกล้หมด
-    public function lowStock()
+public function lowStock()
 {
-    // ดึงเฉพาะสินค้าใกล้หมด (ไม่ต้องแสดงทุกหน่วย)
-    $products = Product::with('stock')
-        ->whereHas('stock', function ($query) {
+    // ดึงข้อมูล stock แยกตาม product + unit ที่ stock ต่ำกว่าเกณฑ์
+    $stocks = ProductStocks::with(['product', 'unit'])
+        ->where(function ($query) {
             $query->where('warehouse_stock', '<', 10)
                   ->orWhere('store_stock', '<', 5);
         })
-        ->get()
-        ->map(function ($product) {
-            return (object)[
-                'name' => $product->name,
-                'warehouse_stock' => $product->stock->warehouse_stock ?? 0,
-                'store_stock' => $product->stock->store_stock ?? 0,
-            ];
-        });
+        ->get();
 
-    return view('notification.OutStock', ['lowStockProducts' => $products]);
+    $lowStockProducts = $stocks->map(function ($stock) {
+        return (object)[
+            'product_name' => $stock->product->name,
+            'unit_name' => $stock->unit->unit_name ?? '-',
+            'warehouse_stock' => $stock->warehouse_stock,
+            'store_stock' => $stock->store_stock,
+        ];
+    });
+
+    return view('notification.OutStock', ['lowStockProducts' => $lowStockProducts]);
 }
 
 
 
+
     // แสดงสินค้าใกล้หมดอายุ
-   public function nearExpiry()
+  public function nearExpiry()
 {
-    $nearExpiryProducts = ProductBatch::with('product')
-        ->where('is_acknowledged', false) // ✅ เพิ่มบรรทัดนี้
+    $nearExpiryProducts = ProductBatch::with(['product', 'productUnit'])
+        ->where('is_acknowledged', false)
         ->whereDate('expiry_date', '<=', now()->addDays(30))
         ->orderBy('expiry_date')
         ->get()
@@ -46,11 +50,13 @@ class NotifiController extends Controller
                 'quantity' => $batch->quantity,
                 'expiry_date' => $batch->expiry_date,
                 'batch_code' => $batch->batch_code,
+                'unit_name' => $batch->productUnit->unit_name ?? '-',
             ];
         });
 
     return view('notification.expire', compact('nearExpiryProducts'));
 }
+
 
 
 public function acknowledgeExpiry($id)

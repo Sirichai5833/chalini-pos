@@ -18,6 +18,9 @@ class Order extends Model
         'tracking_number',
         'order_date',
         'total_amount',
+        'proof_image',
+        'assigned_to',
+        'cancel_reason',
     ];
      public function items()
     {

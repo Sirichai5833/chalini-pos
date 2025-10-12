@@ -3,7 +3,7 @@
 @section('content')
 <style>
     body {
-        background: url('/images/blur-bg.jpg') no-repeat center center fixed;
+        background: url('/images/bg-login.jpg') no-repeat center center fixed;
         background-size: cover;
         min-height: 100vh;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -15,7 +15,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        backdrop-filter: blur(8px);
+        backdrop-filter: blur(5px);
         background-color: rgba(255, 255, 255, 0.15);
         z-index: 1; /* ปล่อยให้ทับพื้นหลัง */
     }

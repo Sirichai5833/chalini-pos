@@ -31,6 +31,9 @@
                 <div class="mb-3">
                     <label for="name" class="form-label">ชื่อสมาชิก</label>
                     <input type="text" name="name" id="name" class="form-control" value="{{ old('name', $member->name) }}" required>
+                    @error('name')
+                        <div class="text-danger">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <!-- อีเมล -->
@@ -47,6 +50,12 @@
                 <div class="mb-3">
                     <label for="password" class="form-label">รหัสผ่าน (ถ้าต้องการเปลี่ยน)</label>
                     <input type="password" name="password" id="password" class="form-control" placeholder="กรอกเพื่อเปลี่ยนรหัสผ่าน">
+                     <small class="text-muted d-block mt-1">
+                        รหัสผ่านต้องมีอย่างน้อย 8 ตัว, ตัวอักษรพิมพ์ใหญ่ 1 ตัว และอักขระพิเศษอย่างน้อย 1 ตัว เช่น @#$%
+                    </small>
+                    @error('password')
+                        <div class="text-danger">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <!-- เลขห้อง -->

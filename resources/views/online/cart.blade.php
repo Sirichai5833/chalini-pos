@@ -191,13 +191,40 @@
         </tbody>
         </table>
     </div>
+    @if (!empty($outOfStockItems))
+    <div class="alert alert-warning">
+        <strong>❗ สินค้าบางรายการจำนวนในสต็อกไม่พอ กรุณาปรับจำนวนก่อนชำระเงิน:</strong>
+        <ul>
+            @foreach ($outOfStockItems as $item)
+                <li>{{ $item['name'] }} — สต็อกเหลือแค่ {{ $item['available'] }}, คุณเลือก {{ $item['requested'] }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 
     <div class="d-flex justify-content-end mt-4 mb-5">
         <div class="text-end">
             <h5 class="mb-3">ยอดรวมทั้งหมด: <strong class="text-orange">{{ number_format($total, 2) }}</strong> บาท</h5>
-            <a href="{{ route('online.checkout.form', ['total' => $total]) }}" class="btn btn-orange px-4 py-2">
-                <i class="bi bi-wallet2 me-1"></i> ไปชำระเงิน
-            </a>
+            @if (empty($outOfStockItems))
+    @if (empty($cart) || $total <= 0)
+    <button class="btn btn-secondary px-4 py-2" disabled>
+        ไม่มีสินค้าในตะกร้า
+    </button>
+@elseif (!empty($outOfStockItems))
+    <button class="btn btn-secondary px-4 py-2" disabled>
+        สินค้าไม่พอในสต็อก
+    </button>
+@else
+    <a href="{{ route('online.checkout.form', ['total' => $total]) }}" class="btn btn-orange px-4 py-2">
+        <i class="bi bi-wallet2 me-1"></i> ไปชำระเงิน
+    </a>
+@endif
+@else
+    <button class="btn btn-secondary px-4 py-2" disabled>
+        สินค้าไม่พอในสต็อก
+    </button>
+@endif
+
         </div>
     </div>
     </div>

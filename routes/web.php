@@ -31,14 +31,18 @@ use App\Models\ProductUnit;
 use App\Http\Controllers\notifiController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Livewire\LowStockProducts;
+use Carbon\Carbon;
+
 
 // 👤 Guest Routes (เส้นทางสำหรับผู้เยี่ยมชม)
 Route::middleware('guest')->group(function () {
-    Route::get('/', [AuthController::class, 'loginPage'])->name('login'); // หน้าเข้าสู่ระบบ
-    Route::post('/login', [AuthController::class, 'login']); // ทำการเข้าสู่ระบบ
+   Route::get('/login', [AuthController::class, 'loginPage'])->name('login');
+Route::post('/login', [AuthController::class, 'login']);
     Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request'); // ลืมรหัสผ่าน
     Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email'); // ส่งอีเมลรีเซ็ตรหัสผ่าน
 });
+
+
 
 Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset'); // แสดงฟอร์มรีเซ็ตรหัสผ่าน
 Route::post('/reset-password', [ResetPasswordController::class, 'reset']); // รีเซ็ตรหัสผ่าน
@@ -139,6 +143,13 @@ Route::middleware('auth')->group(function () {
         Route::delete('/delete/{category}', [CategoryController::class, 'destroy'])->name('delete'); // ลบหมวดหมู่
     });
 
+    Route::post('/orders/{id}/accept', [OrderController::class, 'acceptOrder'])->name('orders.accept');
+Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
+Route::get('/my-orders', [OrderController::class, 'myOrders'])->name('orders.my');
+Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
+
+
+
     Route::prefix('units')->name('units.')->group(function () {
         Route::get('/', [UnitController::class, 'index'])->name('index'); // หน้าแสดงรายการหน่วยนับ
         Route::get('/create', [UnitController::class, 'create'])->name('create'); // หน้าเพิ่มหน่วยนับ
@@ -159,34 +170,15 @@ Route::middleware('auth')->group(function () {
         // Route เพิ่มสินค้า
         Route::post('storeWithUnit', [ProductController::class, 'storeWithUnit'])->name('product.storeWithUnit');
         Route::put('product/{product}/update-with-unit', [ProductController::class, 'updateWithUnit'])->name('updateWithUnit');
+        Route::get('/products/stock-in-history/export', [ProductController::class, 'exportStockInHistory'])->name('stock-in-export');
         Route::get('/products/add-stock', [ProductController::class, 'showAddStockForm'])->name('products.add-stock-form');
         Route::post('/products/add-stock', [ProductController::class, 'storeStock'])->name('products.add-stock');
         Route::post('/products/add-stock-multi', [ProductController::class, 'addStockMulti'])->name('products.add-stock-multi');
         Route::get('/products/indexstock', [ProductController::class, 'indexstock'])->name('indexstock');
         // แก้ route นี้
         // Route ใน web.php
-        Route::get('/barcode/{barcode}', function ($barcode) {
-            $unit = ProductUnit::where('barcode', $barcode)->first();
+        Route::get('/barcode/{barcode}', [BarcodeController::class, 'showByBarcode'])->name('barcode.lookup');
 
-            if ($unit) {
-                $product = $unit->product;
-                return response()->json([
-                    'success' => true,
-                    'product' => [
-                        'id' => $product->id,
-                        'name' => $product->name,
-                        'unit_id' => $unit->id,
-                        'unit_name' => $unit->unit_name,
-                        'price' => $unit->price,
-                        'wholesale' => $unit->wholesale,
-                        'barcode' => $unit->barcode,
-                        'quantity_per_unit' => $unit->unit_quantity, // ✅ เพิ่มตัวนี้
-                    ]
-                ]);
-            }
-
-            return response()->json(['success' => false]);
-        });
         Route::get('/barcodes', [BarcodeController::class, 'index'])->name('barcodes.index');
 
         // routes/web.php
@@ -209,6 +201,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('members')->name('members.')->group(function () {
         Route::get('/index', [MemberController::class, 'index'])->name('index'); // บันทึกสมาชิก
         Route::get('/create', [MemberController::class, 'create'])->name('create'); // หน้าเพิ่มสมาชิก
+      Route::post('/members/set-floors', [MemberController::class, 'setFloors'])->name('members.setFloors');
         Route::post('/', [MemberController::class, 'store'])->name('store'); // บันทึกสมาชิก
         Route::get('{member}', [MemberController::class, 'show'])->name('show'); // แสดงรายละเอียดสมาชิก
         Route::get('{member}/edit', [MemberController::class, 'edit'])->name('edit'); // หน้าแก้ไขสมาชิก

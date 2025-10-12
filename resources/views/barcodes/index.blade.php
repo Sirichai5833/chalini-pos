@@ -32,7 +32,7 @@
             </td>
             <td>
                 <button
-                    onclick="printBarcode({{ $unit->id }}, '{{ $unit->barcode }}', '{{ $product->name }}')"
+                    onclick="printBarcode({{ $unit->id }}, '{{ $unit->barcode }}', '{{ $product->name }}', '{{ $unit->unit_name }}')"
                     class="btn btn-secondary">
                     🖨️ พิมพ์
                 </button>
@@ -78,7 +78,7 @@
 
         });
 
-        function printBarcode(productId, code, name) {
+        function printBarcode(productId, code, name, unit) {
             const svg = document.getElementById(`barcode-${productId}`);
             const svgClone = svg.cloneNode(true);
 
@@ -93,17 +93,26 @@
             printWindow.document.write(`
         <html>
             <head>
-                <title>พิมพ์บาร์โค้ด</title>
                 <style>
-                    body { text-align: center; font-family: sans-serif; margin-top: 40px; }
-                    img { max-width: 100%; height: auto; margin-bottom: 10px; }
-                    p { font-size: 18px; }
-                </style>
+                   body {
+                text-align: center;
+                font-family: sans-serif;
+                margin-top: 10px;
+            }
+            img {
+                max-width: 100%;
+                height: auto;
+                margin-bottom: 1px; /* ลดระยะห่างลง */
+            }
+            p {
+                font-size: 18px;
+                margin: 2px 0; /* ลด margin บน-ล่าง ให้พอดี */
+            }
+        </style>
             </head>
             <body>
-                <h3>บาร์โค้ดสินค้า</h3>
                 <img src="${url}" />
-                <p>${name}</p>
+                <p>${name} / ${unit}</p>
                 <p>${code}</p>
                 <script>
                     window.onload = function() {

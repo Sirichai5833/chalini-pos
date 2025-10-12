@@ -52,7 +52,10 @@ class AppServiceProvider extends ServiceProvider
             )->count();
 
         // สินค้าใกล้หมดอายุ (ใน 30 วัน)
-        $expireCount = ProductBatch::whereDate('expiry_date', '<=', now()->addDays(30))->count();
+       $expireCount = ProductBatch::where('is_acknowledged', false)
+    ->whereDate('expiry_date', '<=', now()->addDays(30))
+    ->count();
+
 
         $view->with('lowStockCount', $lowStockCount)
              ->with('expireCount', $expireCount);

@@ -35,6 +35,11 @@ class Product extends Model
     return $this->hasOne(ProductStocks::class); 
 }
 
+public function images()
+{
+    return $this->hasMany(ProductImage::class);
+}
+
     public function stockMovements()
     {
         return $this->hasMany(ProductStockMovementsTable::class);

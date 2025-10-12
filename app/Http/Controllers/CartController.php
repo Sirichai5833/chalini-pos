@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\ProductStocks;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use App\Models\ProductUnit;
 class CartController extends Controller
 {
     public function add(Request $request)
@@ -61,26 +63,47 @@ class CartController extends Controller
     }
     
 
-    public function index()
-    {
-        $cart = session('cart', []);
-        $total = collect($cart)->sum(fn($item) => $item['price'] * $item['quantity']);
+public function index()
+{
+    $cart = session('cart', []);
+    $total = 0;
+    $outOfStockItems = [];
 
-        return view('online.cart', compact('cart', 'total'));
+    foreach ($cart as $key => $item) {
+        $total += $item['price'] * $item['quantity'];
+
+        // ดึง stock พร้อมโหลด unit
+        $stocks = ProductStocks::with('unit')
+            ->where('product_id', $item['product_id'])
+            ->get();
+
+        $totalAvailableInPieces = 0;
+
+        foreach ($stocks as $stock) {
+            $unitQuantity = optional($stock->unit)->unit_quantity ?? 1;
+            $totalAvailableInPieces += $stock->store_stock * $unitQuantity;
+        }
+
+        $selectedUnitQuantity = optional(
+            ProductUnit::find($item['product_unit_id'])
+        )->unit_quantity ?? 1;
+
+        $requestedInPieces = $item['quantity'] * $selectedUnitQuantity;
+
+        if ($requestedInPieces > $totalAvailableInPieces) {
+            $outOfStockItems[$key] = [
+                'name' => $item['name'],
+                'requested' => $requestedInPieces,
+                'available' => $totalAvailableInPieces,
+            ];
+        }
     }
 
-    public function checkout(Request $request) {
-    $total = $request->query('total', 0); // ค่า default เป็น 0 เผื่อไม่มีส่งมา
-    
-    if ($total <= 0) {
-        // ถ้าตะกร้าว่าง ให้กลับไปหน้าตะกร้า พร้อมแจ้ง error
-        return redirect()->route('online.cart')->with('error', 'ไม่มีสินค้าในตะกร้า กรุณาเลือกสินค้าก่อนชำระเงิน');
-    }
-
-    $member = Auth::user(); // หรือดึงข้อมูลสมาชิกตาม logic ของคุณ
-
-    return view('online.checkout', compact('total', 'member'));
+    return view('online.cart', compact('cart', 'total', 'outOfStockItems'));
 }
+
+
+
 
 
 }

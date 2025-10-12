@@ -113,18 +113,34 @@
     });
 
     function setupBarcodeScanner() {
-        let barcode = '';
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                if (barcode.trim()) {
-                    addProductByBarcode(barcode.trim());
-                    barcode = '';
-                }
-            } else {
-                barcode += e.key;
+    let barcode = '';
+    let lastTime = Date.now();
+
+    document.addEventListener('keydown', (e) => {
+        // ✅ ข้ามถ้า user กำลังพิมพ์ใน input/textarea
+        const tag = e.target.tagName.toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
+
+        const currentTime = Date.now();
+        const timeDiff = currentTime - lastTime;
+
+        if (timeDiff > 100) {
+            barcode = ''; // reset ถ้าห่างเกินไป
+        }
+
+        if (e.key === 'Enter') {
+            if (barcode.trim()) {
+                addProductByBarcode(barcode.trim());
+                barcode = '';
             }
-        });
-    }
+        } else {
+            barcode += e.key;
+        }
+
+        lastTime = currentTime;
+    });
+}
+
 
    function addProductByBarcode(barcode) {
     const product = productCatalog.find(p => p.barcode === barcode);
@@ -293,14 +309,16 @@ function removeProduct(index) {
     }
 
     function clearCart() {
-        products = [];
-        renderProductList();
-        updateTotalAmount();
-        updateQRCode();
-        document.getElementById('cash').value = '';
-        document.getElementById('change').value = '';
-        document.getElementById('qrImage').style.display = 'none';
-        document.getElementById('confirmQRButton').classList.add('d-none');
+    products = [];
+    renderProductList();
+    updateTotalAmount();
+    updateQRCode();
+    document.getElementById('cash').value = '';
+    document.getElementById('change').value = '';
+    document.getElementById('qrImage').style.display = 'none';
+    document.getElementById('confirmQRButton').classList.add('d-none');
+
+    barcode = ''; // ✅ ล้างบาร์โค้ดเก่าที่อาจยังค้างอยู่
     }
 
     function playSound() {

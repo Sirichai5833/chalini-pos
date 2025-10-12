@@ -22,40 +22,52 @@
     />
     @endif
 
-    {{-- สมาชิก role: member ชั้น 1-5 --}}
-    @for ($floor = 1; $floor <= 5; $floor++)
-        <h4 class="mt-5">ชั้น {{ $floor }}</h4>
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
-            @for ($room = 1; $room <= 24; $room++)
-                @php
-                    $roomNumber = $floor . str_pad($room, 2, '0', STR_PAD_LEFT);
-                    $member = $members->get($roomNumber);
-                @endphp
-                <div class="col">
-                    <div class="card h-100 room-card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h5 class="card-title">ห้อง {{ $roomNumber }}</h5>
-                            @if ($member)
-                                <p class="card-text mb-1">ชื่อ: {{ $member->name }}</p>
-                                <p class="card-text mb-3">อีเมล: {{ $member->email }}</p>
-                                <div class="d-flex flex-wrap ">
-                                    <a href="{{ route('members.show', $member->id) }}" class="btn btn-info btn-sm me-2">ดู</a>
-                                    <a href="{{ route('members.edit', $member->id) }}" class="btn btn-warning btn-sm me-2">แก้ไข</a>
-                                    <form action="{{ route('members.destroy', $member->id) }}" method="POST" onsubmit="return confirm('ยืนยันการลบ?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-modern btn-delete">ลบ</button>
-                                    </form>
-                                </div>
-                            @else
-                                <p class="text-muted mt-3">ไม่มีสมาชิก</p>
-                            @endif
-                        </div>
+  @php
+    use App\Models\Setting;
+
+    // ดึงจำนวนชั้นจาก Setting
+    $totalFloors = Setting::get('floors', 5);
+    // ดึงจำนวนห้องต่อชั้นจาก Setting
+    $roomsPerFloor = Setting::get('roomsPerFloor', []);
+@endphp
+
+@for ($floor = 1; $floor <= $totalFloors; $floor++)
+    <h4 class="mt-5">ชั้น {{ $floor }}</h4>
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+        @php
+            $roomCount = $roomsPerFloor[$floor - 1] ?? 24; // ถ้าไม่มีค่า default 24
+        @endphp
+        @for ($room = 1; $room <= $roomCount; $room++)
+            @php
+                $roomNumber = $floor . str_pad($room, 2, '0', STR_PAD_LEFT);
+                $member = $members->get($roomNumber);
+            @endphp
+            <div class="col">
+                <div class="card h-100 room-card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">ห้อง {{ $roomNumber }}</h5>
+                        @if ($member)
+                            <p class="card-text mb-1">ชื่อ: {{ $member->name }}</p>
+                            <p class="card-text mb-3">อีเมล: {{ $member->email }}</p>
+                            <div class="d-flex flex-wrap">
+                                <a href="{{ route('members.show', $member->id) }}" class="btn btn-info btn-sm me-2">ดู</a>
+                                <a href="{{ route('members.edit', $member->id) }}" class="btn btn-warning btn-sm me-2">แก้ไข</a>
+                                <form action="{{ route('members.destroy', $member->id) }}" method="POST" onsubmit="return confirm('ยืนยันการลบ?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-modern btn-delete">ลบ</button>
+                                </form>
+                            </div>
+                        @else
+                            <p class="text-muted mt-3">ไม่มีสมาชิก</p>
+                        @endif
                     </div>
                 </div>
-            @endfor
-        </div>
-    @endfor
+            </div>
+        @endfor
+    </div>
+@endfor
+
 
     {{-- สมาชิก role: admin และ staff ชั้น 6 --}}
    {{-- สมาชิก role: admin และ staff ชั้น 6 --}}

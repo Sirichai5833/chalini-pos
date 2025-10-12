@@ -3,18 +3,22 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use HasFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 class Sale extends Model
 {
-      
+    use HasFactory;
 
     protected $fillable = [
-         'sale_date' => 'datetime',
-         'staff_id',
+        'sale_date',
+        'staff_id',
         'sale_type',
         'total_price',
         'slip',
-        // เพิ่มฟิลด์อื่นๆ ที่ต้องการทำ mass assignment
+    ];
+
+    protected $casts = [
+        'sale_date' => 'datetime',
     ];
 
     public function items()
@@ -22,9 +26,8 @@ class Sale extends Model
         return $this->hasMany(SaleItem::class);
     }
 
-public function staff()
-{
-    return $this->belongsTo(User::class, 'staff_id'); // หากมี field staff_id
-}
-
+    public function staff()
+    {
+        return $this->belongsTo(User::class, 'staff_id');
+    }
 }

@@ -45,7 +45,12 @@
 
 <div class="container py-4">
     <h2 class="mb-4 section-title"><i class="bi bi-credit-card-2-front-fill me-2"></i>ชำระเงิน</h2>
-
+     <div class="alert alert-warning d-flex align-items-center shadow-sm" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <div>
+                🚨 <strong>แจ้งเตือน:</strong> เมื่อทำการสั่งซื้อแล้ว <u>จะไม่สามารถยกเลิกเองได้ถ้าต้องการจะยกเลิกกรุณาติดต่อที่เบอร์ 084-386-0015</u>
+            </div>
+        </div>
     <div class="checkout-card">
         @if ($errors->any())
     <div class="alert alert-danger">
@@ -81,11 +86,12 @@
         
             <div class="mb-3">
                 <label class="form-label">วิธีการชำระเงิน</label>
-                <select class="form-select" name="payment_method" required onchange="showQRCode(this.value, {{ $total }})">
-                    <option selected disabled>-- เลือกวิธีชำระเงิน --</option>
-                    <option value="โอนผ่านบัญชีธนาคาร">โอนผ่านบัญชีธนาคาร</option>
-                    <option value="เก็บเงินปลายทาง">เก็บเงินปลายทาง</option>
-                </select>
+               <select class="form-select" name="payment_method" required onchange="showQRCode(this.value, {{ $total }})">
+    <option selected disabled>-- เลือกวิธีชำระเงิน --</option>
+    <option value="โอนผ่านบัญชีธนาคาร">โอนผ่านบัญชีธนาคาร</option>
+    <option value="เก็บเงินปลายทาง">เก็บเงินปลายทาง</option>
+</select>
+
             </div>
 
            <div class="mb-3" id="slip-upload">
@@ -94,9 +100,16 @@
 </div>
 
 
-            <div class="text-center my-4" id="qr-container" style="display: none;">
-                <img src="{{ route('online.online.generate.qr', ['amount' => $total]) }}" alt="QR Code" class="img-fluid" id="qr-code" />
-            </div>
+<div class="text-center my-4" id="qr-container" style="display: none;">
+    <p><strong>QR พร้อมเพย์:</strong></p>
+    <p><strong>เบอร์</strong>084-386-0015</p>
+    <img
+     class="qr-code"
+        src="https://promptpay.io/{{ env('PROMPTPAY_ID') }}/{{ number_format($total, 2, '.', '') }}"
+        alt="QR Code" />
+</div>
+
+
 
             <div class="text-end mt-4">
                 <button class="btn btn-orange px-4 py-2">
@@ -108,7 +121,7 @@
 </div>
 
 <script>
-  function showQRCode(paymentMethod, total) {
+ function showQRCode(paymentMethod, total) {
     const qrContainer = document.getElementById('qr-container');
     const slipUpload = document.getElementById('slip-upload');
     const slipInput = slipUpload.querySelector('input[name="slip"]');
@@ -118,6 +131,8 @@
         qrContainer.style.display = 'block';
         slipUpload.style.display = 'block';
         slipInput.disabled = false;
+
+        // ตั้งค่า src ของ QR Code จาก backend endpoint หรือ URL สร้าง QR
         qrCodeImg.src = `/online/online/generate-qr?amount=${total}`;
     } else {
         qrContainer.style.display = 'none';
@@ -126,6 +141,8 @@
         qrCodeImg.src = '';
     }
 }
+
+
 
 </script>
 @endsection

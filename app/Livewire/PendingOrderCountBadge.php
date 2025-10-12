@@ -13,13 +13,13 @@ class PendingOrderCountBadge extends Component
 
     public function mount()
     {
-        $this->previousCount = Order::where('status', 'pending')->count();
+        $this->previousCount = Order::where('status', 'รอเจ้าหน้าที่รับคำสั่งซื้อ')->count();
         $this->count = $this->previousCount;
     }
 
     public function pollCount()
     {
-        $current = Order::where('status', 'pending')->count();
+        $current = Order::where('status', 'รอเจ้าหน้าที่รับคำสั่งซื้อ')->count();
 
         if ($current > $this->previousCount && !$this->notified) {
             // ✅ ใช้ dispatch แบบใหม่ของ Livewire v3

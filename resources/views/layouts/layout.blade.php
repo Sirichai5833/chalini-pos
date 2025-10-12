@@ -6,12 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS System - Chalini</title>
 
-    <!-- Bootstrap 5.3.5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-
-
-
 
     @livewireStyles
     <style>
@@ -20,7 +16,8 @@
             display: flex;
             flex-direction: column;
             padding-top: 55px;
-            /* ปรับตามความสูงของ navbar */
+            /* Adjust according to navbar height */
+            /* No specific background-color here; defaults or browser default */
         }
 
         main {
@@ -30,7 +27,7 @@
 
         aside {
             width: 250px;
-            background-color: #212529;
+            background-color: #212529; /* Fixed dark sidebar */
             color: white;
             min-height: 100vh;
         }
@@ -47,30 +44,37 @@
             padding-left: 8px;
         }
 
+        /* Base style for content-wrapper (default to light theme) */
         .content-wrapper {
             flex: 1;
             padding: 20px;
             display: block;
+            background-color: #f8f9fa; /* Light background for content */
+            color: #212529; /* Dark text for content */
+            transition: background-color 0.3s ease, color 0.3s ease; /* Smooth transition */
+            border-radius: 8px; /* Optional: adds a slight rounded corner */
         }
 
+        /* Dark mode styles for content-wrapper */
+        .content-wrapper.dark-mode {
+            background-color: #343a40; /* Dark background for content */
+            color: #f8f9fa; /* Light text for content */
+        }
 
-        /* Sidebar ปกติ */
+        /* Sidebar collapse styles remain the same */
         #sidebar {
             width: max-content;
-            /* ปรับตามขนาดจริงของคุณ */
             transition: all 0.3s ease;
             overflow: hidden;
             white-space: nowrap;
         }
 
-        /* เมื่อหุบ */
         #sidebar.collapsed {
             width: 0 !important;
             padding: 0 !important;
             border: none !important;
         }
 
-        /* ซ่อนเนื้อหาด้านในแบบนุ่มนวล */
         #sidebar.collapsed>* {
             opacity: 0;
             transition: opacity 0.2s ease;
@@ -81,21 +85,24 @@
 
 <body>
     <livewire:styles />
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm fixed-top">
-
         <div class="container-fluid d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center">
                 <a href="{{ url('/') }}" class="navbar-brand fw-bold me-2 mb-0">
                     <i class="bi bi-shop"></i> ชาลินี
                 </a>
-                <button class="btn btn-outline-light" id="sidebarToggle">
+                <button class="btn btn-outline-light me-2" id="sidebarToggle">
                     <i class="bi bi-list"></i>
+                </button>
+                {{-- Theme Toggle Button --}}
+                <button class="btn btn-outline-light" id="themeToggle">
+                    <i class="bi bi-moon-fill"></i> <span class="d-none d-md-inline">เปลี่ยนธีม</span>
                 </button>
             </div>
 
             <div class="d-flex">
-                <a href="{{ route('staff.edit', ['member' => Auth::user()->id]) }}" class="btn btn-outline-light me-2">
+                <a href="{{ route('staff.edit', ['member' => Auth::user()->id]) }}"
+                    class="btn btn-outline-light me-2">
                     <i class="bi bi-person"></i>
                     {{ Auth::user()->name }} ({{ Auth::user()->role }})
                 </a>
@@ -109,17 +116,13 @@
                 </form>
             </div>
         </div>
-
     </nav>
 
-    <!-- Sidebar + Content -->
     <main>
-
         <aside id="sidebar" class="p-3">
             <h5 class="mb-4">POS System</h5>
             <ul class="nav flex-column">
 
-                <!-- ขายสินค้า (Dropdown) -->
                 <li class="nav-item mb-2">
                     <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('sale*') ? 'active' : '' }} text-white"
                         data-bs-toggle="collapse" href="#collapseSale" role="button" aria-expanded="false"
@@ -145,7 +148,6 @@
                     </div>
                 </li>
 
-                <!-- จัดการสินค้า (Dropdown) -->
                 <li class="nav-item mb-2">
                     <a class="nav-link d-flex justify-content-between align-items-center {{ request()->routeIs('product.product.*') ? 'active' : '' }} text-white"
                         data-bs-toggle="collapse" href="#collapseProducts" role="button" aria-expanded="false"
@@ -155,32 +157,17 @@
                     </a>
                     <div class="collapse ps-3" id="collapseProducts">
                         <ul class="nav flex-column">
-                            <!-- ข้อมูลสินค้า -->
                             <li class="nav-item mb-1">
                                 <a class="nav-link {{ request()->routeIs('product.product.index') ? 'active' : '' }} text-white"
                                     href="{{ route('product.product.index') }}">
                                     <i class="bi bi-list-ul text-white"></i> รายการสินค้าหน้าร้าน
                                 </a>
                             </li>
-                            {{-- <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->routeIs('product.product.create') ? 'active' : '' }} text-white"
-                                    href="{{ route('product.product.create') }}">
-                                    <i class="bi bi-plus-circle text-white"></i> เพิ่มสินค้าใหม่หน้าร้าน
-                                </a>
-                            </li> --}}
 
-                            <!-- สต็อกสินค้า -->
                             <li class="nav-item mb-1">
                                 <a class="nav-link {{ request()->routeIs('product.products.add-stock-form') ? 'active' : '' }} text-white"
                                     href="{{ route('product.products.add-stock-form') }}">
                                     <i class="bi bi-list-ul text-white"></i> เพิ่มสินค้าเข้าหน้าบ้าน/คลังสินค้า
-                                </a>
-                            </li>
-
-                            <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->routeIs('product.indexstock') ? 'active' : '' }} text-white"
-                                    href="{{ route('product.indexstock') }}">
-                                    <i class="bi bi-box text-white"></i> รายการสินค้าในสต็อก
                                 </a>
                             </li>
 
@@ -191,25 +178,18 @@
                                 </a>
                             </li>
 
-                            <!-- หมวดหมู่และหน่วยสินค้า -->
                             <li class="nav-item mb-1">
                                 <a class="nav-link {{ request()->routeIs('categories.index') ? 'active' : '' }} text-white"
                                     href="{{ route('categories.index') }}">
                                     <i class="bi bi-folder text-white"></i> จัดการหมวดหมู่
                                 </a>
                             </li>
-                            {{-- <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/unit') ? 'active' : '' }} text-white" href="{{ route('units.index')}}">
-                                    <i class="bi bi-box text-white"></i> หน่วยสินค้า
-                                </a>
-                            </li> --}}
 
-                            <!-- รหัสสินค้า -->
                             @unless (auth()->user()->role !== 'admin')
                                 <li class="nav-item mb-1">
                                     <a class="nav-link {{ request()->routeIs('product.barcodes.index') ? 'active' : '' }} text-white"
                                         href="{{ route('product.barcodes.index') }}">
-                                       <i class="bi-upc-scan"></i>  Barcode
+                                        <i class="bi-upc-scan"></i> Barcode
                                     </a>
                                 </li>
                                 <li class="nav-item mb-1">
@@ -247,38 +227,33 @@
                         <i class="bi bi-caret-down-fill text-white"></i>
                     </a>
 
-                    <div class="collapse ps-3" id="Notification">
-                        <ul class="nav flex-column">
-                            <!-- ข้อมูลสินค้า -->
-                            <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->routeIs('notification.OutStock') ? 'active' : '' }} text-white"
-                                    href="{{ route('notification.OutStock') }}">
-                                    <i class="bi bi-list-ul text-white"></i> สินค้าใกล้หมด
-                                    @if (isset($lowStockCount) && $lowStockCount > 0)
-                                        <span class="badge bg-danger ms-2">{{ $lowStockCount }}</span>
-                                    @endif
-                                </a>
-                            </li>
+                   <div wire:poll.10s> {{-- ✅ จะรีเฟรชทุก 10 วินาที --}}
+    <div class="collapse ps-3" id="Notification">
+        <ul class="nav flex-column">
+            <li class="nav-item mb-1">
+                <a class="nav-link {{ request()->routeIs('notification.OutStock') ? 'active' : '' }} text-white"
+                    href="{{ route('notification.OutStock') }}">
+                    <i class="bi bi-list-ul text-white"></i> สินค้าใกล้หมด
+                    @if ($lowStockCount > 0)
+                        <span class="badge bg-danger ms-2">{{ $lowStockCount }}</span>
+                    @endif
+                </a>
+            </li>
+            <li class="nav-item mb-1">
+                <a class="nav-link {{ request()->routeIs('notification.expire') ? 'active' : '' }} text-white"
+                    href="{{ route('notification.expire') }}">
+                    <i class="bi bi-plus-circle text-white"></i> สินค้าใกล้หมดอายุ
+                    @if ($expireCount > 0)
+                        <span class="badge bg-warning text-dark ms-2">{{ $expireCount }}</span>
+                    @endif
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
 
-                            <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->routeIs('notification.expire') ? 'active' : '' }} text-white"
-                                    href="{{ route('notification.expire') }}">
-                                    <i class="bi bi-plus-circle text-white"></i> สินค้าใกล้หมดอายุ
-                                    @if (isset($expireCount) && $expireCount > 0)
-                                        <span class="badge bg-warning text-dark ms-2">{{ $expireCount }}</span>
-                                    @endif
-                                </a>
-                            </li>
-
-
-
-                        </ul>
-                    </div>
                 </li>
 
-
-
-                <!-- จัดการยอดขาย (Dropdown เดิม) -->
                 <li class="nav-item mb-2">
                     <a class="nav-link d-flex justify-content-between align-items-center {{ request()->routeIs('reports*') ? 'active' : '' }} text-white"
                         data-bs-toggle="collapse" href="#collapseReports" role="button" aria-expanded="false"
@@ -314,8 +289,14 @@
                             <li class="nav-item mb-1">
                                 <a class="nav-link {{ request()->routeIs('orders.list') ? 'active' : '' }} text-white"
                                     href="{{ route('orders.list') }}">
-                                    <i class="bi bi-list-ul text-white"></i> ออเดอร์
+                                    <i class="bi bi-list-ul text-white"></i> ออเดอร์ทั้งหมด
                                     @livewire('pending-order-count-badge')
+                                </a>
+                            </li>
+                             <li class="nav-item mb-1">
+                                <a class="nav-link {{ request()->routeIs('orders.my') ? 'active' : '' }} text-white"
+                                    href="{{ route('orders.my') }}">
+                                    <i class="bi bi-list-ul text-white"></i> ออเดอร์ที่รับมา
                                 </a>
                             </li>
 
@@ -325,19 +306,10 @@
                                     <i class="bi bi-plus-circle text-white"></i> ประวัติการขาย
                                 </a>
                             </li>
-
-                            <!-- สถานะการขาย -->
-                            {{-- <li class="nav-item mb-1">
-                                <a class="nav-link {{ request()->is('manage_products/status') ? 'active' : '' }} text-white"
-                                    href="{{ url('manage_products/status') }}">
-                                    <i class="bi bi-check-circle text-white"></i> เปิด/ปิดขายออนไลน์
-                                </a>
-                            </li> --}}
                         </ul>
                     </div>
                 </li>
 
-                <!-- จัดการพนักงาน (Dropdown เดิม) -->
                 @if (Auth::user()->role !== 'staff')
                     <li class="nav-item mb-2">
                         <a class="nav-link d-flex justify-content-between align-items-center {{ request()->Is('staff/create','staff') ? 'active' : '' }} text-white"
@@ -365,8 +337,7 @@
                     </li>
                 @endif
 
-
-                {{-- จััดการสมาชิก --}}
+                {{-- จัดการสมาชิก --}}
                 <li class="nav-item mb-2">
                     <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('manage_staff*','staff/audits') ? 'active' : '' }} text-white"
                         data-bs-toggle="collapse" href="#collapsecustomer" role="button" aria-expanded="false"
@@ -403,38 +374,65 @@
 
             </ul>
 
-
-
-
-
         </aside>
 
-        <div class="content-wrapper w-full px-4">
+        <div class="content-wrapper w-full px-4" id="mainContentWrapper">
             @yield('content')
-
         </div>
         @livewireScripts
     </main>
-    <!-- Footer -->
     <footer class="bg-dark text-white text-center py-2">
         Copyright &copy; 2025 ชาลินี
     </footer>
 
-    <!-- Bootstrap Script -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js">
-        < /> <
-        script src = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js" >
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             const toggleBtn = document.getElementById('sidebarToggle');
             const sidebar = document.getElementById('sidebar');
+            const themeToggleBtn = document.getElementById('themeToggle');
+            const mainContentWrapper = document.getElementById('mainContentWrapper'); // Get the content wrapper
+
+            // Load theme from localStorage or default to light
+            const savedTheme = localStorage.getItem('contentTheme') || 'light'; // Store 'light' or 'dark'
+            if (savedTheme === 'dark') {
+                mainContentWrapper.classList.add('dark-mode');
+            }
+            updateThemeToggleButton(savedTheme); // Update button icon/text initially
 
             toggleBtn.addEventListener('click', function() {
                 sidebar.classList.toggle('collapsed');
             });
+
+            themeToggleBtn.addEventListener('click', function() {
+                if (mainContentWrapper.classList.contains('dark-mode')) {
+                    mainContentWrapper.classList.remove('dark-mode');
+                    localStorage.setItem('contentTheme', 'light');
+                    updateThemeToggleButton('light');
+                } else {
+                    mainContentWrapper.classList.add('dark-mode');
+                    localStorage.setItem('contentTheme', 'dark');
+                    updateThemeToggleButton('dark');
+                }
+            });
+
+            function updateThemeToggleButton(theme) {
+                const icon = themeToggleBtn.querySelector('i');
+                const text = themeToggleBtn.querySelector('span');
+                if (theme === 'dark') {
+                    icon.classList.remove('bi-moon-fill');
+                    icon.classList.add('bi-sun-fill');
+                    if (text) text.textContent = 'เปลี่ยนธีม (สว่าง)'; // Change text for dark mode (to switch to light)
+                } else {
+                    icon.classList.remove('bi-sun-fill');
+                    icon.classList.add('bi-moon-fill');
+                    if (text) text.textContent = 'เปลี่ยนธีม (มืด)'; // Change text for light mode (to switch to dark)
+                }
+                // No need to change navbar or sidebar toggle button colors as per this requirement
+            }
         });
     </script>
 

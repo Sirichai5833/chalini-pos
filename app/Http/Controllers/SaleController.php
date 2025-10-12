@@ -44,14 +44,11 @@ class SaleController extends Controller
     }
 
     // อัปเดตสต็อกหลังขาย
-    public function updateStockAfterSale(Request $request)
+public function updateStockAfterSale(Request $request)
 {
-     
-
-    // ตรวจดูว่า payload ถูกมั้ย
     $request->validate([
         'products' => 'required|array',
-        'products.*.product_unit_id' => 'required|exists:product_units,id', // ✅
+        'products.*.product_unit_id' => 'required|exists:product_units,id',
         'products.*.id' => 'required|exists:products,id',
         'products.*.qty' => 'required|integer|min:1',
     ]);
@@ -59,75 +56,181 @@ class SaleController extends Controller
     DB::beginTransaction();
 
     try {
-        Log::info('🔍 Request Payload:', $request->all());
         $total = 0;
-        
-     foreach ($request->products as $item) {
-    $product = Product::find($item['id']);
-    $priceType = $item['price_type'];
 
-    if (!$product || !$product->is_active) {
-        return response()->json(['success' => false, 'message' => 'สินค้าถูกปิดการขาย: ' . $item['id']], 403);
-    }
-
-    $stock = ProductStocks::where('product_id', $item['id'])->first();
-
-    // หาขนาดของหน่วยสินค้านี้ เช่น 1 แพ็ค มีกี่ชิ้น
-    $productUnit = ProductUnit::find($item['product_unit_id']);
-    $unitQuantity = $productUnit ? $productUnit->unit_quantity : 1;
-
-    // คำนวณจำนวนชิ้นที่ต้องหัก
-    $qtyToReduce = $item['qty'] * $unitQuantity;
-
-    if (!$stock || $stock->store_stock < $qtyToReduce) {
-        return response()->json(['success' => false, 'message' => 'สต็อกไม่พอ: ' . $item['id']], 400);
-    }
-
-    $total += $product->price * $item['qty'];
-
-    // ลดสต็อกตามจำนวนชิ้นจริง
-    $stock->store_stock -= $qtyToReduce;
-    $stock->save();
-}
-
-
-        // เพิ่มบันทึกการขาย
         $sale = Sale::create([
-           'user_id' => Auth::id(),         // อันนี้คือผู้ใช้ระบบ (ถ้าใช้ Laravel Auth)
-    'staff_id' => Auth::id(),    
-     'sale_type' => $priceType ,    // ✅ เพิ่มตรงนี้ ถ้าใช้ Auth::id() เป็น staff
-    'total' => $total,
-     'total_price' => $request->total_price, // ✅ ใช้ค่าที่ส่งมา
-    'payment_method' => $request->payment_method ?? 'cash',
+            'user_id' => Auth::id(),
+            'staff_id' => Auth::id(),
+            'sale_type' => $request->price_type ?? 'retail',
+            'total_price' => 0,
+            'payment_method' => $request->payment_method ?? 'cash',
+            'sale_date' => now(),
         ]);
 
         foreach ($request->products as $item) {
-            $product = Product::find($item['id']);
+            $productId = $item['id'];
+            $unitId = $item['product_unit_id'];
+            $qty = $item['qty'];
+            $price = $item['price'];
+
+            $selectedUnit = ProductUnit::findOrFail($unitId);
+            $unitQty = $selectedUnit->unit_quantity;
+            $totalBaseQty = $qty * $unitQty;
+
+            $baseUnit = ProductUnit::where('product_id', $productId)
+                ->orderBy('unit_quantity', 'asc')
+                ->first();
+
+            if (!$baseUnit) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => "ไม่พบหน่วยเล็กสุดของสินค้ารหัส {$productId}",
+                ], 400);
+            }
+
+            // หักจากหน่วยที่เลือกก่อน
+            $stock = ProductStocks::where('product_id', $productId)
+                ->where('unit_id', $unitId)
+                ->first();
+
+            $availableQty = $stock?->store_stock ?? 0;
+            $deductQty = min($qty, $availableQty);
+            $remainingQty = $qty - $deductQty;
+
+            if ($deductQty > 0 && $stock) {
+                $stock->decrement('store_stock', $deductQty);
+
+                ProductStockMovement::create([
+                    'product_id' => $productId,
+                    'type' => 'out',
+                    'quantity' => $deductQty,
+                    'unit_quantity' => $unitQty,
+                    'unit' => $selectedUnit->unit_name,
+                    'location' => 'store',
+                    'note' => 'ขายจากหน่วยที่เลือก',
+                ]);
+            }
+
+            // หากไม่พอ → แปลงหน่วย
+            if ($remainingQty > 0) {
+                $remainingBaseQty = $remainingQty * $unitQty;
+                $convertedBase = 0;
+
+                $otherUnits = ProductUnit::where('product_id', $productId)
+                    ->where('id', '!=', $unitId)
+                    ->orderBy('unit_quantity', 'asc')
+                    ->get();
+
+              foreach ($otherUnits as $otherUnit) {
+    $stockOther = ProductStocks::where('product_id', $productId)
+        ->where('unit_id', $otherUnit->id)
+        ->first();
+
+    $available = $stockOther?->store_stock ?? 0;
+    $basePerUnit = $otherUnit->unit_quantity;
+
+    if ($basePerUnit === 0 || $available === 0) continue;
+
+    // ❌ เดิม (อาจไม่กล้าแตก)
+    // $usableUnit = floor($remainingBaseQty / $basePerUnit);
+    // $usableQty = min($usableUnit, $available);
+
+    // ✅ แก้เป็น:
+    $neededUnit = ceil($remainingBaseQty / $basePerUnit);
+    $usableQty = min($available, $neededUnit);
+    $convertedBase = $usableQty * $basePerUnit;
+    $remainingBaseQty -= $convertedBase;
+
+    if ($usableQty > 0) {
+        $stockOther->decrement('store_stock', $usableQty);
+
+        $stockBaseUnit = ProductStocks::firstOrCreate(
+            ['product_id' => $productId, 'unit_id' => $baseUnit->id],
+            ['store_stock' => 0, 'warehouse_stock' => 0]
+        );
+
+        $stockBaseUnit->increment('store_stock', $convertedBase);
+
+        ProductStockMovement::create([
+            'product_id' => $productId,
+            'type' => 'out',
+            'quantity' => $usableQty,
+            'unit_quantity' => $basePerUnit,
+            'unit' => $otherUnit->unit_name,
+            'location' => 'store',
+            'note' => "แตกหน่วยจาก {$otherUnit->unit_name} เป็น {$baseUnit->unit_name}",
+        ]);
+    }
+
+    if ($remainingBaseQty <= 0) break;
+}
+
+                if ($convertedBase < $remainingBaseQty) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => "สินค้ารหัส {$productId} มีสต็อกไม่พอ ",
+                    ], 400);
+                }
+
+                $deductFromBase = $totalBaseQty - ($deductQty * $unitQty);
+
+                $finalBaseStock = ProductStocks::where('product_id', $productId)
+                    ->where('unit_id', $baseUnit->id)
+                    ->first();
+
+                if (!$finalBaseStock || $finalBaseStock->store_stock < $deductFromBase) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => "สต็อกไม่พอที่จะขาย ",
+                    ], 400);
+                }
+
+                $finalBaseStock->decrement('store_stock', $deductFromBase);
+
+                ProductStockMovement::create([
+                    'product_id' => $productId,
+                    'type' => 'out',
+                    'quantity' => $deductFromBase,
+                    'unit_quantity' => $baseUnit->unit_quantity,
+                    'unit' => $baseUnit->unit_name,
+                    'location' => 'store',
+                    'note' => 'ขายสินค้าหลังแปลงหน่วยจากหน่วยอื่น',
+                ]);
+            }
 
             SaleItem::create([
                 'sale_id' => $sale->id,
-               'product_unit_id' => $item['product_unit_id'], // ✅ ถ้าตารางใช้ชื่อว่า product_unit_id
-                'quantity' => $item['qty'],
-                'unit_quantity' => $item['product_unit_id'],
-                'price' => $item['price'],
+                'product_unit_id' => $unitId,
+                'quantity' => $qty,
+                'unit_quantity' => $unitQty,
+                'price' => $price,
             ]);
+
+            $total += $price * $qty;
         }
+
+        $sale->update(['total_price' => $total]);
 
         DB::commit();
 
-        return response()->json(['success' => true]);
-
+        return response()->json([
+            'success' => true,
+            'message' => 'บันทึกการขายสำเร็จแล้ว',
+        ]);
     } catch (\Exception $e) {
         DB::rollBack();
-        Log::error('Stock update failed: ' . $e->getMessage());
-
         return response()->json([
             'success' => false,
-            'message' => 'เกิดข้อผิดพลาด',
-            'error' => $e->getMessage()
+            'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage(),
         ], 500);
     }
 }
+
+
+
 
 
 public function history(Request $request)
@@ -178,17 +281,32 @@ public function show($id)
 
 public function cancel(Sale $sale)
 {
-    // ย้อน stock กลับ
     foreach ($sale->items as $item) {
-        $product = $item->product;
-        if ($product) {
-            $product->stock += $item->quantity;
-            $product->save();
+        $unit = ProductUnit::find($item->product_unit_id);
+        $productId = $unit->product_id ?? $item->product->id ?? null;
+
+        if (!$productId) continue;
+
+        $stock = ProductStocks::where('product_id', $productId)
+                              ->where('unit_id', $unit->id ?? $item->product_unit_id)
+                              ->first();
+
+        if ($stock) {
+            $stock->increment('store_stock', $item->quantity * ($unit->unit_quantity ?? 1));
         }
+
+        ProductStockMovement::create([
+            'product_id' => $productId,
+            'type' => 'in',
+            'quantity' => $item->quantity,
+            'unit_quantity' => $unit->unit_quantity ?? 1,
+            'unit' => $unit->unit_name ?? '-',
+            'location' => 'store',
+            'note' => 'คืน stock จากการยกเลิกการขาย',
+        ]);
     }
 
-    // อัปเดตสถานะการขาย (ถ้ามีคอลัมน์ เช่น 'status')
-    $sale->status = 'cancelled'; // หรือลบรายการเลยก็ได้: $sale->delete();
+    $sale->status = 'cancelled';
     $sale->save();
 
     return redirect()->route('sales.history')->with('success', 'ยกเลิกการขายเรียบร้อยแล้ว');
@@ -265,32 +383,33 @@ public function destroy($id)
 {
     $sale = Sale::with('items')->findOrFail($id);
 
-    // คืน stock ก่อนลบ
     foreach ($sale->items as $item) {
-        $stock = ProductStocks::where('product_id', $item->product_unit_id)->first();
-        if ($stock) {
-            $stock->increment('store_stock', $item->quantity);
-        }
+       $unit = ProductUnit::find($item->product_unit_id);
+$productStock = ProductStocks::where('product_id', $unit->product_id)
+                             ->where('unit_id', $unit->id)
+                             ->first();
+if ($productStock) {
+    $productStock->increment('store_stock', $item->quantity * $unit->unit_quantity);
+}
+
 
         ProductStockMovement::create([
-            'product_id' => $item->product_unit_id,
+            'product_id' => $unit->product_id, // ✅ แก้ตรงนี้
             'type' => 'in',
             'quantity' => $item->quantity,
-            'unit_quantity' => $item->unit_quantity,
-            'unit' => $item->unit->unit_name ?? '-',
+            'unit_quantity' => $unit->unit_quantity,
+            'unit' => $unit->unit_name ?? '-',
             'location' => 'store',
             'note' => 'คืน stock จากการลบการขาย',
         ]);
     }
 
-    // ลบรายการย่อยก่อน
     $sale->items()->delete();
-
-    // ลบรายการขายหลัก
     $sale->delete();
 
     return redirect()->route('staff.sales.history')->with('success', 'ลบรายการขายสำเร็จแล้ว');
 }
+
 
 
 
@@ -354,29 +473,58 @@ public function generateQRCode(Request $request)
     ]);
 
     // ตัดสต็อก
-    if ($product->stock && $product->stock->track_stock) {
-        $product->stock->decrement('store_stock', $item['qty'] * $unit->unit_quantity);
+if ($product->stock && $product->stock->track_stock) {
+    $product->stock->decrement('store_stock', $item['qty'] * $unit->unit_quantity);
 
-        ProductStockMovement::create([
-            'product_id' => $product->id,
-            'type' => 'out',
-            'quantity' => $item['qty'],
-            'unit_quantity' => $unit->unit_quantity,
-            'unit' => $unit->unit_name,
-            'location' => 'store',
-            'note' => 'ขายสินค้า',
-        ]);
+    ProductStockMovement::create([
+        'product_id' => $product->id,
+        'type' => 'out',
+        'quantity' => $item['qty'],
+        'unit_quantity' => $unit->unit_quantity,
+        'unit' => $unit->unit_name,
+        'location' => 'store',
+        'note' => 'ขายสินค้า',
+    ]);
+
+    // ลดสต็อกหน่วยย่อย
+    $baseUnit = ProductUnit::where('product_id', $product->id)
+        ->orderBy('unit_quantity', 'asc')
+        ->first();
+
+    if ($unit->unit_quantity > $baseUnit->unit_quantity) {
+        $baseStock = ProductStocks::where('product_id', $product->id)
+            ->where('unit_id', $baseUnit->id)
+            ->first();
+
+        if ($baseStock) {
+            $baseStock->decrement('store_stock', $item['qty'] * $unit->unit_quantity);
+            ProductStockMovement::create([
+                'product_id' => $product->id,
+                'type' => 'out',
+                'quantity' => $item['qty'] * $unit->unit_quantity,
+                'unit_quantity' => $baseUnit->unit_quantity,
+                'unit' => $baseUnit->unit_name,
+                'location' => 'store',
+                'note' => 'ตัดสต็อกหน่วยย่อยจากการขาย',
+            ]);
+        }
     }
 }
-        DB::commit();
-        return redirect()->route('sale.history')->with('success', 'บันทึกการขายเรียบร้อย');
+        }
 
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'ชำระเงินสำเร็จ',
+            'sale_id' => $sale->id,
+        ]);
     } catch (\Exception $e) {
         DB::rollBack();
-        Log::error('Checkout failed: ' . $e->getMessage());
-        return back()->with('error', 'เกิดข้อผิดพลาด: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage(),
+        ], 500);
     }
 }
- 
-
 }
