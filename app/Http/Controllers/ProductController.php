@@ -394,4 +394,32 @@ class ProductController extends Controller
 
         return view('products.stock-in-history', compact('movements', 'search', 'from', 'to', 'isPrint'));
     }
+
+public function deleteImage($id)
+{
+    $image = ProductImage::find($id);
+
+    if (!$image) {
+        return response()->json(['success' => false, 'message' => 'ไม่พบรูปภาพ'], 404);
+    }
+
+    // ลบไฟล์
+    Storage::disk('public')->delete($image->image_path);
+
+    // ลบ record
+    $image->delete();
+
+    return response()->json(['success' => true]);
+}
+
+public function checkBarcode(Request $request)
+{
+    $barcode = $request->get('barcode');
+
+    $exists = \App\Models\ProductUnit::where('barcode', $barcode)->exists();
+
+    return response()->json(['exists' => $exists]);
+}
+
+
 }

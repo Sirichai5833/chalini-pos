@@ -40,24 +40,50 @@
                                 <textarea name="description" id="description" class="form-control" rows="3">{{ $product->description }}</textarea>
                             </div>
 
-                            <div class="mb-3">
-                                <label for="images" class="form-label">รูปภาพสินค้า</label>
-                                <input type="file" name="images[]" id="images" class="form-control" multiple>
-                                @if ($product->images->count())
-                                    <small class="form-text text-muted">รูปภาพปัจจุบัน:</small>
-                                    <div class="d-flex flex-wrap gap-2 mt-1">
-                                        @foreach ($product->images as $image)
-                                            <div class="position-relative">
-                                                <img src="{{ asset('storage/' . $image->image_path) }}"
-                                                    class="img-thumbnail" width="100">
-                                                <a href="{{ route('product.image.delete', $image->id) }}"
-                                                    class="position-absolute top-0 end-0 btn btn-sm btn-danger"
-                                                    onclick="return confirm('ลบรูปนี้?')">×</a>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @endif
-                            </div>
+                          <div class="mb-3">
+    <label for="images" class="form-label">รูปภาพสินค้า</label>
+    <input type="file" name="images[]" id="images" class="form-control" multiple>
+
+    @if ($product->images->count())
+        <small class="form-text text-muted">รูปภาพปัจจุบัน:</small>
+        <div class="d-flex flex-wrap gap-2 mt-1">
+           @foreach ($product->images as $image)
+               <div class="position-relative">
+                   <img src="{{ asset('storage/' . $image->image_path) }}" class="img-thumbnail" width="100">
+                   <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0"
+                       onclick="deleteImage({{ $image->id }}, this)">×</button>
+               </div>
+           @endforeach
+        </div>
+    @endif
+</div> <!-- ปิด div ของ mb-3 ให้ครบ -->
+
+<script>
+function deleteImage(id, btn) {
+    if(confirm('ลบรูปนี้?')) {
+       fetch("{{ url('products/product/image') }}/" + id, { // เพิ่ม prefix 'products'
+    method: 'DELETE',
+    headers: {
+        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        'Accept': 'application/json',
+    }
+})
+
+        .then(res => {
+            if(res.ok) return res.json();
+            else throw new Error('Network response was not ok');
+        })
+        .then(data => {
+            if(data.success){
+                btn.closest('div.position-relative').remove();
+            } else {
+                alert('ลบไม่สำเร็จ');
+            }
+        })
+        .catch(err => alert('เกิดข้อผิดพลาด: ' + err.message));
+    }
+}
+</script>
 
 
                             <div class="mb-3">

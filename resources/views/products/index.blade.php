@@ -397,123 +397,156 @@
 @endsection
 
 @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            let unitIndex = document.querySelectorAll('.unit-group').length;
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let unitIndex = document.querySelectorAll('.unit-group').length;
 
-            // Function to re-index unit fields
-            function reIndexUnits() {
-                document.querySelectorAll('#units-container .unit-group').forEach((unitGroup, index) => {
-                    unitGroup.querySelectorAll('[name^="units["]').forEach(input => {
-                        const name = input.getAttribute('name');
-                        input.setAttribute('name', name.replace(/units\[\d+\]/, `units[${index}]`));
-                    });
-                    // Show remove button for all but the first unit group
-                    const removeButton = unitGroup.querySelector('.remove-unit');
-                    if (removeButton) {
-                        if (index === 0) {
-                            removeButton.classList.add('d-none');
-                        } else {
-                            removeButton.classList.remove('d-none');
-                        }
-                    }
-                });
-                unitIndex = document.querySelectorAll('.unit-group').length;
+    // Re-index unit fields
+    function reIndexUnits() {
+        document.querySelectorAll('#units-container .unit-group').forEach((unitGroup, index) => {
+            unitGroup.querySelectorAll('[name^="units["]').forEach(input => {
+                const name = input.getAttribute('name');
+                input.setAttribute('name', name.replace(/units\[\d+\]/, `units[${index}]`));
+            });
+            const removeButton = unitGroup.querySelector('.remove-unit');
+            if (removeButton) {
+                if (index === 0) removeButton.classList.add('d-none');
+                else removeButton.classList.remove('d-none');
             }
-
-            // Add Unit Button
-            document.getElementById('add-unit').addEventListener('click', function() {
-                const container = document.getElementById('units-container');
-                const templateHtml = `
-                    <div class="unit-group border rounded-3 p-3 mb-3 bg-light">
-                        <h6 class="text-secondary small mb-3">หน่วยนับรอง</h6>
-                        <div class="mb-3">
-                            <label class="form-label small text-muted">ชื่อหน่วยนับ <span class="text-danger">*</span></label>
-                            <input type="text" name="units[${unitIndex}][unit_name]" class="form-control rounded-3"
-                                placeholder="เช่น แพ็ค, กล่อง" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small text-muted">จำนวน (เทียบกับหน่วยเล็กสุด) <span class="text-danger">*</span></label>
-                            <input type="number" name="units[${unitIndex}][unit_quantity]" class="form-control rounded-3"
-                                value="1" min="1" required>
-                                <small class="form-text text-muted">เช่น ถ้าหน่วยนี้คือ 'แพ็ค' และมี 6 'ชิ้น' ให้ใส่ 6</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small text-muted">รหัสบาร์โค้ด</label>
-                            <div class="input-group">
-                                <input type="text" name="units[${unitIndex}][unit_barcode]" class="form-control rounded-start-3"
-                                    placeholder="ระบุเองหรือกดสร้าง" required>
-                                <button type="button" class="btn btn-outline-secondary generate-barcode-btn rounded-end-3" title="สร้างบาร์โค้ดสุ่ม">
-                                    <i class="bi bi-arrow-clockwise me-1"></i> สร้าง
-                                </button>
-                            </div>
-                            <div class="barcode-preview mt-2 text-center" style="display:none;">
-                                <canvas class="barcode-canvas"></canvas>
-                                <p class="barcode-value mt-1 fw-bold text-dark"></p>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label small text-muted">ราคาขายปลีก <span class="text-danger">*</span></label>
-                                <input type="number" name="units[${unitIndex}][price]" step="0.01" class="form-control rounded-3" placeholder="0.00" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label small text-muted">ราคาขายส่ง <span class="text-danger">*</span></label>
-                                <input type="number" name="units[${unitIndex}][wholesale]" step="0.01" class="form-control rounded-3" placeholder="0.00" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label small text-muted">ราคาทุน <span class="text-danger">*</span></label>
-                                <input type="number" name="units[${unitIndex}][cost_price]" step="0.01" class="form-control rounded-3" placeholder="0.00" required>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-danger btn-sm remove-unit rounded-pill">
-                            <i class="bi bi-trash me-1"></i> ลบหน่วยนับนี้
-                        </button>
-                    </div>`;
-                container.insertAdjacentHTML('beforeend', templateHtml);
-                reIndexUnits(); // Re-index after adding a new unit
-            });
-
-            // Generate Barcode Button (delegated event listener)
-            document.addEventListener("click", function(e) {
-                if (e.target.classList.contains('generate-barcode-btn')) {
-                    const container = e.target.closest('.input-group').parentElement;
-                    const input = container.querySelector('input');
-                    const previewDiv = container.querySelector('.barcode-preview');
-                    const canvas = container.querySelector('.barcode-canvas');
-                    const valueText = container.querySelector('.barcode-value');
-
-                    const barcodeValue = Math.random().toString().slice(2,
-                    14); // Generates a 12-digit random number
-                    input.value = barcodeValue;
-
-                    JsBarcode(canvas, barcodeValue, {
-                        format: "CODE128",
-                        height: 40,
-                        displayValue: false // Hide default text, we'll use our own
-                    });
-                    valueText.textContent = barcodeValue;
-                    previewDiv.style.display = "block";
-                }
-            });
-
-            // Remove Unit Button (delegated event listener)
-            document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('remove-unit')) {
-                    const unitGroup = e.target.closest('.unit-group');
-                    if (document.querySelectorAll('.unit-group').length >
-                        1) { // Prevent removing the last unit
-                        unitGroup.remove();
-                        reIndexUnits(); // Re-index after removing a unit
-                    } else {
-                        alert("ต้องมีหน่วยนับอย่างน้อยหนึ่งหน่วย");
-                    }
-                }
-            });
-
-            // Initial re-indexing when the page loads (for cases where old() values might restore units)
-            reIndexUnits();
         });
-    </script>
+        unitIndex = document.querySelectorAll('.unit-group').length;
+    }
+
+    // Add new unit group
+    document.getElementById('add-unit').addEventListener('click', function() {
+        const container = document.getElementById('units-container');
+        const templateHtml = `
+            <div class="unit-group border rounded-3 p-3 mb-3 bg-light">
+                <h6 class="text-secondary small mb-3">หน่วยนับรอง</h6>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">ชื่อหน่วยนับ <span class="text-danger">*</span></label>
+                    <input type="text" name="units[${unitIndex}][unit_name]" class="form-control rounded-3"
+                        placeholder="เช่น แพ็ค, กล่อง" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">จำนวน (เทียบกับหน่วยเล็กสุด) <span class="text-danger">*</span></label>
+                    <input type="number" name="units[${unitIndex}][unit_quantity]" class="form-control rounded-3"
+                        value="1" min="1" required>
+                    <small class="form-text text-muted">เช่น ถ้าหน่วยนี้คือ 'แพ็ค' และมี 6 'ชิ้น' ให้ใส่ 6</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">รหัสบาร์โค้ด</label>
+                    <div class="input-group">
+                        <input type="text" name="units[${unitIndex}][unit_barcode]" class="form-control rounded-start-3"
+                            placeholder="ระบุเองหรือกดสร้าง" required>
+                        <button type="button" class="btn btn-outline-secondary generate-barcode-btn rounded-end-3" title="สร้างบาร์โค้ดสุ่ม">
+                            <i class="bi bi-arrow-clockwise me-1"></i> สร้าง
+                        </button>
+                    </div>
+                    <div class="barcode-preview mt-2 text-center" style="display:none;">
+                        <canvas class="barcode-canvas"></canvas>
+                        <p class="barcode-value mt-1 fw-bold text-dark"></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label small text-muted">ราคาขายปลีก <span class="text-danger">*</span></label>
+                        <input type="number" name="units[${unitIndex}][price]" step="0.01" class="form-control rounded-3" placeholder="0.00" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label small text-muted">ราคาขายส่ง <span class="text-danger">*</span></label>
+                        <input type="number" name="units[${unitIndex}][wholesale]" step="0.01" class="form-control rounded-3" placeholder="0.00" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label small text-muted">ราคาทุน <span class="text-danger">*</span></label>
+                        <input type="number" name="units[${unitIndex}][cost_price]" step="0.01" class="form-control rounded-3" placeholder="0.00" required>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-danger btn-sm remove-unit rounded-pill">
+                    <i class="bi bi-trash me-1"></i> ลบหน่วยนับนี้
+                </button>
+            </div>`;
+        container.insertAdjacentHTML('beforeend', templateHtml);
+        reIndexUnits();
+    });
+
+    // Generate barcode button
+    document.addEventListener("click", function(e) {
+        if (e.target.classList.contains('generate-barcode-btn')) {
+            const container = e.target.closest('.input-group').parentElement;
+            const input = container.querySelector('input');
+            const previewDiv = container.querySelector('.barcode-preview');
+            const canvas = container.querySelector('.barcode-canvas');
+            const valueText = container.querySelector('.barcode-value');
+
+            const barcodeValue = Math.random().toString().slice(2, 14);
+            input.value = barcodeValue;
+
+            JsBarcode(canvas, barcodeValue, { format: "CODE128", height: 40, displayValue: false });
+            valueText.textContent = barcodeValue;
+            previewDiv.style.display = "block";
+
+            // trigger input event to check duplicate
+            input.dispatchEvent(new Event('input'));
+        }
+    });
+
+    // Remove unit group
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-unit')) {
+            const unitGroup = e.target.closest('.unit-group');
+            if (document.querySelectorAll('.unit-group').length > 1) {
+                unitGroup.remove();
+                reIndexUnits();
+            } else {
+                alert("ต้องมีหน่วยนับอย่างน้อยหนึ่งหน่วย");
+            }
+        }
+    });
+
+    // 🔍 ตรวจสอบบาร์โค้ดซ้ำ (แบบเรียลไทม์)
+    document.addEventListener("input", async function(e) {
+        if (e.target.name && e.target.name.includes("unit_barcode")) {
+            const input = e.target;
+            const barcode = input.value.trim();
+            if (barcode.length < 4) return;
+
+            try {
+                const response = await fetch(`{{ route('barcode.check') }}?barcode=${barcode}`);
+                const data = await response.json();
+
+                const parent = input.closest('.mb-3');
+                let warning = parent.querySelector('.barcode-warning');
+                if (!warning) {
+                    warning = document.createElement('small');
+                    warning.classList.add('barcode-warning', 'text-danger', 'd-block', 'mt-1');
+                    parent.appendChild(warning);
+                }
+
+                if (data.exists) {
+                    warning.textContent = "⚠️ บาร์โค้ดนี้มีอยู่แล้วในระบบ กรุณาใช้บาร์โค้ดอื่น";
+                    input.classList.add('is-invalid');
+                } else {
+                    warning.textContent = "";
+                    input.classList.remove('is-invalid');
+                }
+            } catch (error) {
+                console.error("Barcode check error:", error);
+            }
+        }
+    });
+
+    // 🚫 ป้องกันการบันทึกถ้าพบช่องบาร์โค้ดที่ซ้ำ
+    document.querySelector('form[action="{{ route('product.product.storeWithUnit') }}"]').addEventListener('submit', function(e) {
+        const invalidInputs = document.querySelectorAll('input.is-invalid');
+        if (invalidInputs.length > 0) {
+            e.preventDefault();
+            alert("กรุณาแก้ไขบาร์โค้ดที่ซ้ำก่อนบันทึก");
+        }
+    });
+
+    reIndexUnits();
+});
+</script>
 @endpush

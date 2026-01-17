@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\StockAuditSessionController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Hash;
 
@@ -28,16 +29,18 @@ use App\Http\Controllers\UnitController;
 use App\Http\Middleware\CartMiddleware;
 use App\Models\Product;
 use App\Models\ProductUnit;
+use App\Http\Controllers\StockAuditController;
 use App\Http\Controllers\notifiController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Livewire\LowStockProducts;
+use App\Http\Controllers\StockCheckController;
 use Carbon\Carbon;
 
 
 // 👤 Guest Routes (เส้นทางสำหรับผู้เยี่ยมชม)
 Route::middleware('guest')->group(function () {
-   Route::get('/login', [AuthController::class, 'loginPage'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+    Route::get('/login', [AuthController::class, 'loginPage'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
     Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request'); // ลืมรหัสผ่าน
     Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email'); // ส่งอีเมลรีเซ็ตรหัสผ่าน
 });
@@ -81,7 +84,6 @@ Route::middleware('auth')->group(function () {
             Route::post('/track', [OrderController::class, 'track'])->name('track.submit');
             Route::patch('/cart/{productId}/update', [CartController::class, 'updateQuantity'])->name('updateQuantity');
             Route::post('/settings/update-alert', [OnlineController::class, 'updateAlert'])->name('settings.updateAlert');
-
         });
 
 
@@ -108,7 +110,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/orders/history', [OrderController::class, 'orderHistory'])->name('orders.history');
 
     // สำหรับอัปเดตสถานะ (ถ้าใช้ฟอร์มเปลี่ยนสถานะ)
-    Route::patch('/orders/{order}/update-status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
+    // Route::patch('/orders/{order}/update-status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
     // เส้นทางของพนักงาน
     Route::prefix('staff')->name('staff.')->group(function () {
         Route::get('/', [StaffController::class, 'index'])->name('index'); // หน้าแสดงรายชื่อพนักงาน
@@ -123,16 +125,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/audits', [StaffController::class, 'auditLogs'])->name('audits');
 
         Route::get('/sale', [SaleController::class, 'index']);
-        // Route::post('/update-stock', [SaleController::class, 'updateStockAfterSale'])->name('update.stock');
-        // Route::post('/sales/store', [SaleController::class, 'updateStockAfterSale'])->name('sales.store');
         Route::get('/sales/history', [SaleController::class, 'history'])->name('sales.history');
-        Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
-        Route::get('/sale/{id}', [SaleController::class, 'show'])->name('sale.show');
+        // Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
+        // Route::get('/sale/{id}', [SaleController::class, 'show'])->name('sale.show');
         Route::patch('/sales/{sale}/cancel', [SaleController::class, 'cancel'])->name('sales.cancel');
-        Route::get('/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit');
-        Route::put('/sales/{sale}', [SaleController::class, 'update'])->name('sales.update');
+        // Route::get('/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit');
+        // Route::put('/sales/{sale}', [SaleController::class, 'update'])->name('sales.update');
         Route::resource('sales', SaleController::class);
     });
+
     Route::post('/update-stock', [SaleController::class, 'updateStockAfterSale'])->name('update.stock');
     Route::prefix('categories')->name('categories.')->group(function () {
         Route::get('/', [CategoryController::class, 'index'])->name('index'); // หน้าแสดงรายการหมวดหมู่
@@ -144,11 +145,12 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::post('/orders/{id}/accept', [OrderController::class, 'acceptOrder'])->name('orders.accept');
-Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
-Route::get('/my-orders', [OrderController::class, 'myOrders'])->name('orders.my');
-Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
+    Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
+    Route::get('/my-orders', [OrderController::class, 'myOrders'])->name('orders.my');
+    Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
 
 
+Route::get('/check-barcode', [App\Http\Controllers\ProductController::class, 'checkBarcode'])->name('barcode.check');
 
     Route::prefix('units')->name('units.')->group(function () {
         Route::get('/', [UnitController::class, 'index'])->name('index'); // หน้าแสดงรายการหน่วยนับ
@@ -175,6 +177,14 @@ Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])
         Route::post('/products/add-stock', [ProductController::class, 'storeStock'])->name('products.add-stock');
         Route::post('/products/add-stock-multi', [ProductController::class, 'addStockMulti'])->name('products.add-stock-multi');
         Route::get('/products/indexstock', [ProductController::class, 'indexstock'])->name('indexstock');
+  Route::delete('product/image/{id}', [ProductController::class, 'deleteImage'])
+    ->name('product.image.delete');
+
+
+
+
+
+        Route::delete('/product/image/{id}', [ProductController::class, 'deleteImage'])->name('image.delete');
         // แก้ route นี้
         // Route ใน web.php
         Route::get('/barcode/{barcode}', [BarcodeController::class, 'showByBarcode'])->name('barcode.lookup');
@@ -188,7 +198,6 @@ Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])
         Route::get('/products/move-to-store', [StockController::class, 'formMoveToStore'])->name('stock.to.store');
         Route::post('/products/move-to-moveToStore', [StockController::class, 'moveToStore'])->name('stock.to.frontstore');
         Route::get('/stock-in-history', [ProductController::class, 'searchStockInHistory'])->name('stock-in-history');
-
     });
 
     Route::get('/notifications/low-stock', [NotifiController::class, 'lowStock'])->name('notification.OutStock');
@@ -201,7 +210,7 @@ Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])
     Route::prefix('members')->name('members.')->group(function () {
         Route::get('/index', [MemberController::class, 'index'])->name('index'); // บันทึกสมาชิก
         Route::get('/create', [MemberController::class, 'create'])->name('create'); // หน้าเพิ่มสมาชิก
-      Route::post('/members/set-floors', [MemberController::class, 'setFloors'])->name('members.setFloors');
+        Route::post('/members/set-floors', [MemberController::class, 'setFloors'])->name('members.setFloors');
         Route::post('/', [MemberController::class, 'store'])->name('store'); // บันทึกสมาชิก
         Route::get('{member}', [MemberController::class, 'show'])->name('show'); // แสดงรายละเอียดสมาชิก
         Route::get('{member}/edit', [MemberController::class, 'edit'])->name('edit'); // หน้าแก้ไขสมาชิก
