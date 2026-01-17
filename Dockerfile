@@ -18,4 +18,4 @@ RUN chmod -R 775 storage bootstrap/cache
 
 EXPOSE 8080
 
-CMD sh -c "php artisan migrate --force || true && php artisan serve --host=0.0.0.0 --port=${PORT}"
+CMD sh -c "php artisan migrate --force --seed || true && php artisan serve --host=0.0.0.0 --port=${PORT}"
