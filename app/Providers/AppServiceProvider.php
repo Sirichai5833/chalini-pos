@@ -7,7 +7,7 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Spatie\Activitylog\Models\Activity;
 namespace App\Providers;
-
+use Illuminate\Support\Facades\URL;
 use App\Models\Order;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
@@ -34,7 +34,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrap(); // ใช้ Bootstrap pagination style
-
+        if (app()->environment('production')) {
+        URL::forceScheme('https');
+    }
         // 👇 เพิ่ม Activity log binding ตรงนี้
         Activity::saving(function (Activity $activity) {
             if (Auth::check()) {
