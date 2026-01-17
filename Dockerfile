@@ -35,9 +35,9 @@ RUN cp .env.example .env \
 # Railway uses PORT env
 EXPOSE 80
 
-# Disable other MPMs, keep prefork only
-RUN a2dismod mpm_event mpm_worker || true \
+RUN a2dismod mpm_event mpm_worker mpm_prefork || true \
     && a2enmod mpm_prefork
+
 
 # ⭐ สำคัญที่สุด (ไม่มีอันนี้ = fail)
 CMD ["apache2-foreground"]
