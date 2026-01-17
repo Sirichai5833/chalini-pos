@@ -36,6 +36,7 @@ use App\Http\Livewire\LowStockProducts;
 use App\Http\Controllers\StockCheckController;
 use Carbon\Carbon;
 
+Route::redirect('/', '/login');
 
 // 👤 Guest Routes (เส้นทางสำหรับผู้เยี่ยมชม)
 Route::middleware('guest')->group(function () {
