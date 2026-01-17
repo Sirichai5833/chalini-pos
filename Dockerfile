@@ -33,13 +33,13 @@ RUN composer install --no-dev --optimize-autoloader
 # Fix permissions
 RUN chmod -R 775 storage bootstrap/cache
 
-# Railway จะส่ง PORT มาให้
-EXPOSE 8080
-
-# Clear & cache config (ปลอดภัยบน Railway)
+# Clear caches (ปลอดภัยบน Railway)
 RUN php artisan config:clear \
     && php artisan route:clear \
     && php artisan view:clear
 
-# Start Laravel
-CMD php artisan serve --host=0.0.0.0 --port=${PORT}
+# Railway จะส่ง PORT มาให้
+EXPOSE 8080
+
+# ✅ migrate ก่อน แล้วค่อย serve
+CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT
