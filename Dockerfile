@@ -1,27 +1,22 @@
-FROM php:8.2-fpm
+FROM php:8.2-apache
 
-# ติดตั้ง dependencies และ PHP extensions ที่ Laravel ต้องใช้
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    curl \
-    git \
+    git zip unzip curl \
+    libpng-dev libonig-dev libxml2-dev \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# ติดตั้ง Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# กำหนด working directory
-WORKDIR /var/www
+WORKDIR /var/www/html
 
-# คัดลอกไฟล์ทั้งหมดเข้า container
 COPY . .
 
-# ติดตั้ง Laravel dependencies
-RUN composer install
+RUN composer install --no-dev --optimize-autoloader
 
-CMD ["php-fpm"]
+RUN cp .env.example .env \
+    && php artisan key:generate \
+    && php artisan optimize:clear \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && a2enmod rewrite
+
+EXPOSE 80
