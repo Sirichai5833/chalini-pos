@@ -97,7 +97,7 @@
                                     <td>{{ $sale->items->sum('quantity') }}</td>
                                     <td class="fw-bold text-success">{{ number_format($sale->total_price, 2) }} ฿</td>
                                     <td>
-                                        <a href="{{ route('staff.sale.show', $sale->id) }}" class="btn btn-sm btn-info text-white shadow-sm" title="ดูรายละเอียด">
+                                        <a href="{{ route('staff.sales.show', $sale->id) }}" class="btn btn-sm btn-info text-white shadow-sm" title="ดูรายละเอียด">
                                             <i class="bi bi-info-circle-fill me-1"></i> รายละเอียด
                                         </a>
                                     </td>
