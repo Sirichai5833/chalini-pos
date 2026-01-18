@@ -6,17 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-public function up()
-{
-    Schema::table('orders', function (Blueprint $table) {
-        $table->uuid('order_token')->unique()->after('id');
-    });
-}
+    public function up()
+    {
+        Schema::table('orders', function (Blueprint $table) {
+            $table->uuid('order_token')->nullable()->unique()->after('id');
+        });
+    }
 
-public function down()
-{
-    Schema::table('orders', function (Blueprint $table) {
-        $table->dropColumn('order_token');
-    });
-}
+    public function down()
+    {
+        Schema::table('orders', function (Blueprint $table) {
+            $table->dropUnique(['order_token']);
+            $table->dropColumn('order_token');
+        });
+    }
 };

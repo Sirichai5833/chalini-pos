@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\ProductStockMovement;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -71,19 +72,10 @@ class OrderController extends Controller
         return view('online.track', compact('orders'));
     }
 
-    public function ordersList()
-    {
-        $orders = Order::with(['orderItems.product', 'user'])
-            ->whereNotIn('status', ['เสร็จสิ้น', 'ยกเลิก', 'กำลังจัดส่ง'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
-
-        return view('sale.order', compact('orders'));
-    }
-
-    public function updateStatus(Request $request, $id)
+public function updateStatus(Request $request, $id)
 {
-    $order = Order::findOrFail($id);
+    $order = Order::with('orderItems')->findOrFail($id);
+    $oldStatus = $order->status;
 
     $request->validate([
         'status' => 'required|string',
@@ -91,31 +83,62 @@ class OrderController extends Controller
         'cancel_reason' => 'nullable|string|max:500',
     ]);
 
-    // ถ้าเสร็จสิ้นต้องมีรูป
     if ($request->status === 'เสร็จสิ้น' && !$request->hasFile('proof_image')) {
         return back()->with('error', 'กรุณาแนบรูปหลักฐาน!');
     }
 
-    // ถ้ายกเลิกต้องมีหมายเหตุ
     if ($request->status === 'ยกเลิก' && !$request->cancel_reason) {
         return back()->with('error', 'กรุณากรอกหมายเหตุการยกเลิก!');
     }
 
-    if ($request->hasFile('proof_image')) {
-        $filePath = $request->file('proof_image')->store('proofs', 'public');
-        $order->proof_image = $filePath;
+    DB::transaction(function () use ($order, $request, $oldStatus) {
+
+        // ✅ คืนสต็อกเมื่อยกเลิก
+        if ($request->status === 'ยกเลิก' && $oldStatus !== 'ยกเลิก') {
+
+    $movements = ProductStockMovement::where('order_id', $order->id)
+        ->where('type', 'out')
+        ->get();
+
+    foreach ($movements as $move) {
+
+        $stock = ProductStocks::where('product_id', $move->product_id)
+            ->whereHas('unit', fn($q) => $q->where('unit_name', $move->unit))
+            ->first();
+
+        if ($stock) {
+            $stock->increment('store_stock', $move->quantity);
+        }
+
+        // (optional) บันทึก movement in
+        ProductStockMovement::create([
+            'order_id' => $order->id,
+            'product_id' => $move->product_id,
+            'type' => 'in',
+            'quantity' => $move->quantity,
+            'unit_quantity' => $move->unit_quantity,
+            'unit' => $move->unit,
+            'location' => 'store',
+            'note' => 'คืนสต็อกจากการยกเลิกออเดอร์',
+        ]);
     }
 
-    if ($request->cancel_reason) {
-        $order->cancel_reason = $request->cancel_reason;
-    }
+    $order->cancel_reason = $request->cancel_reason;
+}
 
-    $order->status = $request->status;
-    $order->save();
+
+        // แนบรูปเมื่อเสร็จสิ้น
+        if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
+            $order->proof_image = $request->file('proof_image')
+                ->store('proofs', 'public');
+        }
+
+        $order->status = $request->status;
+        $order->save();
+    });
 
     return back()->with('success', 'อัปเดตสถานะสำเร็จ!');
 }
-
 
 
     public function orderHistory()
