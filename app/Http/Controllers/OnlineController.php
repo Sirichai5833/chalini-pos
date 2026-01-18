@@ -192,11 +192,15 @@ public function showCheckoutForm()
    public function processCheckout(Request $request)
 {
     $request->validate([
+        'order_token' => 'required|uuid', // ✅ เพิ่ม
         'phone' => 'required',
         'payment_method' => 'required',
         'slip' => 'required_if:payment_method,โอนผ่านบัญชีธนาคาร|image|max:2048',
     ]);
-
+    if (Order::where('order_token', $request->order_token)->exists()) {
+        return redirect('/online/track')
+            ->with('info', 'คำสั่งซื้อนี้ถูกบันทึกแล้ว');
+    }
     $member = Auth::user();
     $cartItems = session('cart', []);
     $totalAmount = collect($cartItems)->sum(fn($item) => $item['price'] * $item['quantity']);
@@ -209,6 +213,7 @@ public function showCheckoutForm()
 
     try {
         $order = Order::create([
+            'order_token' => $request->order_token,
             'order_code' => 'ORD' . mt_rand(1000, 9999),
             'user_id' => $member?->id,
             'payment_method' => $request->payment_method,
