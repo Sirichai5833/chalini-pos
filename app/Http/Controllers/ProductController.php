@@ -261,7 +261,6 @@ class ProductController extends Controller
             $note       = $item['note'] ?? '';
             $isFree     = isset($item['is_free']) && $item['is_free'] == 1;
             $expiryDate = $item['expiry_date'] ?? null;
-            dd($quantity, $unitQty);
 
             // ✅ แปลงเป็น "ชิ้นจริง"
             $addQty = $quantity * $unitQty;
