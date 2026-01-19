@@ -1,27 +1,41 @@
 <?php
 
-// app/Http/Middleware/CartMiddleware.php
-
 namespace App\Http\Middleware;
+
 use Closure;
 use Illuminate\Support\Facades\Log;
 
 class CartMiddleware
 {
-  public function handle($request, Closure $next)
-{
-    $cart = session('cart');
+    public function handle($request, Closure $next)
+    {
+        $cart = session('cart');
 
-    $items = $cart['items'] ?? [];
+        // ถ้า cart ไม่มี หรือไม่ใช่ array → ปลอดภัยไว้ก่อน
+        if (!is_array($cart)) {
+            view()->share('totalItems', 0);
+            return $next($request);
+        }
 
-    $totalItems = collect($items)->sum(function ($item) {
-        return $item['quantity'] ?? 0;
-    });
+        // ถ้า cart มีโครงสร้างแบบมี items
+        $items = $cart['items'] ?? [];
 
-    view()->share('totalItems', $totalItems);
-    Log::info('Cart session', ['cart' => session('cart')]);
+        if (!is_array($items)) {
+            $items = [];
+        }
 
-    return $next($request);
-}
+        $totalItems = 0;
 
+        foreach ($items as $item) {
+            if (is_array($item) && isset($item['quantity'])) {
+                $totalItems += (int) $item['quantity'];
+            }
+        }
+
+        view()->share('totalItems', $totalItems);
+
+        Log::info('CartMiddleware totalItems', ['totalItems' => $totalItems]);
+
+        return $next($request);
+    }
 }
