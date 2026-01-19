@@ -14,6 +14,7 @@ class CartMiddleware
         // ถ้า cart ไม่มี หรือไม่ใช่ array → ปลอดภัยไว้ก่อน
         if (!is_array($cart)) {
             view()->share('totalItems', 0);
+            dd(session('cart'));
             return $next($request);
         }
 
@@ -35,7 +36,7 @@ class CartMiddleware
         view()->share('totalItems', $totalItems);
 
         Log::info('CartMiddleware totalItems', ['totalItems' => $totalItems]);
-dd(session('cart'));
+
 
         return $next($request);
     }
