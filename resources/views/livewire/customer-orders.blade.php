@@ -94,24 +94,19 @@
 
 {{-- ✅ แสดงรูปหลักฐานถ้ามี --}}
 @if ($order->proof_image)
-    @php
-        $proofUrl = Str::startsWith($order->proof_image, 'http')
-            ? $order->proof_image
-            : asset('storage/' . $order->proof_image);
-    @endphp
-
     <div class="mt-3">
         <strong class="text-secondary">
             <i class="bi bi-image-fill me-2"></i> หลักฐานการจัดส่ง:
         </strong><br>
 
-        <a href="{{ $proofUrl }}" target="_blank">
-            <img src="{{ $proofUrl }}"
+        <a href="{{ $order->proof_image }}" target="_blank">
+            <img src="{{ $order->proof_image }}"
                  class="img-fluid mt-2 rounded shadow-sm"
                  style="max-width:150px;border:1px solid #ddd;">
         </a>
     </div>
 @endif
+
 
 
 {{-- ✅ แสดงหมายเหตุถ้ามี --}}
