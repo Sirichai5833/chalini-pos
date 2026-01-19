@@ -146,21 +146,17 @@ public function updateStatus(Request $request, $id)
         }
     
         // ☁️ Upload to Cloudinary
-      if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
+     if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
 
     $upload = Cloudinary::upload(
-        $request->file('proof_image')->getRealPath(),
-        [
-            'folder' => 'order_proofs',
-        ]
+        $request->file('proof_image')->getRealPath()
     );
-
 
     if (!$upload) {
         return back()->with('error', 'อัปโหลดรูปไม่สำเร็จ');
     }
-
-    $order->proof_image = $upload->getSecurePath(); // ✅ ถูกต้อง
+    dd($upload);
+    $imageUrl = $upload->getSecurePath(); // ✅ วิธีที่ถูก
 }
 
 
