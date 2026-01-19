@@ -144,10 +144,14 @@ public function updateStatus(Request $request, $id)
 
             $order->cancel_reason = $request->cancel_reason;
         }
-
+    
         // ☁️ Upload to Cloudinary
         if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
-
+dd([
+    'cloud'  => config('cloudinary.cloud_name'),
+    'key'    => config('cloudinary.api_key'),
+    'secret' => config('cloudinary.api_secret'),
+]);
     $upload = Cloudinary::upload(
         $request->file('proof_image')->getRealPath(),
         [
