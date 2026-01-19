@@ -118,7 +118,7 @@ public function updateStatus(Request $request, $id)
             ======================= */
             if ($request->status === 'ยกเลิก' && $oldStatus !== 'ยกเลิก') {
 
-                $movements = ProductStockMovement::where('product_id', $order->id)
+                $movements = ProductStockMovement::where('id', $order->id)
                     ->where('type', 'out')
                     ->get();
 
