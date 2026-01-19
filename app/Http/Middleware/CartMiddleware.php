@@ -8,22 +8,19 @@ use Illuminate\Support\Facades\Log;
 
 class CartMiddleware
 {
-    public function handle($request, Closure $next)
-    {
-        // ดึงข้อมูลจาก session
-        $cart = session('cart', []);
+  public function handle($request, Closure $next)
+{
+    $cart = session('cart');
 
-        // ตรวจสอบว่า cart มีข้อมูลเป็น array ของ product หรือไม่
-        $totalItems = collect($cart)->sum(function ($item) {
-            return isset($item['quantity']) ? $item['quantity'] : 0;
-        });
+    $items = $cart['items'] ?? [];
 
-        // แชร์ข้อมูลไปยังทุก view
-        view()->share('totalItems', $totalItems);
+    $totalItems = collect($items)->sum(function ($item) {
+        return $item['quantity'] ?? 0;
+    });
 
-        // log เพื่อตรวจสอบว่า middleware ทำงานหรือไม่
-        Log::info("CartMiddleware hit with total items: $totalItems");
+    view()->share('totalItems', $totalItems);
 
-        return $next($request);
-    }
+    return $next($request);
+}
+
 }
