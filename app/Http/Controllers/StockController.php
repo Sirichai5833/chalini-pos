@@ -54,119 +54,111 @@ public function moveToStore(Request $request)
     ]);
 
     DB::beginTransaction();
+
     try {
-        $productIds = $request->input('product_id');
-        $unitIds = $request->input('unit_id');
-        $quantities = $request->input('quantity');
+        foreach ($request->product_id as $i => $productId) {
 
-        for ($i = 0; $i < count($productIds); $i++) {
-            $productId = $productIds[$i];
-            $unitId = $unitIds[$i];
-            $quantity = $quantities[$i];
+            $unitId   = $request->unit_id[$i];
+            $needQty  = $request->quantity[$i];
 
-            $mainUnit = ProductUnit::find($unitId);
-            if (!$mainUnit) {
-                throw new \Exception("ไม่พบหน่วยสินค้ารายการที่ " . ($i + 1));
-            }
+            $unit = ProductUnit::findOrFail($unitId);
 
-            $mainStock = ProductStocks::firstOrCreate(
+            // stock หน่วยที่ user เลือก
+            $stock = ProductStocks::firstOrCreate(
                 ['product_id' => $productId, 'unit_id' => $unitId],
                 ['warehouse_stock' => 0, 'store_stock' => 0]
             );
 
-            if ($mainStock->warehouse_stock >= $quantity) {
-                // ✅ ถ้าสต็อกเพียงพอ → หักแค่หน่วยนั้น
-                $mainStock->warehouse_stock -= $quantity;
-                $mainStock->store_stock += $quantity;
-                $mainStock->save();
+            // ✅ ถ้าหน่วยที่เลือกมีพอ → ใช้เลย
+            if ($stock->warehouse_stock < $needQty) {
 
-                ProductStockMovement::create([
-                    'product_id' => $productId,
-                    'type' => 'out',
-                    'quantity' => $quantity,
-                    'unit_quantity' => $mainUnit->unit_quantity,
-                    'unit' => $mainUnit->unit_name,
-                    'location' => 'warehouse',
-                    'note' => 'ย้ายไปหน้าร้าน (หน่วยตรง)',
-                ]);
+                // ❗ ต้องแตกจากหน่วยที่ใหญ่กว่า
+                $biggerUnits = ProductUnit::where('product_id', $productId)
+                    ->where('unit_quantity', '>', $unit->unit_quantity)
+                    ->orderBy('unit_quantity')
+                    ->get();
 
-                ProductStockMovement::create([
-                    'product_id' => $productId,
-                    'type' => 'in',
-                    'quantity' => $quantity,
-                    'unit_quantity' => $mainUnit->unit_quantity,
-                    'unit' => $mainUnit->unit_name,
-                    'location' => 'store',
-                    'note' => 'รับจากคลัง (หน่วยตรง)',
-                ]);
+                foreach ($biggerUnits as $bigUnit) {
 
-                continue;
+                    $bigStock = ProductStocks::where('product_id', $productId)
+                        ->where('unit_id', $bigUnit->id)
+                        ->first();
+
+                    if (!$bigStock || $bigStock->warehouse_stock <= 0) {
+                        continue;
+                    }
+
+                    // แตก 1 หน่วยใหญ่
+                    $bigStock->decrement('warehouse_stock', 1);
+
+                    $converted = $bigUnit->unit_quantity / $unit->unit_quantity;
+
+                    // เติม stock หน่วยเล็ก
+                    $stock->increment('warehouse_stock', $converted);
+
+                    ProductStockMovement::create([
+                        'product_id' => $productId,
+                        'type' => 'out',
+                        'quantity' => 1,
+                        'unit' => $bigUnit->unit_name,
+                        'unit_quantity' => $bigUnit->unit_quantity,
+                        'location' => 'warehouse',
+                        'note' => 'แตกหน่วย',
+                    ]);
+
+                    ProductStockMovement::create([
+                        'product_id' => $productId,
+                        'type' => 'in',
+                        'quantity' => $converted,
+                        'unit' => $unit->unit_name,
+                        'unit_quantity' => $unit->unit_quantity,
+                        'location' => 'warehouse',
+                        'note' => 'รับจากการแตกหน่วย',
+                    ]);
+
+                    if ($stock->warehouse_stock >= $needQty) {
+                        break;
+                    }
+                }
+
+                if ($stock->warehouse_stock < $needQty) {
+                    throw new \Exception('สต็อกไม่พอแม้หลังจากแตกหน่วย');
+                }
             }
 
-            // ❌ ถ้าไม่พอ → ต้องใช้การแปลงจากหน่วยอื่น
-            $baseQty = $quantity * $mainUnit->unit_quantity;
-            $remainingQty = $baseQty;
+            // ✅ ย้ายไปหน้าร้าน
+            $stock->decrement('warehouse_stock', $needQty);
+            $stock->increment('store_stock', $needQty);
 
-            // ค่อยๆ หาและหักจากหน่วยที่ใหญ่กว่าหรือเท่ากัน
-            $allUnits = ProductUnit::where('product_id', $productId)
-                ->orderByDesc('unit_quantity')
-                ->get();
+            ProductStockMovement::create([
+                'product_id' => $productId,
+                'type' => 'out',
+                'quantity' => $needQty,
+                'unit' => $unit->unit_name,
+                'unit_quantity' => $unit->unit_quantity,
+                'location' => 'warehouse',
+                'note' => 'ย้ายไปหน้าร้าน',
+            ]);
 
-            foreach ($allUnits as $unit) {
-                $unitQty = $unit->unit_quantity;
-                $convertedQty = floor($remainingQty / $unitQty);
-                if ($convertedQty <= 0) continue;
-
-                $stock = ProductStocks::firstOrCreate(
-                    ['product_id' => $productId, 'unit_id' => $unit->id],
-                    ['warehouse_stock' => 0, 'store_stock' => 0]
-                );
-
-                $qtyToUse = min($convertedQty, $stock->warehouse_stock);
-                if ($qtyToUse <= 0) continue;
-
-                $stock->warehouse_stock -= $qtyToUse;
-                $stock->store_stock += $qtyToUse;
-                $stock->save();
-
-                ProductStockMovement::create([
-                    'product_id' => $productId,
-                    'type' => 'out',
-                    'quantity' => $qtyToUse,
-                    'unit_quantity' => $unitQty,
-                    'unit' => $unit->unit_name,
-                    'location' => 'warehouse',
-                    'note' => 'ย้ายไปหน้าร้าน (แปลงหน่วย)',
-                ]);
-
-                ProductStockMovement::create([
-                    'product_id' => $productId,
-                    'type' => 'in',
-                    'quantity' => $qtyToUse,
-                    'unit_quantity' => $unitQty,
-                    'unit' => $unit->unit_name,
-                    'location' => 'store',
-                    'note' => 'รับจากคลัง (แปลงหน่วย)',
-                ]);
-
-                $remainingQty -= $qtyToUse * $unitQty;
-
-                if ($remainingQty <= 0) break;
-            }
-
-            if ($remainingQty > 0) {
-                throw new \Exception("สินค้ารายการที่ " . ($i + 1) . " ไม่สามารถย้ายได้ครบ (ขาด $remainingQty หน่วยย่อย)");
-            }
+            ProductStockMovement::create([
+                'product_id' => $productId,
+                'type' => 'in',
+                'quantity' => $needQty,
+                'unit' => $unit->unit_name,
+                'unit_quantity' => $unit->unit_quantity,
+                'location' => 'store',
+                'note' => 'รับเข้าหน้าร้าน',
+            ]);
         }
 
         DB::commit();
-        return redirect()->back()->with('success', 'ย้ายสินค้าไปหน้าร้านเรียบร้อยแล้ว');
+        return back()->with('success', 'ย้ายสินค้าเรียบร้อยแล้ว');
+
     } catch (\Exception $e) {
         DB::rollBack();
         return back()->withErrors(['error' => $e->getMessage()]);
     }
 }
-
 
 
 
