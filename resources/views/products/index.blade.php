@@ -61,27 +61,31 @@
                 @foreach ($products as $product)
                     <div class="col">
                         <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
-                          @if($product->images->count())
-<div id="carouselProduct{{ $product->id }}" class="carousel slide mb-3" data-bs-ride="carousel">
-    <div class="carousel-inner">
-        @foreach($product->images as $key => $image)
-            <div class="carousel-item {{ $key == 0 ? 'active' : '' }}">
-                <img src="{{ asset('storage/' . $image->image_path) }}" class="d-block w-100" style="height:200px; object-fit:cover;">
-            </div>
-        @endforeach
-    </div>
-    @if($product->images->count() > 1)
-        <button class="carousel-control-prev" type="button" data-bs-target="#carouselProduct{{ $product->id }}" data-bs-slide="prev">
-            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Previous</span>
-        </button>
-        <button class="carousel-control-next" type="button" data-bs-target="#carouselProduct{{ $product->id }}" data-bs-slide="next">
-            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Next</span>
-        </button>
-    @endif
-</div>
-@endif
+                            @if ($product->images->count())
+                                <div id="carouselProduct{{ $product->id }}" class="carousel slide mb-3"
+                                    data-bs-ride="carousel">
+                                    <div class="carousel-inner">
+                                        @foreach ($product->images as $key => $image)
+                                            <div class="carousel-item {{ $key == 0 ? 'active' : '' }}">
+                                                <img src="{{ asset('storage/' . $image->image_path) }}"
+                                                    class="d-block w-100" style="height:200px; object-fit:cover;">
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                    @if ($product->images->count() > 1)
+                                        <button class="carousel-control-prev" type="button"
+                                            data-bs-target="#carouselProduct{{ $product->id }}" data-bs-slide="prev">
+                                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                            <span class="visually-hidden">Previous</span>
+                                        </button>
+                                        <button class="carousel-control-next" type="button"
+                                            data-bs-target="#carouselProduct{{ $product->id }}" data-bs-slide="next">
+                                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                            <span class="visually-hidden">Next</span>
+                                        </button>
+                                    @endif
+                                </div>
+                            @endif
 
 
                             <div class="card-body d-flex flex-column p-3">
@@ -116,34 +120,42 @@
                                 <ul class="list-unstyled ps-3 mb-2 small text-muted">
                                     @php
                                         $totalStorePieces = 0;
+
                                         foreach ($product->productUnits as $unit) {
                                             $stock = $unit->stock;
                                             $qty = $stock ? $stock->store_stock ?? 0 : 0;
                                             $unitQty = $unit->unit_quantity > 0 ? $unit->unit_quantity : 1;
+
                                             $totalStorePieces += $qty * $unitQty;
                                         }
                                     @endphp
+
                                     <li>รวม: <strong>{{ $totalStorePieces }}</strong> ชิ้น</li>
+
                                 </ul>
 
                                 <p class="card-text mb-0 text-muted small"><strong>จำนวนในคลัง:</strong></p>
                                 <ul class="list-unstyled ps-3 mb-2 small text-muted">
                                     @php
                                         $totalWarehousePieces = 0;
+
                                         foreach ($product->productUnits as $unit) {
                                             $stock = $unit->stock;
                                             $qty = $stock ? $stock->warehouse_stock ?? 0 : 0;
+                                            $unitQty = $unit->unit_quantity > 0 ? $unit->unit_quantity : 1;
+
                                             $totalWarehousePieces += $qty * $unitQty;
                                         }
                                     @endphp
+
                                     <li>รวม: <strong>{{ $totalWarehousePieces }}</strong> ชิ้น</li>
-                                </ul>
 
 
 
-                                <p class="card-text mb-2 text-muted small">
-                                    <strong>ของแถม:</strong> {{ $product->description ?? 'ไม่มี' }}
-                                </p>
+
+                                    <p class="card-text mb-2 text-muted small">
+                                        <strong>ของแถม:</strong> {{ $product->description ?? 'ไม่มี' }}
+                                    </p>
                             </div>
                             <div
                                 class="card-footer bg-white border-0 pt-0 d-flex justify-content-between align-items-center">
@@ -226,9 +238,9 @@
                                         placeholder="เช่น แถมแก้วน้ำ, รายละเอียดเฉพาะของสินค้า">{{ old('description') }}</textarea>
                                 </div>
 
-                                  <div class="mb-3">
-        <label for="images" class="form-label">เลือกรูปภาพสินค้า (อัปโหลดได้หลายรูป)</label>
-        <input type="file" class="form-control" name="images[]" id="images" multiple>
+                                <div class="mb-3">
+                                    <label for="images" class="form-label">เลือกรูปภาพสินค้า (อัปโหลดได้หลายรูป)</label>
+                                    <input type="file" class="form-control" name="images[]" id="images" multiple>
                                     <small class="text-muted">สามารถเลือกได้หลายไฟล์พร้อมกัน (กด Ctrl หรือ Shift)</small>
 
                                     @error('image')
@@ -397,31 +409,31 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    let unitIndex = document.querySelectorAll('.unit-group').length;
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let unitIndex = document.querySelectorAll('.unit-group').length;
 
-    // Re-index unit fields
-    function reIndexUnits() {
-        document.querySelectorAll('#units-container .unit-group').forEach((unitGroup, index) => {
-            unitGroup.querySelectorAll('[name^="units["]').forEach(input => {
-                const name = input.getAttribute('name');
-                input.setAttribute('name', name.replace(/units\[\d+\]/, `units[${index}]`));
-            });
-            const removeButton = unitGroup.querySelector('.remove-unit');
-            if (removeButton) {
-                if (index === 0) removeButton.classList.add('d-none');
-                else removeButton.classList.remove('d-none');
+            // Re-index unit fields
+            function reIndexUnits() {
+                document.querySelectorAll('#units-container .unit-group').forEach((unitGroup, index) => {
+                    unitGroup.querySelectorAll('[name^="units["]').forEach(input => {
+                        const name = input.getAttribute('name');
+                        input.setAttribute('name', name.replace(/units\[\d+\]/, `units[${index}]`));
+                    });
+                    const removeButton = unitGroup.querySelector('.remove-unit');
+                    if (removeButton) {
+                        if (index === 0) removeButton.classList.add('d-none');
+                        else removeButton.classList.remove('d-none');
+                    }
+                });
+                unitIndex = document.querySelectorAll('.unit-group').length;
             }
-        });
-        unitIndex = document.querySelectorAll('.unit-group').length;
-    }
 
-    // Add new unit group
-    document.getElementById('add-unit').addEventListener('click', function() {
-        const container = document.getElementById('units-container');
-        const templateHtml = `
+            // Add new unit group
+            document.getElementById('add-unit').addEventListener('click', function() {
+                const container = document.getElementById('units-container');
+                const templateHtml = `
             <div class="unit-group border rounded-3 p-3 mb-3 bg-light">
                 <h6 class="text-secondary small mb-3">หน่วยนับรอง</h6>
                 <div class="mb-3">
@@ -467,86 +479,93 @@ document.addEventListener('DOMContentLoaded', function() {
                     <i class="bi bi-trash me-1"></i> ลบหน่วยนับนี้
                 </button>
             </div>`;
-        container.insertAdjacentHTML('beforeend', templateHtml);
-        reIndexUnits();
-    });
-
-    // Generate barcode button
-    document.addEventListener("click", function(e) {
-        if (e.target.classList.contains('generate-barcode-btn')) {
-            const container = e.target.closest('.input-group').parentElement;
-            const input = container.querySelector('input');
-            const previewDiv = container.querySelector('.barcode-preview');
-            const canvas = container.querySelector('.barcode-canvas');
-            const valueText = container.querySelector('.barcode-value');
-
-            const barcodeValue = Math.random().toString().slice(2, 14);
-            input.value = barcodeValue;
-
-            JsBarcode(canvas, barcodeValue, { format: "CODE128", height: 40, displayValue: false });
-            valueText.textContent = barcodeValue;
-            previewDiv.style.display = "block";
-
-            // trigger input event to check duplicate
-            input.dispatchEvent(new Event('input'));
-        }
-    });
-
-    // Remove unit group
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('remove-unit')) {
-            const unitGroup = e.target.closest('.unit-group');
-            if (document.querySelectorAll('.unit-group').length > 1) {
-                unitGroup.remove();
+                container.insertAdjacentHTML('beforeend', templateHtml);
                 reIndexUnits();
-            } else {
-                alert("ต้องมีหน่วยนับอย่างน้อยหนึ่งหน่วย");
-            }
-        }
-    });
+            });
 
-    // 🔍 ตรวจสอบบาร์โค้ดซ้ำ (แบบเรียลไทม์)
-    document.addEventListener("input", async function(e) {
-        if (e.target.name && e.target.name.includes("unit_barcode")) {
-            const input = e.target;
-            const barcode = input.value.trim();
-            if (barcode.length < 4) return;
+            // Generate barcode button
+            document.addEventListener("click", function(e) {
+                if (e.target.classList.contains('generate-barcode-btn')) {
+                    const container = e.target.closest('.input-group').parentElement;
+                    const input = container.querySelector('input');
+                    const previewDiv = container.querySelector('.barcode-preview');
+                    const canvas = container.querySelector('.barcode-canvas');
+                    const valueText = container.querySelector('.barcode-value');
 
-            try {
-                const response = await fetch(`{{ route('barcode.check') }}?barcode=${barcode}`);
-                const data = await response.json();
+                    const barcodeValue = Math.random().toString().slice(2, 14);
+                    input.value = barcodeValue;
 
-                const parent = input.closest('.mb-3');
-                let warning = parent.querySelector('.barcode-warning');
-                if (!warning) {
-                    warning = document.createElement('small');
-                    warning.classList.add('barcode-warning', 'text-danger', 'd-block', 'mt-1');
-                    parent.appendChild(warning);
+                    JsBarcode(canvas, barcodeValue, {
+                        format: "CODE128",
+                        height: 40,
+                        displayValue: false
+                    });
+                    valueText.textContent = barcodeValue;
+                    previewDiv.style.display = "block";
+
+                    // trigger input event to check duplicate
+                    input.dispatchEvent(new Event('input'));
                 }
+            });
 
-                if (data.exists) {
-                    warning.textContent = "⚠️ บาร์โค้ดนี้มีอยู่แล้วในระบบ กรุณาใช้บาร์โค้ดอื่น";
-                    input.classList.add('is-invalid');
-                } else {
-                    warning.textContent = "";
-                    input.classList.remove('is-invalid');
+            // Remove unit group
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('remove-unit')) {
+                    const unitGroup = e.target.closest('.unit-group');
+                    if (document.querySelectorAll('.unit-group').length > 1) {
+                        unitGroup.remove();
+                        reIndexUnits();
+                    } else {
+                        alert("ต้องมีหน่วยนับอย่างน้อยหนึ่งหน่วย");
+                    }
                 }
-            } catch (error) {
-                console.error("Barcode check error:", error);
-            }
-        }
-    });
+            });
 
-    // 🚫 ป้องกันการบันทึกถ้าพบช่องบาร์โค้ดที่ซ้ำ
-    document.querySelector('form[action="{{ route('product.product.storeWithUnit') }}"]').addEventListener('submit', function(e) {
-        const invalidInputs = document.querySelectorAll('input.is-invalid');
-        if (invalidInputs.length > 0) {
-            e.preventDefault();
-            alert("กรุณาแก้ไขบาร์โค้ดที่ซ้ำก่อนบันทึก");
-        }
-    });
+            // 🔍 ตรวจสอบบาร์โค้ดซ้ำ (แบบเรียลไทม์)
+            document.addEventListener("input", async function(e) {
+                if (e.target.name && e.target.name.includes("unit_barcode")) {
+                    const input = e.target;
+                    const barcode = input.value.trim();
+                    if (barcode.length < 4) return;
 
-    reIndexUnits();
-});
-</script>
+                    try {
+                        const response = await fetch(
+                        `{{ route('barcode.check') }}?barcode=${barcode}`);
+                        const data = await response.json();
+
+                        const parent = input.closest('.mb-3');
+                        let warning = parent.querySelector('.barcode-warning');
+                        if (!warning) {
+                            warning = document.createElement('small');
+                            warning.classList.add('barcode-warning', 'text-danger', 'd-block', 'mt-1');
+                            parent.appendChild(warning);
+                        }
+
+                        if (data.exists) {
+                            warning.textContent = "⚠️ บาร์โค้ดนี้มีอยู่แล้วในระบบ กรุณาใช้บาร์โค้ดอื่น";
+                            input.classList.add('is-invalid');
+                        } else {
+                            warning.textContent = "";
+                            input.classList.remove('is-invalid');
+                        }
+                    } catch (error) {
+                        console.error("Barcode check error:", error);
+                    }
+                }
+            });
+
+            // 🚫 ป้องกันการบันทึกถ้าพบช่องบาร์โค้ดที่ซ้ำ
+            document.querySelector('form[action="{{ route('product.product.storeWithUnit') }}"]').addEventListener(
+                'submit',
+                function(e) {
+                    const invalidInputs = document.querySelectorAll('input.is-invalid');
+                    if (invalidInputs.length > 0) {
+                        e.preventDefault();
+                        alert("กรุณาแก้ไขบาร์โค้ดที่ซ้ำก่อนบันทึก");
+                    }
+                });
+
+            reIndexUnits();
+        });
+    </script>
 @endpush
