@@ -48,11 +48,12 @@
                             @if ($order->slip_path)
                                 <hr class="my-3">
                                 <h6 class="text-primary mb-2"><i class="bi bi-image-fill me-2"></i> สลิปการชำระเงิน</h6>
-                                <a href="{{ asset('storage/' . $order->slip_path) }}" target="_blank">
-                                    <img src="{{ asset('storage/' . $order->slip_path) }}" alt="Slip Image"
-                                        class="img-fluid rounded shadow-sm mb-3"
-                                        style="max-height: 150px; cursor: pointer;">
-                                </a>
+                                <a href="{{ $order->slip_path }}" target="_blank">
+    <img src="{{ $order->slip_path }}" alt="Slip Image"
+        class="img-fluid rounded shadow-sm mb-3"
+        style="max-height: 150px; cursor: pointer;">
+</a>
+
                             @else
                                 <p class="text-muted fst-italic mt-3"><i class="bi bi-info-circle-fill me-2"></i>
                                     ไม่มีสลิปการชำระเงิน</p>

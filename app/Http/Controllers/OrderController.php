@@ -9,11 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\ProductStocks;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
-use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Modifiers\ResizeModifier;
-use Illuminate\Support\Facades\Log;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+
 
 
 
@@ -40,11 +37,14 @@ class OrderController extends Controller
             if ($request->hasFile('slip')) {
                 $slipPath = null;
 if ($request->hasFile('slip')) {
-    $slipPath = $this->compressAndStoreImage(
-        $request->file('slip'),
-        'slips'
-    );
+    $slipPath = Cloudinary::upload(
+        $request->file('slip')->getRealPath(),
+        [
+            'folder' => 'slips',
+        ]
+    )->getSecurePath();
 }
+
             }
 
             $order = new Order();
@@ -142,10 +142,13 @@ if ($request->hasFile('slip')) {
 
         // แนบรูปเมื่อเสร็จสิ้น
         if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
-    $order->proof_image = $this->compressAndStoreImage(
-        $request->file('proof_image'),
-        'proofs'
-    );
+    $$order->proof_image = Cloudinary::upload(
+    $request->file('proof_image')->getRealPath(),
+    [
+        'folder' => 'proofs',
+    ]
+)->getSecurePath();
+
 }
 
 
@@ -218,30 +221,6 @@ if ($request->hasFile('slip')) {
 
         return view('sale.order', compact('orders'));
     }
-    private function compressAndStoreImage($file, $folder)
-{
-    $manager = new ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
-
-    $image = $manager->read($file);
-    $image->scaleDown(width: 1024);
-
-    $filename = uniqid() . '.jpg';
-    $path = $folder . '/' . $filename;
-
-    // ⭐ สำคัญ: ต้อง cast เป็น string
-    $encoded = (string) $image->toJpeg(75);
-
-    Storage::disk('public')->put($path, $encoded);
-
-    // debug เช็คขนาดไฟล์
-    Log::info('IMAGE STORED', [
-        'path' => $path,
-        'size' => Storage::disk('public')->size($path),
-    ]);
-
-    return $path;
-}
-
-
+    
 
 }
