@@ -13,6 +13,8 @@ use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Modifiers\ResizeModifier;
+use Illuminate\Support\Facades\Log;
+
 
 
 class OrderController extends Controller
@@ -218,7 +220,7 @@ if ($request->hasFile('slip')) {
     }
     private function compressAndStoreImage($file, $folder)
 {
-    $manager = new ImageManager(new Driver());
+    $manager = new ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
 
     $image = $manager->read($file);
     $image->scaleDown(width: 1024);
@@ -226,13 +228,20 @@ if ($request->hasFile('slip')) {
     $filename = uniqid() . '.jpg';
     $path = $folder . '/' . $filename;
 
-    Storage::disk('public')->put(
-        $path,
-        $image->toJpeg(75)
-    );
+    // ⭐ สำคัญ: ต้อง cast เป็น string
+    $encoded = (string) $image->toJpeg(75);
+
+    Storage::disk('public')->put($path, $encoded);
+
+    // debug เช็คขนาดไฟล์
+    Log::info('IMAGE STORED', [
+        'path' => $path,
+        'size' => Storage::disk('public')->size($path),
+    ]);
 
     return $path;
 }
+
 
 
 }
