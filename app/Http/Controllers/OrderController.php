@@ -12,6 +12,8 @@ use App\Models\ProductStocks;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Modifiers\ResizeModifier;
+
 
 class OrderController extends Controller
 {
@@ -124,9 +126,10 @@ class OrderController extends Controller
 
 
             // แนบรูปเมื่อเสร็จสิ้น
+
+
             if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
 
-                // ลบรูปเก่า (ถ้ามี)
                 if ($order->proof_image) {
                     Storage::disk('public')->delete($order->proof_image);
                 }
@@ -134,23 +137,16 @@ class OrderController extends Controller
                 $image = $request->file('proof_image');
                 $filename = 'proof_' . time() . '.jpg';
 
-                $image = $request->file('proof_image');
-
                 $manager = new ImageManager(new Driver());
 
-                $img = $manager->read($image)
-                    ->resize(800, 800, function ($c) {
-                        $c->aspectRatio();
-                        $c->upsize();
-                    })
-                    ->toJpeg(70);
+              $img = $manager->read($image)
+    ->scaleDown(800, 800)
+    ->toJpeg(70);
 
                 Storage::disk('public')->put("proofs/{$filename}", $img);
 
-
                 $order->proof_image = "proofs/{$filename}";
             }
-
 
             $order->status = $request->status;
             $order->save();
