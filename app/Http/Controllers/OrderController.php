@@ -36,7 +36,13 @@ class OrderController extends Controller
         try {
             $slipPath = null;
             if ($request->hasFile('slip')) {
-                $slipPath = $request->file('slip')->store('slips', 'public');
+                $slipPath = null;
+if ($request->hasFile('slip')) {
+    $slipPath = $this->compressAndStoreImage(
+        $request->file('slip'),
+        'slips'
+    );
+}
             }
 
             $order = new Order();
@@ -134,9 +140,12 @@ class OrderController extends Controller
 
         // แนบรูปเมื่อเสร็จสิ้น
         if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
-            $order->proof_image = $request->file('proof_image')
-                ->store('proofs', 'public');
-        }
+    $order->proof_image = $this->compressAndStoreImage(
+        $request->file('proof_image'),
+        'proofs'
+    );
+}
+
 
         $order->status = $request->status;
         $order->save();
@@ -207,4 +216,24 @@ class OrderController extends Controller
 
         return view('sale.order', compact('orders'));
     }
+    private function compressAndStoreImage($file, $folder)
+{
+    $manager = new ImageManager(new Driver());
+
+    $image = $manager->read($file);
+
+    // resize ไม่เกิน 1024px (รักษาสัดส่วน)
+    $image->scaleDown(width: 1024);
+
+    $filename = uniqid() . '.jpg';
+    $path = $folder . '/' . $filename;
+
+    Storage::disk('public')->put(
+        $path,
+        $image->toJpeg(75) // ⭐ quality 75%
+    );
+
+    return $path;
+}
+
 }
