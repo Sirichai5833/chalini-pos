@@ -118,7 +118,7 @@ public function updateStatus(Request $request, $id)
             ======================= */
             if ($request->status === 'ยกเลิก' && $oldStatus !== 'ยกเลิก') {
 
-                $movements = ProductStockMovement::where('order_id', $order->id)
+                $movements = ProductStockMovement::where('product_id', $order->id)
                     ->where('type', 'out')
                     ->get();
 
@@ -169,9 +169,9 @@ public function updateStatus(Request $request, $id)
             $order->save();
         });
 
-   } catch (\Exception $e) {
-    dd($e->getMessage(), $e->getTraceAsString());
-}
+   } catch (\Exception $e) { 
+        return back()->with('error', 'เกิดข้อผิดพลาดในการอัปเดตสถานะ'); 
+    }
 
 
     return back()->with('success', 'อัปเดตสถานะสำเร็จ!');
