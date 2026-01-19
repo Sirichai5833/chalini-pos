@@ -148,14 +148,6 @@ public function updateStatus(Request $request, $id)
         // ☁️ Upload to Cloudinary
         if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
 
-    Log::info('Uploading to Cloudinary...');
-// ✅ ใส่ตรงนี้ ก่อน upload
-Log::info('DEBUG proof_image', [
-    'hasFile' => $request->hasFile('proof_image'),
-    'file' => $request->file('proof_image'),
-    'path' => $request->file('proof_image')?->getRealPath(),
-]);
-
     $upload = Cloudinary::upload(
         $request->file('proof_image')->getRealPath(),
         [
@@ -164,7 +156,6 @@ Log::info('DEBUG proof_image', [
     );
 
     if (!$upload) {
-        Log::error('Cloudinary upload failed');
         return back()->with('error', 'อัปโหลดรูปไม่สำเร็จ');
     }
 
