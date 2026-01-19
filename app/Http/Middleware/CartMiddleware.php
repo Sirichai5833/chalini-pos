@@ -19,6 +19,7 @@ class CartMiddleware
     });
 
     view()->share('totalItems', $totalItems);
+    Log::info('Cart session', ['cart' => session('cart')]);
 
     return $next($request);
 }
