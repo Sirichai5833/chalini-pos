@@ -94,81 +94,41 @@ class OrderController extends Controller
 
 public function updateStatus(Request $request, $id)
 {
-    $order = Order::with('orderItems')->findOrFail($id);
-    $oldStatus = $order->status;
+    $order = Order::find($id);
 
-    $request->validate([
-        'status' => 'required|string',
-        'proof_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-        'cancel_reason' => 'nullable|string|max:500',
-    ]);
-
-    if ($request->status === 'เสร็จสิ้น' && !$request->hasFile('proof_image')) {
-        return back()->with('error', 'กรุณาแนบรูปหลักฐาน!');
+    if (!$order) {
+        return back()->with('error', 'ไม่พบออเดอร์');
     }
 
-    if ($request->status === 'ยกเลิก' && !$request->cancel_reason) {
-        return back()->with('error', 'กรุณากรอกหมายเหตุการยกเลิก!');
+    $status = $request->input('status');
+
+    if (!$status) {
+        return back()->with('error', 'สถานะไม่ถูกส่งมา');
     }
 
-    DB::transaction(function () use ($order, $request, $oldStatus) {
+    $order->status = $status;
 
-        // 🔁 คืนสต็อกเมื่อยกเลิก
-        if ($request->status === 'ยกเลิก' && $oldStatus !== 'ยกเลิก') {
-            $movements = ProductStockMovement::where('order_id', $order->id)
-                ->where('type', 'out')
-                ->get();
+    if ($status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
 
-            foreach ($movements as $move) {
-                $stock = ProductStocks::where('product_id', $move->product_id)
-                    ->whereHas('unit', fn ($q) =>
-                        $q->where('unit_name', $move->unit)
-                    )
-                    ->first();
+        $upload = Cloudinary::upload(
+            $request->file('proof_image')->getRealPath()
+        );
 
-                if ($stock) {
-                    $stock->increment('store_stock', $move->quantity);
-                }
-
-                ProductStockMovement::create([
-                    'order_id' => $order->id,
-                    'product_id' => $move->product_id,
-                    'type' => 'in',
-                    'quantity' => $move->quantity,
-                    'unit_quantity' => $move->unit_quantity,
-                    'unit' => $move->unit,
-                    'location' => 'store',
-                    'note' => 'คืนสต็อกจากการยกเลิกออเดอร์',
-                ]);
-            }
-
-            $order->cancel_reason = $request->cancel_reason;
+        if (!$upload) {
+            return back()->with('error', 'อัปโหลดรูปไม่สำเร็จ');
         }
-    
-        // ☁️ Upload to Cloudinary
-     if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
 
-    $upload = Cloudinary::upload(
-        $request->file('proof_image')->getRealPath()
-    );
-
-    if (!$upload) {
-        return back()->with('error', 'อัปโหลดรูปไม่สำเร็จ');
+        $order->proof_image = $upload->getSecurePath();
     }
-    dd($upload);
-    $imageUrl = $upload->getSecurePath(); // ✅ วิธีที่ถูก
+
+    if ($status === 'ยกเลิก') {
+        $order->cancel_reason = $request->input('cancel_reason');
+    }
+
+    $order->save();
+
+    return back()->with('success', 'อัปเดตสถานะสำเร็จ');
 }
-
-
-        $order->status = $request->status;
-        $order->save();
-    });
-
-    return back()->with('success', 'อัปเดตสถานะสำเร็จ!');
-}
-
-
-
 
     public function orderHistory()
     {
