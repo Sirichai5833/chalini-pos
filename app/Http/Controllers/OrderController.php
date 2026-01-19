@@ -166,20 +166,31 @@ class OrderController extends Controller
         return view('sale.order-history', compact('orders'));
     }
 
-    public function acceptOrder($id)
-    {
-        $order = Order::findOrFail($id);
+  public function acceptOrder($id)
+{
+    $order = Order::findOrFail($id);
 
-        if ($order->assigned_to && $order->assigned_to !== Auth::id()) {
-            return redirect()->back()->with('error', 'ออเดอร์นี้ถูกรับโดยพนักงานคนอื่นแล้ว');
-        }
-
-        $order->assigned_to = Auth::id();
-        $order->status = 'กำลังดำเนินการ';
-        $order->save();
-
-        return redirect()->route('orders.my')->with('success', 'รับออเดอร์เรียบร้อยแล้ว');
+    if ($order->assigned_to && $order->assigned_to !== Auth::id()) {
+        return back()->with('error', 'ออเดอร์นี้ถูกรับโดยพนักงานคนอื่นแล้ว');
     }
+
+    // ❌ อย่าเขียนทับถ้าออเดอร์ถูกปิดแล้ว
+    if (in_array($order->status, ['เสร็จสิ้น', 'ยกเลิก'])) {
+        return back()->with('error', 'ออเดอร์นี้ปิดไปแล้ว');
+    }
+
+    $order->assigned_to = Auth::id();
+
+    // ✅ ตั้งสถานะเฉพาะตอนยังรอดำเนินการ
+    if ($order->status === 'รอดำเนินการ') {
+        $order->status = 'กำลังดำเนินการ';
+    }
+
+    $order->save();
+
+    return back()->with('success', 'รับออเดอร์เรียบร้อยแล้ว');
+}
+
 
 
     public function myOrders()
