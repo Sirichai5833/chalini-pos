@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Support\Facades\Log;
 
 class CartMiddleware
 {
@@ -11,15 +10,14 @@ class CartMiddleware
     {
         $cart = session('cart');
 
-        // ถ้า cart ไม่มี หรือไม่ใช่ array → ปลอดภัยไว้ก่อน
-        if (!is_array($cart)) {
+        // 🔴 cart ไม่มี → อย่าทำอะไรต่อ
+        if (!$cart || !is_array($cart)) {
             view()->share('totalItems', 0);
-            dd(session('cart'));
             return $next($request);
         }
 
-        // ถ้า cart มีโครงสร้างแบบมี items
-        $items = $cart['items'] ?? [];
+        // รองรับทั้ง 2 แบบ: มี items หรือเป็น array ตรง ๆ
+        $items = $cart['items'] ?? $cart;
 
         if (!is_array($items)) {
             $items = [];
@@ -34,9 +32,6 @@ class CartMiddleware
         }
 
         view()->share('totalItems', $totalItems);
-
-        Log::info('CartMiddleware totalItems', ['totalItems' => $totalItems]);
-
 
         return $next($request);
     }
