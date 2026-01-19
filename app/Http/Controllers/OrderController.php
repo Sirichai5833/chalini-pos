@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\ProductStocks;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
-
+use Illuminate\Support\Facades\Log;
 
 
 
@@ -141,15 +141,34 @@ if ($request->hasFile('slip')) {
 
 
         // แนบรูปเมื่อเสร็จสิ้น
-        if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
-    $order->proof_image = Cloudinary::upload(
-    $request->file('proof_image')->getRealPath(),
-    [
-        'folder' => 'proofs',
-    ]
-)->getSecurePath();
 
+if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
+
+    try {
+        Log::info('Uploading image to Cloudinary');
+
+        $upload = Cloudinary::upload(
+            $request->file('proof_image')->getRealPath(),
+            ['folder' => 'proofs']
+        );
+
+        Log::info('Cloudinary response', [
+            'result' => $upload
+        ]);
+
+        if ($upload) {
+            $order->proof_image = $upload->getSecurePath();
+        }
+
+    } catch (\Exception $e) {
+        Log::error('Cloudinary ERROR', [
+            'message' => $e->getMessage()
+        ]);
+
+        return back()->with('error', 'อัปโหลดรูปไม่สำเร็จ');
+    }
 }
+
 
 
         $order->status = $request->status;
