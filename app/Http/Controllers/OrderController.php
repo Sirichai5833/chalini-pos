@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\ProductStocks;
 use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Drivers\Imagick\Driver;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Modifiers\ResizeModifier;
 
@@ -221,8 +221,6 @@ if ($request->hasFile('slip')) {
     $manager = new ImageManager(new Driver());
 
     $image = $manager->read($file);
-
-    // resize ไม่เกิน 1024px (รักษาสัดส่วน)
     $image->scaleDown(width: 1024);
 
     $filename = uniqid() . '.jpg';
@@ -230,10 +228,11 @@ if ($request->hasFile('slip')) {
 
     Storage::disk('public')->put(
         $path,
-        $image->toJpeg(75) // ⭐ quality 75%
+        $image->toJpeg(75)
     );
 
     return $path;
 }
+
 
 }
