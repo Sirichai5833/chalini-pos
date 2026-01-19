@@ -142,7 +142,7 @@ if ($request->hasFile('slip')) {
 
         // แนบรูปเมื่อเสร็จสิ้น
         if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
-    $$order->proof_image = Cloudinary::upload(
+    $order->proof_image = Cloudinary::upload(
     $request->file('proof_image')->getRealPath(),
     [
         'folder' => 'proofs',
