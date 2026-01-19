@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\ProductStocks;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
+use Illuminate\Support\Facades\Storage;
 
 class OrderController extends Controller
 {
@@ -72,73 +75,89 @@ class OrderController extends Controller
         return view('online.track', compact('orders'));
     }
 
-public function updateStatus(Request $request, $id)
-{
-    $order = Order::with('orderItems')->findOrFail($id);
-    $oldStatus = $order->status;
+    public function updateStatus(Request $request, $id)
+    {
+        $order = Order::with('orderItems')->findOrFail($id);
+        $oldStatus = $order->status;
 
-    $request->validate([
-        'status' => 'required|string',
-        'proof_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-        'cancel_reason' => 'nullable|string|max:500',
-    ]);
-
-    if ($request->status === 'เสร็จสิ้น' && !$request->hasFile('proof_image')) {
-        return back()->with('error', 'กรุณาแนบรูปหลักฐาน!');
-    }
-
-    if ($request->status === 'ยกเลิก' && !$request->cancel_reason) {
-        return back()->with('error', 'กรุณากรอกหมายเหตุการยกเลิก!');
-    }
-
-    DB::transaction(function () use ($order, $request, $oldStatus) {
-
-        // ✅ คืนสต็อกเมื่อยกเลิก
-        if ($request->status === 'ยกเลิก' && $oldStatus !== 'ยกเลิก') {
-
-    $movements = ProductStockMovement::where('order_id', $order->id)
-        ->where('type', 'out')
-        ->get();
-
-    foreach ($movements as $move) {
-
-        $stock = ProductStocks::where('product_id', $move->product_id)
-            ->whereHas('unit', fn($q) => $q->where('unit_name', $move->unit))
-            ->first();
-
-        if ($stock) {
-            $stock->increment('store_stock', $move->quantity);
-        }
-
-        // (optional) บันทึก movement in
-        ProductStockMovement::create([
-            'order_id' => $order->id,
-            'product_id' => $move->product_id,
-            'type' => 'in',
-            'quantity' => $move->quantity,
-            'unit_quantity' => $move->unit_quantity,
-            'unit' => $move->unit,
-            'location' => 'store',
-            'note' => 'คืนสต็อกจากการยกเลิกออเดอร์',
+        $request->validate([
+            'status' => 'required|string',
+            'proof_image' => 'required_if:status,เสร็จสิ้น|image|mimes:jpg,jpeg,png|max:5120',
+            'cancel_reason' => 'required_if:status,ยกเลิก|string|max:500',
         ]);
+
+
+        DB::transaction(function () use ($order, $request, $oldStatus) {
+
+            // ✅ คืนสต็อกเมื่อยกเลิก
+            if ($request->status === 'ยกเลิก' && $oldStatus !== 'ยกเลิก') {
+
+                $movements = ProductStockMovement::where('order_id', $order->id)
+                    ->where('type', 'out')
+                    ->get();
+
+                foreach ($movements as $move) {
+
+                    $stock = ProductStocks::where('product_id', $move->product_id)
+                        ->whereHas('unit', fn($q) => $q->where('unit_name', $move->unit))
+                        ->first();
+
+                    if ($stock) {
+                        $stock->increment('store_stock', $move->quantity);
+                    }
+
+                    // (optional) บันทึก movement in
+                    ProductStockMovement::create([
+                        'order_id' => $order->id,
+                        'product_id' => $move->product_id,
+                        'type' => 'in',
+                        'quantity' => $move->quantity,
+                        'unit_quantity' => $move->unit_quantity,
+                        'unit' => $move->unit,
+                        'location' => 'store',
+                        'note' => 'คืนสต็อกจากการยกเลิกออเดอร์',
+                    ]);
+                }
+
+                $order->cancel_reason = $request->cancel_reason;
+            }
+
+
+            // แนบรูปเมื่อเสร็จสิ้น
+            if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
+
+                // ลบรูปเก่า (ถ้ามี)
+                if ($order->proof_image) {
+                    Storage::disk('public')->delete($order->proof_image);
+                }
+
+                $image = $request->file('proof_image');
+                $filename = 'proof_' . time() . '.jpg';
+
+                $image = $request->file('proof_image');
+
+                $manager = new ImageManager(new Driver());
+
+                $img = $manager->read($image)
+                    ->resize(800, 800, function ($c) {
+                        $c->aspectRatio();
+                        $c->upsize();
+                    })
+                    ->toJpeg(70);
+
+                Storage::disk('public')->put("proofs/{$filename}", $img);
+
+
+                $order->proof_image = "proofs/{$filename}";
+            }
+
+
+            $order->status = $request->status;
+            $order->save();
+        });
+
+        return back()->with('success', 'อัปเดตสถานะสำเร็จ!');
     }
-
-    $order->cancel_reason = $request->cancel_reason;
-}
-
-
-        // แนบรูปเมื่อเสร็จสิ้น
-        if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
-            $order->proof_image = $request->file('proof_image')
-                ->store('proofs', 'public');
-        }
-
-        $order->status = $request->status;
-        $order->save();
-    });
-
-    return back()->with('success', 'อัปเดตสถานะสำเร็จ!');
-}
 
 
     public function orderHistory()
@@ -194,12 +213,12 @@ public function updateStatus(Request $request, $id)
     }
 
     public function ordersList()
-{
-    $orders = Order::with(['user', 'orderItems.product', 'orderItems.productUnit'])
-        ->whereNotIn('status', ['เสร็จสิ้น', 'ยกเลิก'])
-        ->orderBy('created_at', 'desc')
-        ->paginate(10);
+    {
+        $orders = Order::with(['user', 'orderItems.product', 'orderItems.productUnit'])
+            ->whereNotIn('status', ['เสร็จสิ้น', 'ยกเลิก'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
 
-    return view('sale.order', compact('orders'));
-}
+        return view('sale.order', compact('orders'));
+    }
 }
