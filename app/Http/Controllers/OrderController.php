@@ -87,6 +87,8 @@ class OrderController extends Controller
 
 
 
+
+
 public function updateStatus(Request $request, $id)
 {
     $order = Order::with('orderItems')->findOrFail($id);
@@ -98,19 +100,22 @@ public function updateStatus(Request $request, $id)
         'cancel_reason' => 'nullable|string|max:500',
     ]);
 
-    if ($request->status === 'เสร็จสิ้น' && !$request->hasFile('proof_image')) {
+    // ❌ กันเสร็จสิ้นโดยไม่แนบรูป
+    if ($request->status === 'เสร็จสิ้น' && !$request->hasFile('proof_image') && !$order->proof_image) {
         return back()->with('error', 'กรุณาแนบรูปหลักฐาน!');
     }
 
+    // ❌ กันยกเลิกโดยไม่ใส่เหตุผล
     if ($request->status === 'ยกเลิก' && !$request->cancel_reason) {
         return back()->with('error', 'กรุณากรอกหมายเหตุการยกเลิก!');
     }
 
     try {
-
         DB::transaction(function () use ($order, $request, $oldStatus) {
 
-            // ✅ คืนสต็อกเมื่อยกเลิก
+            /* =======================
+               คืนสต็อกเมื่อยกเลิก
+            ======================= */
             if ($request->status === 'ยกเลิก' && $oldStatus !== 'ยกเลิก') {
 
                 $movements = ProductStockMovement::where('order_id', $order->id)
@@ -144,13 +149,20 @@ public function updateStatus(Request $request, $id)
                 $order->cancel_reason = $request->cancel_reason;
             }
 
-            // ✅ แนบรูปเมื่อเสร็จสิ้น (public)
-            if ($request->status === 'เสร็จสิ้น' && $request->hasFile('proof_image')) {
+            /* =======================
+               แนบรูปเมื่อเสร็จสิ้น
+            ======================= */
+            if ($request->hasFile('proof_image')) {
+
+                // ลบรูปเก่า (ถ้ามี)
+                if ($order->proof_image && Storage::disk('public')->exists($order->proof_image)) {
+                    Storage::disk('public')->delete($order->proof_image);
+                }
 
                 $path = $request->file('proof_image')
-                    ->store('proofs', 'public'); // storage/app/public/proofs
+                    ->store('proofs', 'public');
 
-                $order->proof_image = $path; // เก็บแค่ path
+                $order->proof_image = $path;
             }
 
             $order->status = $request->status;
@@ -163,6 +175,7 @@ public function updateStatus(Request $request, $id)
 
     return back()->with('success', 'อัปเดตสถานะสำเร็จ!');
 }
+
 
 
 
