@@ -169,9 +169,10 @@ public function updateStatus(Request $request, $id)
             $order->save();
         });
 
-    } catch (\Exception $e) {
-        return back()->with('error', 'เกิดข้อผิดพลาดในการอัปเดตสถานะ');
-    }
+   } catch (\Exception $e) {
+    dd($e->getMessage(), $e->getTraceAsString());
+}
+
 
     return back()->with('success', 'อัปเดตสถานะสำเร็จ!');
 }
