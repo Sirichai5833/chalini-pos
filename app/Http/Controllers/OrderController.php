@@ -192,4 +192,14 @@ public function updateStatus(Request $request, $id)
 
         return view('sale.show-order', compact('order'));
     }
+
+    public function ordersList()
+{
+    $orders = Order::with(['user', 'orderItems.product', 'orderItems.productUnit'])
+        ->whereNotIn('status', ['เสร็จสิ้น', 'ยกเลิก'])
+        ->orderBy('created_at', 'desc')
+        ->paginate(10);
+
+    return view('sale.order', compact('orders'));
+}
 }
