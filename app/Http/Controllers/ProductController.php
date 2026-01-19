@@ -245,84 +245,81 @@ class ProductController extends Controller
     }
 
     public function addStockMulti(Request $request)
-    {
-        if (!$request->has('items') || !is_array($request->items)) {
-            return redirect()->back()->with('error', 'กรุณาแสกนสินค้าอย่างน้อย 1 รายการก่อนบันทึก');
-        }
-
-        foreach ($request->items as $productItems) {
-            foreach ($productItems as $item) {
-                $productId = $item['product_id'];
-                $unitId = $item['unit_id'];
-                $quantity = (int) $item['quantity'];
-                $unitQty = (int) $item['unit_quantity'];
-                $location = $item['location'];
-                $note = $item['note'] ?? '';
-                $isFree = isset($item['is_free']) && $item['is_free'] == 1;
-                $expiryDate = $item['expiry_date'] ?? null;
-                $batchCode = $productId . '-' . Carbon::now()->format('Ymd');
-                $addQty = $quantity * $unitQty;
-
-                // ➕ เพิ่ม stock เฉพาะหน่วยที่รับเข้า
-                $productStock = ProductStocks::firstOrCreate(
-                    ['product_id' => $productId, 'unit_id' => $unitId],
-                    ['warehouse_stock' => 0, 'store_stock' => 0]
-                );
-
-                if ($location === 'store') {
-                    $productStock->store_stock += $addQty; // ❌ เดิม += $quantity
-                } else {
-                    $productStock->warehouse_stock += $addQty;
-                }
-
-
-                $productStock->save();
-
-                // ✅ บันทึกล็อตและวันหมดอายุ
-                ProductBatch::create([
-                    'product_id' => $productId,
-                    'quantity' => $addQty,
-                    'product_unit_id' => $unitId,
-                    'batch_code' => $batchCode,
-                    'expiry_date' => $expiryDate,
-                ]);
-
-                // ดึงข้อมูล unit
-                $unit = ProductUnit::find($unitId);
-
-                // เพิ่ม log การเคลื่อนไหวสต็อก
-                ProductStockMovement::create([
-                    'product_id' => $productId,
-                    'type' => 'in',
-                    'quantity' => $quantity,
-                    'unit_quantity' => $unitQty,
-                    'unit' => $unit ? $unit->unit_name : '-',
-                    'location' => $location,
-                    'note' => $note,
-                    'is_free' => $isFree ? 1 : 0,
-                ]);
-                // ✅ Log activity
-                activity('product')
-                    ->causedBy(Auth::user())
-                    ->performedOn(Product::find($productId))
-                    ->withProperties([
-                        'unit_id' => $unitId,
-                        'location' => $location,
-                        'quantity' => $quantity,
-                        'unit_quantity' => $unitQty,
-                        'note' => $note,
-                    ])
-                    ->event('stock_added')
-                    ->log('เพิ่มสต็อกสินค้าแบบหลายรายการ (เฉพาะหน่วยเดียว)');
-            }
-        }
-
-        return redirect()->route('product.products.add-stock-form')->with('success', 'เพิ่มสต็อกเฉพาะหน่วยที่เลือกเรียบร้อยแล้ว');
+{
+    if (!$request->has('items') || !is_array($request->items)) {
+        return redirect()->back()->with('error', 'กรุณาแสกนสินค้าอย่างน้อย 1 รายการก่อนบันทึก');
     }
 
+    foreach ($request->items as $productItems) {
+        foreach ($productItems as $item) {
 
+            $productId  = $item['product_id'];
+            $unitId     = $item['unit_id'];
+            $quantity   = (int) $item['quantity'];        // จำนวนที่รับ (เช่น 1 แพ็ค)
+            $unitQty    = (int) $item['unit_quantity'];   // 1 แพ็ค = กี่ชิ้น
+            $location   = $item['location'];
+            $note       = $item['note'] ?? '';
+            $isFree     = isset($item['is_free']) && $item['is_free'] == 1;
+            $expiryDate = $item['expiry_date'] ?? null;
 
+            // ✅ แปลงเป็น "ชิ้นจริง"
+            $addQty = $quantity * $unitQty;
 
+            // ✅ stock ต้องมีแถวเดียวต่อสินค้า
+            $productStock = ProductStocks::firstOrCreate(
+                ['product_id' => $productId],
+                ['warehouse_stock' => 0, 'store_stock' => 0]
+            );
+
+            if ($location === 'store') {
+                $productStock->store_stock += $addQty;
+            } else {
+                $productStock->warehouse_stock += $addQty;
+            }
+
+            $productStock->save();
+
+            // ✅ บันทึก batch (เป็นชิ้น)
+            ProductBatch::create([
+                'product_id'       => $productId,
+                'quantity'         => $addQty,
+                'product_unit_id'  => $unitId,
+                'batch_code'       => $productId . '-' . now()->format('YmdHis'),
+                'expiry_date'      => $expiryDate,
+            ]);
+
+            // unit ใช้แค่ log
+            $unit = ProductUnit::find($unitId);
+
+            ProductStockMovement::create([
+                'product_id'    => $productId,
+                'type'          => 'in',
+                'quantity'      => $quantity,
+                'unit_quantity' => $unitQty,
+                'unit'          => $unit?->unit_name ?? '-',
+                'location'      => $location,
+                'note'          => $note,
+                'is_free'       => $isFree ? 1 : 0,
+            ]);
+
+            activity('product')
+                ->causedBy(Auth::user())
+                ->performedOn(Product::find($productId))
+                ->withProperties([
+                    'unit_id'        => $unitId,
+                    'quantity'       => $quantity,
+                    'unit_quantity'  => $unitQty,
+                    'location'       => $location,
+                ])
+                ->event('stock_added')
+                ->log('เพิ่มสต็อกสินค้า (คำนวณเป็นชิ้น)');
+        }
+    }
+
+    return redirect()
+        ->route('product.products.add-stock-form')
+        ->with('success', 'เพิ่มสต็อกสินค้าเรียบร้อยแล้ว');
+}
 
     public function indexstock(Request $request)
     {
