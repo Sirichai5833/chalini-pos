@@ -270,10 +270,11 @@ class ProductController extends Controller
                 );
 
                 if ($location === 'store') {
-                    $productStock->store_stock += $quantity;
+                    $productStock->store_stock += $addQty; // ❌ เดิม += $quantity
                 } else {
-                    $productStock->warehouse_stock += $quantity;
+                    $productStock->warehouse_stock += $addQty;
                 }
+
 
                 $productStock->save();
 
@@ -395,31 +396,29 @@ class ProductController extends Controller
         return view('products.stock-in-history', compact('movements', 'search', 'from', 'to', 'isPrint'));
     }
 
-public function deleteImage($id)
-{
-    $image = ProductImage::find($id);
+    public function deleteImage($id)
+    {
+        $image = ProductImage::find($id);
 
-    if (!$image) {
-        return response()->json(['success' => false, 'message' => 'ไม่พบรูปภาพ'], 404);
+        if (!$image) {
+            return response()->json(['success' => false, 'message' => 'ไม่พบรูปภาพ'], 404);
+        }
+
+        // ลบไฟล์
+        Storage::disk('public')->delete($image->image_path);
+
+        // ลบ record
+        $image->delete();
+
+        return response()->json(['success' => true]);
     }
 
-    // ลบไฟล์
-    Storage::disk('public')->delete($image->image_path);
+    public function checkBarcode(Request $request)
+    {
+        $barcode = $request->get('barcode');
 
-    // ลบ record
-    $image->delete();
+        $exists = \App\Models\ProductUnit::where('barcode', $barcode)->exists();
 
-    return response()->json(['success' => true]);
-}
-
-public function checkBarcode(Request $request)
-{
-    $barcode = $request->get('barcode');
-
-    $exists = \App\Models\ProductUnit::where('barcode', $barcode)->exists();
-
-    return response()->json(['exists' => $exists]);
-}
-
-
+        return response()->json(['exists' => $exists]);
+    }
 }
