@@ -1,38 +1,30 @@
 <?php
 
-namespace App\Http\Middleware;
+// app/Http/Middleware/CartMiddleware.php
 
+namespace App\Http\Middleware;
 use Closure;
+use Illuminate\Support\Facades\Log;
 
 class CartMiddleware
 {
     public function handle($request, Closure $next)
     {
-        $cart = session('cart');
+        // ดึงข้อมูลจาก session
+        $cart = session('cart', []);
 
-        // 🔴 cart ไม่มี → อย่าทำอะไรต่อ
-        if (!$cart || !is_array($cart)) {
-            view()->share('totalItems', 0);
-            return $next($request);
-        }
+        // ตรวจสอบว่า cart มีข้อมูลเป็น array ของ product หรือไม่
+        $totalItems = collect($cart)->sum(function ($item) {
+            return isset($item['quantity']) ? $item['quantity'] : 0;
+        });
 
-        // รองรับทั้ง 2 แบบ: มี items หรือเป็น array ตรง ๆ
-        $items = $cart['items'] ?? $cart;
-
-        if (!is_array($items)) {
-            $items = [];
-        }
-
-        $totalItems = 0;
-
-        foreach ($items as $item) {
-            if (is_array($item) && isset($item['quantity'])) {
-                $totalItems += (int) $item['quantity'];
-            }
-        }
-
+        // แชร์ข้อมูลไปยังทุก view
         view()->share('totalItems', $totalItems);
+
+        // log เพื่อตรวจสอบว่า middleware ทำงานหรือไม่
+        Log::info("CartMiddleware hit with total items: $totalItems");
 
         return $next($request);
     }
 }
+
