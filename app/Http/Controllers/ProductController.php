@@ -69,23 +69,15 @@ class ProductController extends Controller
 
         // จัดการรูปภาพ
         // ✅ บันทึกรูปภาพหลายรูป
-  if ($request->hasFile('images')) {
-    foreach ($request->file('images') as $image) {
-
-        if (!$image->isValid()) {
-            continue;
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('products', 'public');
+                ProductImage::create([
+                    'product_id' => $product->id,
+                    'image_path' => $path,
+                ]);
+            }
         }
-
-        $url = ImageUploader::upload($image, 'products');
-dd($request->file('images'));
-        if ($url) {
-            ProductImage::create([
-                'product_id' => $product->id,
-                'image_path' => $url,
-            ]);
-        }
-    }
-}
 
 
         foreach ($request->units as $unit) {
