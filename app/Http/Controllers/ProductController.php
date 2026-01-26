@@ -17,6 +17,7 @@ use Spatie\Activitylog\Models\Activity;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Livewire;
+use App\Helpers\ImageUploader;
 
 class ProductController extends Controller
 {
@@ -69,14 +70,18 @@ class ProductController extends Controller
         // จัดการรูปภาพ
         // ✅ บันทึกรูปภาพหลายรูป
         if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('products', 'public');
-                ProductImage::create([
-                    'product_id' => $product->id,
-                    'image_path' => $path,
-                ]);
-            }
-        }
+    foreach ($request->file('images') as $image) {
+
+        // ✅ อัปโหลดไป Cloudinary
+        $url = ImageUploader::upload($image, 'products');
+
+        ProductImage::create([
+            'product_id' => $product->id,
+            'image_path' => $url, // ← เก็บเป็น URL
+        ]);
+    }
+}
+
 
 
         foreach ($request->units as $unit) {
