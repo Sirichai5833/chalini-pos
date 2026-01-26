@@ -69,15 +69,20 @@ class ProductController extends Controller
 
         // จัดการรูปภาพ
         // ✅ บันทึกรูปภาพหลายรูป
-       if ($request->hasFile('images')) {
+    if ($request->hasFile('images')) {
     foreach ($request->file('images') as $image) {
 
-        // ✅ กัน null
-        if (!$image) {
+        // 🔥 ข้ามทันทีถ้าเป็น null
+        if (empty($image)) {
             continue;
         }
 
         $url = ImageUploader::upload($image, 'products');
+
+        // 🔥 ถ้า upload ไม่สำเร็จ ไม่ต้องบันทึก
+        if (!$url) {
+            continue;
+        }
 
         ProductImage::create([
             'product_id' => $product->id,
@@ -85,8 +90,6 @@ class ProductController extends Controller
         ]);
     }
 }
-
-
 
 
         foreach ($request->units as $unit) {

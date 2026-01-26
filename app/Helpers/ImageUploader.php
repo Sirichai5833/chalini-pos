@@ -8,7 +8,11 @@ class ImageUploader
 {
     public static function upload($file, $folder = 'uploads')
     {
-        // อัปโหลดไป Cloudinary
+        // 🔥 กัน null ตรงนี้ก่อนเลย
+        if (!$file || !method_exists($file, 'getRealPath')) {
+            return null;
+        }
+
         $result = Cloudinary::upload(
             $file->getRealPath(),
             [
@@ -16,7 +20,6 @@ class ImageUploader
             ]
         );
 
-        // ส่งกลับเป็น URL
         return $result->getSecurePath();
     }
 }
