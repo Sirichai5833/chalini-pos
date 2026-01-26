@@ -122,9 +122,24 @@ Route::middleware('auth')->group(function () {
         Route::put('/update/{member}', [StaffController::class, 'update'])->name('update'); // อัพเดทโพสต์
         Route::put('/allupdate/{member}', [StaffController::class, 'allupdate'])->name('allupdate'); // อัพเดทโพสต์
         Route::delete('/delete/{member}', [StaffController::class, 'destroy'])->name('delete'); // ลบโพสต์
+        Route::get('stock-check', [StockCheckController::class, 'index'])
+            ->name('stock.check.index');
+Route::get('stock-check-report', [StockCheckController::class, 'report'])
+    ->name('stock.check.report');
+Route::get(
+    'stock-check/{stockCheck}/export',
+    [StockCheckController::class, 'export']
+)->name('stock.check.export');
+
+     Route::get('stock-check/{check}', [StockCheckController::class, 'detail'])
+        ->name('stock.check.detail');
+        Route::get('stock-check/{product}', [StockCheckController::class, 'form'])
+            ->name('stock.check.form');
+
+        Route::post('stock-check', [StockCheckController::class, 'store'])
+            ->name('stock.check.store');
         // Route แบบไม่ใช้ parameter
         Route::get('/audits', [StaffController::class, 'auditLogs'])->name('audits');
-
         Route::get('/sale', [SaleController::class, 'index']);
         Route::get('/sales/history', [SaleController::class, 'history'])->name('sales.history');
         // Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
@@ -151,7 +166,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
 
 
-Route::get('/check-barcode', [App\Http\Controllers\ProductController::class, 'checkBarcode'])->name('barcode.check');
+    Route::get('/check-barcode', [App\Http\Controllers\ProductController::class, 'checkBarcode'])->name('barcode.check');
 
     Route::prefix('units')->name('units.')->group(function () {
         Route::get('/', [UnitController::class, 'index'])->name('index'); // หน้าแสดงรายการหน่วยนับ
@@ -178,8 +193,8 @@ Route::get('/check-barcode', [App\Http\Controllers\ProductController::class, 'ch
         Route::post('/products/add-stock', [ProductController::class, 'storeStock'])->name('products.add-stock');
         Route::post('/products/add-stock-multi', [ProductController::class, 'addStockMulti'])->name('products.add-stock-multi');
         Route::get('/products/indexstock', [ProductController::class, 'indexstock'])->name('indexstock');
-  Route::delete('product/image/{id}', [ProductController::class, 'deleteImage'])
-    ->name('product.image.delete');
+        Route::delete('product/image/{id}', [ProductController::class, 'deleteImage'])
+            ->name('product.image.delete');
 
 
 

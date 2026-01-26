@@ -44,7 +44,10 @@ public function images()
     {
         return $this->hasMany(ProductStockMovementsTable::class);
     }
-
+  public function stocks()
+    {
+        return $this->hasMany(ProductStocks::class, 'product_id');
+    }
 
 
     // ฟังก์ชันดึงจำนวนสินค้าคงเหลือ

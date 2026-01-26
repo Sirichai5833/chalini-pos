@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
+
     @livewireStyles
     <style>
         body {
@@ -27,7 +28,8 @@
 
         aside {
             width: 250px;
-            background-color: #212529; /* Fixed dark sidebar */
+            background-color: #212529;
+            /* Fixed dark sidebar */
             color: white;
             min-height: 100vh;
         }
@@ -49,16 +51,22 @@
             flex: 1;
             padding: 20px;
             display: block;
-            background-color: #f8f9fa; /* Light background for content */
-            color: #212529; /* Dark text for content */
-            transition: background-color 0.3s ease, color 0.3s ease; /* Smooth transition */
-            border-radius: 8px; /* Optional: adds a slight rounded corner */
+            background-color: #f8f9fa;
+            /* Light background for content */
+            color: #212529;
+            /* Dark text for content */
+            transition: background-color 0.3s ease, color 0.3s ease;
+            /* Smooth transition */
+            border-radius: 8px;
+            /* Optional: adds a slight rounded corner */
         }
 
         /* Dark mode styles for content-wrapper */
         .content-wrapper.dark-mode {
-            background-color: #343a40; /* Dark background for content */
-            color: #f8f9fa; /* Light text for content */
+            background-color: #343a40;
+            /* Dark background for content */
+            color: #f8f9fa;
+            /* Light text for content */
         }
 
         /* Sidebar collapse styles remain the same */
@@ -101,8 +109,7 @@
             </div>
 
             <div class="d-flex">
-                <a href="{{ route('staff.edit', ['member' => Auth::user()->id]) }}"
-                    class="btn btn-outline-light me-2">
+                <a href="{{ route('staff.edit', ['member' => Auth::user()->id]) }}" class="btn btn-outline-light me-2">
                     <i class="bi bi-person"></i>
                     {{ Auth::user()->name }} ({{ Auth::user()->role }})
                 </a>
@@ -185,6 +192,15 @@
                                 </a>
                             </li>
 
+                            <li class="nav-item mb-1">
+                                <a class="nav-link {{ request()->routeIs('staff.stock-check.*') ? 'active' : '' }} text-white"
+                                    href="{{ route('staff.stock.check.index') }}">
+                                    <i class="bi bi-clipboard-check text-white"></i> ตรวจนับสต็อก
+                                </a>
+                            </li>
+
+
+
                             @unless (auth()->user()->role !== 'admin')
                                 <li class="nav-item mb-1">
                                     <a class="nav-link {{ request()->routeIs('product.barcodes.index') ? 'active' : '' }} text-white"
@@ -227,30 +243,30 @@
                         <i class="bi bi-caret-down-fill text-white"></i>
                     </a>
 
-                   <div wire:poll.10s> {{-- ✅ จะรีเฟรชทุก 10 วินาที --}}
-    <div class="collapse ps-3" id="Notification">
-        <ul class="nav flex-column">
-            <li class="nav-item mb-1">
-                <a class="nav-link {{ request()->routeIs('notification.OutStock') ? 'active' : '' }} text-white"
-                    href="{{ route('notification.OutStock') }}">
-                    <i class="bi bi-list-ul text-white"></i> สินค้าใกล้หมด
-                    @if ($lowStockCount > 0)
-                        <span class="badge bg-danger ms-2">{{ $lowStockCount }}</span>
-                    @endif
-                </a>
-            </li>
-            <li class="nav-item mb-1">
-                <a class="nav-link {{ request()->routeIs('notification.expire') ? 'active' : '' }} text-white"
-                    href="{{ route('notification.expire') }}">
-                    <i class="bi bi-plus-circle text-white"></i> สินค้าใกล้หมดอายุ
-                    @if ($expireCount > 0)
-                        <span class="badge bg-warning text-dark ms-2">{{ $expireCount }}</span>
-                    @endif
-                </a>
-            </li>
-        </ul>
-    </div>
-</div>
+                    <div wire:poll.10s> {{-- ✅ จะรีเฟรชทุก 10 วินาที --}}
+                        <div class="collapse ps-3" id="Notification">
+                            <ul class="nav flex-column">
+                                <li class="nav-item mb-1">
+                                    <a class="nav-link {{ request()->routeIs('notification.OutStock') ? 'active' : '' }} text-white"
+                                        href="{{ route('notification.OutStock') }}">
+                                        <i class="bi bi-list-ul text-white"></i> สินค้าใกล้หมด
+                                        @if ($lowStockCount > 0)
+                                            <span class="badge bg-danger ms-2">{{ $lowStockCount }}</span>
+                                        @endif
+                                    </a>
+                                </li>
+                                <li class="nav-item mb-1">
+                                    <a class="nav-link {{ request()->routeIs('notification.expire') ? 'active' : '' }} text-white"
+                                        href="{{ route('notification.expire') }}">
+                                        <i class="bi bi-plus-circle text-white"></i> สินค้าใกล้หมดอายุ
+                                        @if ($expireCount > 0)
+                                            <span class="badge bg-warning text-dark ms-2">{{ $expireCount }}</span>
+                                        @endif
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
 
                 </li>
 
@@ -293,7 +309,7 @@
                                     @livewire('pending-order-count-badge')
                                 </a>
                             </li>
-                             <li class="nav-item mb-1">
+                            <li class="nav-item mb-1">
                                 <a class="nav-link {{ request()->routeIs('orders.my') ? 'active' : '' }} text-white"
                                     href="{{ route('orders.my') }}">
                                     <i class="bi bi-list-ul text-white"></i> ออเดอร์ที่รับมา
@@ -312,7 +328,7 @@
 
                 @if (Auth::user()->role !== 'staff')
                     <li class="nav-item mb-2">
-                        <a class="nav-link d-flex justify-content-between align-items-center {{ request()->Is('staff/create','staff') ? 'active' : '' }} text-white"
+                        <a class="nav-link d-flex justify-content-between align-items-center {{ request()->Is('staff/create', 'staff') ? 'active' : '' }} text-white"
                             data-bs-toggle="collapse" href="#collapseStaff" role="button" aria-expanded="false"
                             aria-controls="collapseStaff">
                             <span><i class="bi bi-people text-white"></i> จัดการพนักงาน</span>
@@ -339,7 +355,7 @@
 
                 {{-- จัดการสมาชิก --}}
                 <li class="nav-item mb-2">
-                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('manage_staff*','staff/audits') ? 'active' : '' }} text-white"
+                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('manage_staff*', 'staff/audits') ? 'active' : '' }} text-white"
                         data-bs-toggle="collapse" href="#collapsecustomer" role="button" aria-expanded="false"
                         aria-controls="collapsecustomer">
                         <span><i class="bi bi-people text-white"></i> จัดการสมาชิก</span>
@@ -425,11 +441,13 @@
                 if (theme === 'dark') {
                     icon.classList.remove('bi-moon-fill');
                     icon.classList.add('bi-sun-fill');
-                    if (text) text.textContent = 'เปลี่ยนธีม (สว่าง)'; // Change text for dark mode (to switch to light)
+                    if (text) text.textContent =
+                        'เปลี่ยนธีม (สว่าง)'; // Change text for dark mode (to switch to light)
                 } else {
                     icon.classList.remove('bi-sun-fill');
                     icon.classList.add('bi-moon-fill');
-                    if (text) text.textContent = 'เปลี่ยนธีม (มืด)'; // Change text for light mode (to switch to dark)
+                    if (text) text.textContent =
+                        'เปลี่ยนธีม (มืด)'; // Change text for light mode (to switch to dark)
                 }
                 // No need to change navbar or sidebar toggle button colors as per this requirement
             }
@@ -437,6 +455,8 @@
     </script>
 
     @stack('scripts')
+
+
     @livewireScripts
 </body>
 

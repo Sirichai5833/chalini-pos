@@ -165,8 +165,6 @@ class StockController extends Controller
     }
 
 
-
-
     public function getProductByBarcode($barcode)
     {
         $unit = ProductUnit::with(['product', 'stock'])
@@ -194,3 +192,4 @@ class StockController extends Controller
         ]);
     }
 }
+
