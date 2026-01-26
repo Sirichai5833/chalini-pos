@@ -2,7 +2,9 @@
 
 namespace App\Helpers;
 
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+use Cloudinary\Api\Upload\UploadApi as UploadUploadApi;
+
+use Illuminate\Support\Facades\Log;
 
 class ImageUploader
 {
@@ -12,15 +14,23 @@ class ImageUploader
             return null;
         }
 
-        $result = Cloudinary::upload(
-            
-            $file->getRealPath(),
-            [
-                'folder' => $folder,
-            ]
-        );
-dd($result);
+        try {
+            $uploader = new UploadUploadApi();
 
-        return $result['secure_url'] ?? null;
+            $result = $uploader->upload(
+                $file->getRealPath(),
+                [
+                    'folder' => $folder,
+                ]
+            );
+
+            return $result['secure_url'] ?? null;
+
+        } catch (\Throwable $e) {
+            Log::error('Cloudinary upload failed', [
+                'message' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 }
