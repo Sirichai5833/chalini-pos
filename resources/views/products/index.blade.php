@@ -67,8 +67,8 @@
                                     <div class="carousel-inner">
                                         @foreach ($product->images as $key => $image)
                                             <div class="carousel-item {{ $key == 0 ? 'active' : '' }}">
-                                                <img src="{{ asset('storage/' . $image->image_path) }}"
-                                                    class="d-block w-100" style="height:200px; object-fit:cover;">
+                                                <img src="{{ Storage::url($image->image_path) }}" class="d-block w-100"
+                                                    style="height:200px; object-fit:cover;">
                                             </div>
                                         @endforeach
                                     </div>
@@ -530,7 +530,7 @@
 
                     try {
                         const response = await fetch(
-                        `{{ route('barcode.check') }}?barcode=${barcode}`);
+                            `{{ route('barcode.check') }}?barcode=${barcode}`);
                         const data = await response.json();
 
                         const parent = input.closest('.mb-3');
