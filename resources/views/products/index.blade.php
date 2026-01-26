@@ -66,12 +66,10 @@
                                     data-bs-ride="carousel">
                                     <div class="carousel-inner">
                                         @foreach ($product->images as $key => $image)
-                                        {{ dd(Storage::url($image->image_path)) }}
-
                                             <div class="carousel-item {{ $key == 0 ? 'active' : '' }}">
                                                 <img src="{{ Storage::url($image->image_path) }}" class="d-block w-100"
                                                     style="height:200px; object-fit:cover;">
-
+                                                    
                                             </div>
                                         @endforeach
                                     </div>
