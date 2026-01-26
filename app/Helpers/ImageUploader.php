@@ -1,16 +1,15 @@
 <?php
 
+
 namespace App\Helpers;
 
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
-dd(config('cloudinary'));
 
 class ImageUploader
 {
     public static function upload($file, $folder = 'uploads')
     {
-        
-        // 🔥 กัน null ตรงนี้ก่อนเลย
+        // กัน null
         if (!$file || !method_exists($file, 'getRealPath')) {
             return null;
         }
@@ -18,10 +17,12 @@ class ImageUploader
         $result = Cloudinary::upload(
             $file->getRealPath(),
             [
-                'folder' => $folder
+                'folder' => $folder,
+                'upload_preset' => config('cloudinary.upload_preset'),
             ]
         );
 
-        return $result->getSecurePath();
+        // ✅ Cloudinary คืนค่าเป็น array
+        return $result['secure_url'] ?? null;
     }
 }
