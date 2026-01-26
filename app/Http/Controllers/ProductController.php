@@ -69,18 +69,23 @@ class ProductController extends Controller
 
         // จัดการรูปภาพ
         // ✅ บันทึกรูปภาพหลายรูป
-        if ($request->hasFile('images')) {
+       if ($request->hasFile('images')) {
     foreach ($request->file('images') as $image) {
 
-        // ✅ อัปโหลดไป Cloudinary
+        // ✅ กัน null
+        if (!$image) {
+            continue;
+        }
+
         $url = ImageUploader::upload($image, 'products');
 
         ProductImage::create([
             'product_id' => $product->id,
-            'image_path' => $url, // ← เก็บเป็น URL
+            'image_path' => $url,
         ]);
     }
 }
+
 
 
 
