@@ -13,11 +13,13 @@ class ImageUploader
         }
 
         $result = Cloudinary::upload(
+            
             $file->getRealPath(),
             [
                 'folder' => $folder,
             ]
         );
+dd($result);
 
         return $result['secure_url'] ?? null;
     }
