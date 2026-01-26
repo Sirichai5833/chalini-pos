@@ -3,11 +3,13 @@
 namespace App\Helpers;
 
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+dd(config('cloudinary'));
 
 class ImageUploader
 {
     public static function upload($file, $folder = 'uploads')
     {
+        
         // 🔥 กัน null ตรงนี้ก่อนเลย
         if (!$file || !method_exists($file, 'getRealPath')) {
             return null;
