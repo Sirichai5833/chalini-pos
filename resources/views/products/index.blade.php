@@ -67,9 +67,9 @@
                                     <div class="carousel-inner">
                                         @foreach ($product->images as $key => $image)
                                             <div class="carousel-item {{ $key == 0 ? 'active' : '' }}">
-                                                 <img src="{{ asset('storage/app/public/products/' . $image->image_path) }}" class="d-block w-100"
+                                                 <img src="{{ asset('storage/app/public/' . $image->image_path) }}" class="d-block w-100"
                                                     style="height:200px; object-fit:cover;">
-                                                    
+                                                                                                 
                                             </div>
                                         @endforeach
                                     </div>
