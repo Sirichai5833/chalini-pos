@@ -174,8 +174,7 @@
 
 
 
-
-
+    
     <div class="mb-4 overflow-auto d-flex gap-2 pb-2" style="scroll-snap-type: x mandatory;">
         <a href="{{ route('online.index') }}"
             class="btn btn-sm {{ request('category') ? 'btn-outline-secondary' : 'btn-orange' }} flex-shrink-0">ทั้งหมด</a>
