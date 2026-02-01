@@ -356,13 +356,28 @@
                         <span class="badge badge-low-stock">⚠️ เหลือ {{ $totalStock }}</span>
                     @endif
 
-                    @if ($product->image)
-                        <img src="{{ asset('storage/' . $product->image) }}" class="card-img-top"
-                            alt="{{ $product->name }}" style="height: 200px; object-fit: cover;">
-                    @else
-                        <div class="bg-light d-flex align-items-center justify-content-center text-muted"
-                            style="height: 200px;">
-                            <i class="bi bi-image fs-1"></i>
+                     @if ($product->images->count())
+                        <div id="carouselProduct{{ $product->id }}" class="carousel slide mb-3" data-bs-ride="carousel">
+                            <div class="carousel-inner">
+                                @foreach ($product->images as $key => $image)
+                                    <div class="carousel-item {{ $key == 0 ? 'active' : '' }}">
+                                        <img src="{{ asset('storage/' . $image->image_path) }}" class="d-block w-100"
+                                            style="height:200px; object-fit:cover;">
+                                    </div>
+                                @endforeach
+                            </div>
+                            @if ($product->images->count() > 1)
+                                <button class="carousel-control-prev" type="button"
+                                    data-bs-target="#carouselProduct{{ $product->id }}" data-bs-slide="prev">
+                                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Previous</span>
+                                </button>
+                                <button class="carousel-control-next" type="button"
+                                    data-bs-target="#carouselProduct{{ $product->id }}" data-bs-slide="next">
+                                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Next</span>
+                                </button>
+                            @endif
                         </div>
                     @endif
 
