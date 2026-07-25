@@ -12,10 +12,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use App\Models\Customer;
 use App\Models\CreditSale;
 use App\Models\Shift;
 use App\Models\CreditSaleItem;
+use App\Services\StockDeductionService;
 
 
 
@@ -58,207 +60,83 @@ class SaleController extends Controller
     }
 
     // อัปเดตสต็อกหลังขาย
-    public function updateStockAfterSale(Request $request)
-    {
-        $request->validate([
-            'products' => 'required|array',
+    public function updateStockAfterSale(
+        Request $request,
+        StockDeductionService $stockDeduction
+    ) {
+        $validated = $request->validate([
+            'products' => 'required|array|min:1',
             'products.*.product_unit_id' => 'required|exists:product_units,id',
             'products.*.qty' => 'required|integer|min:1',
-            'payment_method' => 'required|in:cash,qr,card,credit'
+            'payment_method' => 'required|in:cash,qr,card,credit',
         ]);
 
-        DB::beginTransaction();
+        $sale = DB::transaction(function () use (
+            $request,
+            $validated,
+            $stockDeduction
+        ) {
+            $shift = Shift::query()
+                ->where('user_id', Auth::id())
+                ->where('status', 'open')
+                ->lockForUpdate()
+                ->first();
 
-        try {
-            $total = 0;
-            $shift = Shift::where('user_id', Auth::id())
-    ->where('status', 'open')
-    ->first();
+            abort_unless($shift, 403, 'กรุณาเปิดกะก่อนทำรายการ');
 
-if (!$shift) {
-    return response()->json([
-        'success' => false,
-        'message' => 'กรุณาเปิดกะก่อนทำรายการ'
-    ], 403);
-}
+            $units = ProductUnit::query()
+                ->whereIn(
+                    'id',
+                    collect($validated['products'])->pluck('product_unit_id')
+                )
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
             $sale = Sale::create([
-                'user_id' => Auth::id(),
                 'staff_id' => Auth::id(),
                 'shift_id' => $shift->id,
-                'sale_type' => $request->price_type ?? 'retail',
+                'sale_type' => $request->input('price_type', 'retail'),
                 'total_price' => 0,
-                'payment_method' => $request->payment_method ?? 'cash',
+                'payment_method' => $validated['payment_method'],
                 'sale_date' => now(),
             ]);
 
-            $unitIds = collect($request->products)
-                ->pluck('product_unit_id');
+            $total = 0;
 
-            $units = ProductUnit::whereIn('id', $unitIds)
-                ->get()
-                ->keyBy('id');
-            foreach ($request->products as $item) {
-                $unitId = $item['product_unit_id'];
-                $qty = $item['qty'];
-                $selectedUnit = $units[$unitId];
-                $productId = $selectedUnit->product_id;
-                $price = $selectedUnit->price;
-                $unitQty = $selectedUnit->unit_quantity;
-                $totalBaseQty = $qty * $unitQty;
+            foreach ($validated['products'] as $item) {
+                $selectedUnit = $units->get($item['product_unit_id']);
+                $quantity = (int) $item['qty'];
+                $price = (float) $selectedUnit->price;
 
-                $baseUnit = ProductUnit::where('product_id', $productId)
-                    ->orderBy('unit_quantity', 'asc')
-                    ->first();
-
-                if (!$baseUnit) {
-                    DB::rollBack();
-                    return response()->json([
-                        'success' => false,
-                        'message' => "ไม่พบหน่วยเล็กสุดของสินค้ารหัส {$productId}",
-                    ], 400);
-                }
-
-                // หักจากหน่วยที่เลือกก่อน
-                $stock = ProductStocks::where('product_id', $productId)
-                    ->where('unit_id', $unitId)
-                    ->lockForUpdate()
-                    ->first();
-
-                $availableQty = $stock?->store_stock ?? 0;
-                $deductQty = min($qty, $availableQty);
-                $remainingQty = $qty - $deductQty;
-
-                if ($deductQty > 0 && $stock) {
-                    $stock->decrement('store_stock', $deductQty);
-
-                    ProductStockMovement::create([
-                        'product_id' => $productId,
-                        'type' => 'out',
-                        'quantity' => $deductQty,
-                        'unit_quantity' => $unitQty,
-                        'unit' => $selectedUnit->unit_name,
-                        'location' => 'store',
-                        'note' => 'ขายจากหน่วยที่เลือก',
-                    ]);
-                }
-
-                // หากไม่พอ → แปลงหน่วย
-                if ($remainingQty > 0) {
-                    $remainingBaseQty = $remainingQty * $unitQty;
-                    $convertedBase = 0;
-
-                    $otherUnits = ProductUnit::where('product_id', $productId)
-                        ->where('id', '!=', $unitId)
-                        ->orderBy('unit_quantity', 'asc')
-                        ->get();
-
-                    foreach ($otherUnits as $otherUnit) {
-                        $stockOther = ProductStocks::where('product_id', $productId)
-                            ->where('unit_id', $otherUnit->id)
-                            ->lockForUpdate()
-                            ->first();
-
-                        $available = $stockOther?->store_stock ?? 0;
-                        $basePerUnit = $otherUnit->unit_quantity;
-
-                        if ($basePerUnit === 0 || $available === 0) continue;
-
-                        // ❌ เดิม (อาจไม่กล้าแตก)
-                        // $usableUnit = floor($remainingBaseQty / $basePerUnit);
-                        // $usableQty = min($usableUnit, $available);
-
-                        // ✅ แก้เป็น:
-                        $neededUnit = ceil($remainingBaseQty / $basePerUnit);
-                        $usableQty = min($available, $neededUnit);
-                        $convertedBase = $usableQty * $basePerUnit;
-                        $remainingBaseQty -= $convertedBase;
-
-                        if ($usableQty > 0) {
-                            $stockOther->decrement('store_stock', $usableQty);
-
-                            $stockBaseUnit = ProductStocks::firstOrCreate(
-                                ['product_id' => $productId, 'unit_id' => $baseUnit->id],
-                                ['store_stock' => 0, 'warehouse_stock' => 0]
-                            );
-
-                            $stockBaseUnit->increment('store_stock', $convertedBase);
-
-                            ProductStockMovement::create([
-                                'product_id' => $productId,
-                                'type' => 'out',
-                                'quantity' => $usableQty,
-                                'unit_quantity' => $basePerUnit,
-                                'unit' => $otherUnit->unit_name,
-                                'location' => 'store',
-                                'note' => "แตกหน่วยจาก {$otherUnit->unit_name} เป็น {$baseUnit->unit_name}",
-                            ]);
-                        }
-
-                        if ($remainingBaseQty <= 0) break;
-                    }
-
-                    if ($convertedBase < $remainingBaseQty) {
-                        DB::rollBack();
-                        return response()->json([
-                            'success' => false,
-                            'message' => "สินค้ารหัส {$productId} มีสต็อกไม่พอ ",
-                        ], 400);
-                    }
-
-                    $deductFromBase = $totalBaseQty - ($deductQty * $unitQty);
-
-                    $finalBaseStock = ProductStocks::where('product_id', $productId)
-                        ->where('unit_id', $baseUnit->id)
-                        ->first();
-
-                    if (!$finalBaseStock || $finalBaseStock->store_stock < $deductFromBase) {
-                        DB::rollBack();
-                        return response()->json([
-                            'success' => false,
-                            'message' => "สต็อกไม่พอที่จะขาย ",
-                        ], 400);
-                    }
-
-                    $finalBaseStock->decrement('store_stock', $deductFromBase);
-
-                    ProductStockMovement::create([
-                        'product_id' => $productId,
-                        'type' => 'out',
-                        'quantity' => $deductFromBase,
-                        'unit_quantity' => $baseUnit->unit_quantity,
-                        'unit' => $baseUnit->unit_name,
-                        'location' => 'store',
-                        'note' => 'ขายสินค้าหลังแปลงหน่วยจากหน่วยอื่น',
-                    ]);
-                }
+                $stockDeduction->deduct(
+                    $selectedUnit,
+                    $quantity,
+                    'ขายหน้าร้าน'
+                );
 
                 SaleItem::create([
                     'sale_id' => $sale->id,
-                    'product_unit_id' => $unitId,
-                    'quantity' => $qty,
-                    'unit_quantity' => $unitQty,
+                    'product_unit_id' => $selectedUnit->id,
+                    'quantity' => $quantity,
+                    'unit_quantity' => $selectedUnit->unit_quantity,
                     'price' => $price,
                     'cost' => $selectedUnit->cost_price,
                 ]);
 
-                $total += $price * $qty;
+                $total += $price * $quantity;
             }
 
-            $sale->update(['total_price' => $total]);
+            $sale->update(['total_price' => round($total, 2)]);
 
-            DB::commit();
+            return $sale;
+        });
 
-            return response()->json([
-                'success' => true,
-                'message' => 'บันทึกการขายสำเร็จแล้ว',
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'บันทึกการขายสำเร็จแล้ว',
+            'sale_id' => $sale->id,
+        ]);
     }
 
 
@@ -445,46 +323,43 @@ $units = ProductUnit::select(
     // 1. เพิ่ม Request $request เพื่อรับค่าจากฟอร์ม
     public function destroy(Request $request, $id)
     {
-        // 1. รับเหตุผลจาก SweetAlert
-        $reason = $request->input('cancel_reason');
-        if (empty($reason)) {
-            $reason = "ไม่ได้ระบุเหตุผล";
-        }
+        return DB::transaction(function () use ($request, $id) {
+            $sale = Sale::query()
+                ->lockForUpdate()
+                ->findOrFail($id);
+            $actor = $request->user();
 
-        $sale = Sale::with('items')->findOrFail($id);
+            abort_unless(
+                $actor &&
+                    in_array(
+                        $actor->role,
+                        ['admin', 'manager', 'owner', 'staff'],
+                        true
+                    ),
+                403
+            );
 
-        return DB::transaction(function () use ($sale, $reason) {
-            foreach ($sale->items as $item) {
-                $unit = ProductUnit::find($item->product_unit_id);
-
-                if ($unit) {
-                    // คืนสต็อกเข้า Store
-                    $productStock = ProductStocks::where('product_id', $unit->product_id)
-                        ->where('unit_id', $unit->id)
-                        ->first();
-
-                    if ($productStock) {
-                        $productStock->increment('store_stock', $item->quantity * $unit->unit_quantity);
-                    }
-
-                    // บันทึก Movement
-                    ProductStockMovement::create([
-                        'product_id'    => $unit->product_id,
-                        'type'          => 'in', // หรือเปลี่ยนเป็น 'cancel' หาก table รองรับ enum ค่านี้
-                        'quantity'      => $item->quantity,
-                        'unit_quantity' => $unit->unit_quantity,
-                        'unit'          => $unit->unit_name ?? '-',
-                        'location'      => 'store',
-                        // ใส่ [ยกเลิกการขาย] นำหน้าเพื่อให้ Query แยกง่ายขึ้น
-                        'note'          => "[ยกเลิกการขาย] บิล #{$sale->id} | เหตุผล: {$reason}",
-                    ]);
-                }
+            if (
+                $actor->role === 'staff' &&
+                (int) $sale->staff_id !== (int) $actor->id
+            ) {
+                abort(403);
             }
 
-            $sale->items()->delete();
-            $sale->delete();
+            $request->validate([
+                'cancel_reason' => 'required|string|max:500',
+            ]);
 
-            return redirect()->route('staff.sales.history')->with('success', 'ยกเลิกรายการเรียบร้อย');
+            SaleItem::query()
+                ->where('sale_id', $sale->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            throw ValidationException::withMessages([
+                'cancel_reason' =>
+                    'ไม่สามารถพิสูจน์เส้นทางการตัดสต็อกของบิลนี้ได้ กรุณาหยุดการยกเลิกอัตโนมัติและทำ manual reconciliation',
+            ]);
         });
     }
 
@@ -632,78 +507,161 @@ if (!$shift) {
         }
     }
 
-   public function creditSale(Request $request)
-{
-    DB::beginTransaction();
-
-    try {
-
-        $customer = Customer::findOrFail(
-            $request->customer_id
-        );
-
-        // สร้างบิลเงินเชื่อ
-        $creditSale = CreditSale::create([
-
-            'customer_id' => $customer->id,
-
-            'total_amount' => $request->total_price,
-
-            'paid_amount' => 0,
-
-            'remaining_amount' => $request->total_price,
-
-            // สำคัญมาก
-            'due_date' => $request->due_date,
-
-            'status' => 'unpaid'
+    public function creditSale(
+        Request $request,
+        StockDeductionService $stockDeduction
+    ) {
+        $validated = $request->validate([
+            'customer_id' => 'required|integer|exists:customers,id',
+            'due_date' => 'required|date|after_or_equal:today',
+            'products' => 'required|array|min:1',
+            'products.*.product_unit_id' => [
+                'required',
+                'integer',
+                'distinct',
+                'exists:product_units,id',
+            ],
+            'products.*.qty' => 'required|integer|min:1',
         ]);
 
-        // บันทึกรายการสินค้า
-        foreach ($request->products as $item) {
+        $result = DB::transaction(function () use (
+            $request,
+            $validated,
+            $stockDeduction
+        ) {
+            $actor = $request->user();
 
-            $unitId = $item['product_unit_id'];
+            abort_unless(
+                $actor &&
+                    in_array(
+                        $actor->role,
+                        ['admin', 'manager', 'owner', 'staff'],
+                        true
+                    ),
+                403
+            );
 
-            $unit = ProductUnit::findOrFail($unitId);
+            $shift = Shift::query()
+                ->where('user_id', $actor->id)
+                ->where('status', 'open')
+                ->lockForUpdate()
+                ->first();
 
-            CreditSaleItem::create([
+            abort_unless($shift, 403, 'กรุณาเปิดกะก่อนขายเงินเชื่อ');
 
-                'credit_sale_id' => $creditSale->id,
+            $customer = Customer::query()
+                ->whereKey($validated['customer_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
 
-                'product_id' => $unit->product_id,
+            abort_unless(
+                $customer->is_active,
+                403,
+                'ลูกค้าถูกระงับ ไม่สามารถขายเงินเชื่อได้'
+            );
 
-                'product_unit_id' => $unit->id,
+            $units = ProductUnit::query()
+                ->with('product')
+                ->whereIn(
+                    'id',
+                    collect($validated['products'])->pluck('product_unit_id')
+                )
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
 
-                'qty' => $item['qty'],
+            $items = collect($validated['products'])->map(function (array $item) use ($units) {
+                $unit = $units->get($item['product_unit_id']);
+                $price = $unit?->price;
 
-                'price' => $item['price']
+                if ($price === null || (float) $price < 0) {
+                    throw ValidationException::withMessages([
+                        'products' => 'Product price is not available.',
+                    ]);
+                }
 
+                $quantity = (int) $item['qty'];
+                $subtotal = round((float) $price * $quantity, 2);
+
+                return [
+                    'unit' => $unit,
+                    'quantity' => $quantity,
+                    'price' => (float) $price,
+                    'subtotal' => $subtotal,
+                ];
+            });
+
+            $total = round($items->sum('subtotal'), 2);
+
+            if ($total <= 0) {
+                throw ValidationException::withMessages([
+                    'products' => 'Credit sale total must be greater than zero.',
+                ]);
+            }
+
+            $sale = Sale::create([
+                'staff_id' => $actor->id,
+                'shift_id' => $shift->id,
+                'sale_type' => 'credit',
+                'payment_method' => 'credit',
+                'sale_date' => now(),
+                'total_price' => $total,
             ]);
-        }
 
-        // อัปเดตหนี้ลูกค้า
-        $customer->increment(
-            'current_debt',
-            $request->total_price
-        );
+            $creditSale = CreditSale::create([
+                'customer_id' => $customer->id,
+                'total_amount' => $total,
+                'paid_amount' => 0,
+                'remaining_amount' => $total,
+                'due_date' => $validated['due_date'],
+                'status' => 'unpaid',
+            ]);
 
-        DB::commit();
+            foreach ($items as $item) {
+                $unit = $item['unit'];
+
+                $stockDeduction->deduct(
+                    $unit,
+                    $item['quantity'],
+                    'ขายเงินเชื่อ'
+                );
+
+                SaleItem::create([
+                    'sale_id' => $sale->id,
+                    'product_unit_id' => $unit->id,
+                    'quantity' => $item['quantity'],
+                    'unit_quantity' => $unit->unit_quantity,
+                    'price' => $item['price'],
+                    'cost' => $unit->cost_price,
+                ]);
+
+                CreditSaleItem::create([
+                    'credit_sale_id' => $creditSale->id,
+                    'product_id' => $unit->product_id,
+                    'product_name' => $unit->product?->name,
+                    'product_unit_id' => $unit->id,
+                    'qty' => $item['quantity'],
+                    'price' => $item['price'],
+                    'total' => $item['subtotal'],
+                ]);
+            }
+
+            $customer->current_debt = round(
+                (float) $customer->current_debt + $total,
+                2
+            );
+            $customer->save();
+
+            return [
+                'sale_id' => $sale->id,
+                'credit_sale_id' => $creditSale->id,
+                'total' => $total,
+            ];
+        });
 
         return response()->json([
-            'success' => true
+            'success' => true,
+            ...$result,
         ]);
-
-    } catch (\Exception $e) {
-
-        DB::rollBack();
-
-        return response()->json([
-
-            'success' => false,
-
-            'message' => $e->getMessage()
-
-        ], 500);
     }
-}
 }

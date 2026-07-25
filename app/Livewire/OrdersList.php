@@ -6,6 +6,8 @@ use Livewire\WithPagination;
 use Livewire\Component;
 use App\Models\Order;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 
 class OrdersList extends Component
@@ -43,22 +45,52 @@ public function pollCount()
         return view('livewire.orders-list', compact('orders'));
     }
 
-  public function assignOrder($orderId)
+public function assignOrder($orderId)
 {
-    $order = Order::find($orderId);
+    $actor = Auth::user();
 
-    if ($order->assigned_to) {
-        $this->dispatch('notify', ['type' => 'error', 'message' => 'ออเดอร์นี้มีคนรับแล้ว']);
-        return;
-    }
+    abort_unless(
+        $actor &&
+            in_array(
+                $actor->role,
+                ['admin', 'manager', 'owner', 'staff'],
+                true
+            ),
+        403
+    );
 
-    $order->assigned_to = Auth::id();
-    $order->assigned_at = now();
+    DB::transaction(function () use ($actor, $orderId) {
+        $order = Order::query()
+            ->lockForUpdate()
+            ->findOrFail($orderId);
 
-    // ✅ เพิ่มบรรทัดนี้เพื่อเปลี่ยนสถานะเป็น "รอดำเนินการ"
-    $order->status = 'รอเจ้าหน้าที่รับคำสั่งซื้อ';
+        if (
+            !in_array(
+                $order->status,
+                [
+                    'pending',
+                    'รอดำเนินการ',
+                    'รอเจ้าหน้าที่รับคำสั่งซื้อ',
+                ],
+                true
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'status' => 'ออเดอร์ในสถานะนี้ไม่สามารถรับงานได้',
+            ]);
+        }
 
-    $order->save();
+        if ($order->assigned_to) {
+            throw ValidationException::withMessages([
+                'status' => 'ออเดอร์นี้มีคนรับแล้ว',
+            ]);
+        }
+
+        $order->assigned_to = $actor->id;
+        $order->assigned_at = now();
+        $order->status = 'รอเจ้าหน้าที่รับคำสั่งซื้อ';
+        $order->save();
+    });
 
     // ถ้าคุณใช้ count แสดงจำนวนออเดอร์ใหม่อยู่
     $this->count = Order::where('status', 'รอเจ้าหน้าที่รับคำสั่งซื้อ')

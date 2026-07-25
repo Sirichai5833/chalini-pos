@@ -4,14 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\ProductStockMovement;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\ProductStocks;
 use App\Models\Setting;
+use App\Services\SafeStockReversalService;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 
 class OrderController extends Controller
@@ -248,242 +249,107 @@ class OrderController extends Controller
 
     public function updateStatus(
         Request $request,
-        $id
+        $id,
+        SafeStockReversalService $stockReversal
     ) {
         $actor = $request->user();
 
         abort_unless(
-            $actor && in_array($actor->role, ['admin', 'manager', 'owner', 'staff'], true),
+            $actor &&
+                in_array(
+                    $actor->role,
+                    ['admin', 'manager', 'owner', 'staff'],
+                    true
+                ),
             403
         );
 
-        $order =
-            Order::with(
-                'orderItems'
-            )->findOrFail($id);
-
-        if (
-            $actor->role === 'staff' &&
-            (int) $order->assigned_to !== (int) $actor->id
-        ) {
-            abort(403);
-        }
-
-
-        $oldStatus =
-            $order->status;
-
-
-        $request->validate([
-
-            'status' =>
-                'required|string',
-
-            'proof_image' =>
-                'nullable|image|mimes:jpg,jpeg,png|max:2048',
-
-            'cancel_reason' =>
-                'nullable|string|max:500',
-
+        $cancelStatuses = ['ยกเลิก', 'cancelled'];
+        $validated = $request->validate([
+            'status' => [
+                'required',
+                'string',
+                Rule::in($this->orderStatuses()),
+            ],
+            'proof_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'cancel_reason' => [
+                Rule::requiredIf(
+                    in_array($request->input('status'), $cancelStatuses, true)
+                ),
+                'nullable',
+                'string',
+                'max:500',
+            ],
         ]);
 
-
-        if (
-
-            $request->status === 'เสร็จสิ้น' &&
-
-            !$request->hasFile('proof_image') &&
-
-            !$order->proof_image
-
+        DB::transaction(function () use (
+            $id,
+            $request,
+            $validated,
+            $cancelStatuses,
+            $stockReversal
         ) {
+            $order = Order::query()
+                ->lockForUpdate()
+                ->findOrFail($id);
+            $actor = $request->user();
 
-            return back()->with(
-                'error',
-                'กรุณาแนบรูปหลักฐาน!'
+            abort_unless(
+                $actor &&
+                    in_array(
+                        $actor->role,
+                        ['admin', 'manager', 'owner', 'staff'],
+                        true
+                    ),
+                403
             );
 
-        }
-
-
-        if (
-
-            $request->status === 'ยกเลิก' &&
-
-            !$request->cancel_reason
-
-        ) {
-
-            return back()->with(
-                'error',
-                'กรุณากรอกหมายเหตุการยกเลิก!'
-            );
-
-        }
-
-
-        try {
-
-            DB::transaction(function () use (
-                $order,
-                $request,
-                $oldStatus
+            if (
+                $actor->role === 'staff' &&
+                (int) $order->assigned_to !== (int) $actor->id
             ) {
+                abort(403);
+            }
 
-
-                /*
-                |--------------------------------------------------------------------------
-                | คืนสต็อกเมื่อยกเลิก
-                |--------------------------------------------------------------------------
-                */
-
-                if (
-
-                    $request->status === 'ยกเลิก' &&
-
-                    $oldStatus !== 'ยกเลิก'
-
-                ) {
-
-
-                    $movements =
-                        ProductStockMovement::where(
-                            'order_id',
-                            $order->id
-                        )
-                            ->where(
-                                'type',
-                                'out'
-                            )
-                            ->get();
-
-
-                    foreach ($movements as $move) {
-
-
-                        $stock =
-                            ProductStocks::where(
-                                'product_id',
-                                $move->product_id
-                            )
-                                ->whereHas(
-                                    'unit',
-                                    fn ($q) =>
-                                    $q->where(
-                                        'unit_name',
-                                        $move->unit
-                                    )
-                                )
-                                ->first();
-
-
-                        if ($stock) {
-
-                            $stock->increment(
-                                'store_stock',
-                                $move->quantity
-                            );
-
-                        }
-
-
-                        ProductStockMovement::create([
-
-                            'order_id' =>
-                                $order->id,
-
-                            'product_id' =>
-                                $move->product_id,
-
-                            'type' =>
-                                'in',
-
-                            'quantity' =>
-                                $move->quantity,
-
-                            'unit_quantity' =>
-                                $move->unit_quantity,
-
-                            'unit' =>
-                                $move->unit,
-
-                            'location' =>
-                                'store',
-
-                            'note' =>
-                                'คืนสต็อกจากการยกเลิกออเดอร์',
-
-                        ]);
-
-                    }
-
-
-                    $order->cancel_reason =
-                        $request->cancel_reason;
-
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | แนบรูปเมื่อเสร็จสิ้น
-                |--------------------------------------------------------------------------
-                */
-
-                if ($request->hasFile('proof_image')) {
-
-
-                    if (
-
-                        $order->proof_image &&
-
-                        Storage::disk('public')
-                            ->exists(
-                                $order->proof_image
-                            )
-
-                    ) {
-
-                        Storage::disk('public')
-                            ->delete(
-                                $order->proof_image
-                            );
-
-                    }
-
-
-                    $path =
-                        $request
-                            ->file('proof_image')
-                            ->store(
-                                'proofs',
-                                'public'
-                            );
-
-
-                    $order->proof_image =
-                        $path;
-
-                }
-
-
-                $order->status =
-                    $request->status;
-
-
-                $order->save();
-
-            });
-
-
-        } catch (\Exception $e) {
-
-            return back()->with(
-                'error',
-                'เกิดข้อผิดพลาดในการอัปเดตสถานะ'
+            $this->ensureValidOrderTransition(
+                (string) $order->status,
+                $validated['status']
             );
 
-        }
+            if (
+                in_array($validated['status'], ['เสร็จสิ้น', 'completed'], true) &&
+                !$request->hasFile('proof_image') &&
+                !$order->proof_image
+            ) {
+                throw ValidationException::withMessages([
+                    'proof_image' => 'กรุณาแนบรูปหลักฐาน!',
+                ]);
+            }
+
+            if (in_array($validated['status'], $cancelStatuses, true)) {
+                $stockReversal->reverseOrder(
+                    $order,
+                    $validated['cancel_reason']
+                );
+                $order->cancel_reason = $validated['cancel_reason'];
+            }
+
+            if ($request->hasFile('proof_image')) {
+                if (
+                    $order->proof_image &&
+                    Storage::disk('public')->exists($order->proof_image)
+                ) {
+                    Storage::disk('public')->delete($order->proof_image);
+                }
+
+                $order->proof_image = $request
+                    ->file('proof_image')
+                    ->store('proofs', 'public');
+            }
+
+            $order->status = $validated['status'];
+            $order->save();
+        });
 
 
         return back()->with(
@@ -491,6 +357,53 @@ class OrderController extends Controller
             'อัปเดตสถานะสำเร็จ!'
         );
 
+    }
+
+    private function orderStatuses(): array
+    {
+        return array_values(array_unique(array_merge(
+            array_keys($this->orderTransitions()),
+            ...array_values($this->orderTransitions())
+        )));
+    }
+
+    private function orderTransitions(): array
+    {
+        return [
+            'pending' => ['processing', 'cancelled'],
+            'processing' => ['shipped', 'cancelled'],
+            'shipped' => ['completed', 'cancelled'],
+            'completed' => [],
+            'cancelled' => [],
+            'รอเจ้าหน้าที่รับคำสั่งซื้อ' => [
+                'กำลังจัดสินค้า',
+                'ยกเลิก',
+            ],
+            'กำลังจัดสินค้า' => [
+                'กำลังจัดส่ง',
+                'ยกเลิก',
+            ],
+            'กำลังจัดส่ง' => [
+                'เสร็จสิ้น',
+                'ยกเลิก',
+            ],
+            'เสร็จสิ้น' => [],
+            'ยกเลิก' => [],
+        ];
+    }
+
+    private function ensureValidOrderTransition(
+        string $currentStatus,
+        string $nextStatus
+    ): void {
+        $allowed = $this->orderTransitions()[$currentStatus] ?? [];
+
+        if (!in_array($nextStatus, $allowed, true)) {
+            throw ValidationException::withMessages([
+                'status' =>
+                    "Invalid order status transition: {$currentStatus} -> {$nextStatus}.",
+            ]);
+        }
     }
 
 
@@ -562,36 +475,38 @@ class OrderController extends Controller
             403
         );
 
-        $order =
-            Order::findOrFail($id);
+        DB::transaction(function () use ($actor, $id) {
+            $order = Order::query()
+                ->lockForUpdate()
+                ->findOrFail($id);
 
+            if (
+                $order->assigned_to &&
+                (int) $order->assigned_to !== (int) $actor->id
+            ) {
+                throw ValidationException::withMessages([
+                    'status' => 'ออเดอร์นี้ถูกรับโดยพนักงานคนอื่นแล้ว',
+                ]);
+            }
 
-        if (
+            $nextStatus = match ($order->status) {
+                'pending' => 'processing',
+                'รอเจ้าหน้าที่รับคำสั่งซื้อ' => 'กำลังจัดสินค้า',
+                default => null,
+            };
 
-            $order->assigned_to &&
+            if (!$nextStatus) {
+                throw ValidationException::withMessages([
+                    'status' =>
+                        "Order in status {$order->status} cannot be accepted.",
+                ]);
+            }
 
-            $order->assigned_to !== Auth::id()
-
-        ) {
-
-            return redirect()
-                ->back()
-                ->with(
-                    'error',
-                    'ออเดอร์นี้ถูกรับโดยพนักงานคนอื่นแล้ว'
-                );
-
-        }
-
-
-        $order->assigned_to =
-            Auth::id();
-
-        $order->status =
-            'กำลังจัดสินค้า';
-
-
-        $order->save();
+            $order->assigned_to = $actor->id;
+            $order->assigned_at = now();
+            $order->status = $nextStatus;
+            $order->save();
+        });
 
 
         return redirect()

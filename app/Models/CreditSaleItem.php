@@ -9,9 +9,11 @@ class CreditSaleItem extends Model
     protected $fillable = [
         'credit_sale_id',
         'product_id',
+        'product_name',
         'product_unit_id',
         'qty',
         'price',
+        'total',
     ];
 
     // =========================
