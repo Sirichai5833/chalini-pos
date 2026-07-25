@@ -448,11 +448,6 @@ Route::middleware('role:admin,manager,staff,owner')->group(function () {
             ])->block(15, 15)
                 ->name('credit.pay.selected');
 
-            Route::post('/credit-sales/{id}/pay', [
-                CreditSaleController::class,
-                'pay'
-            ])->name('credit.sales.pay');
-
             Route::get('/credit-sales', [
                 CreditSaleController::class,
                 'index'
