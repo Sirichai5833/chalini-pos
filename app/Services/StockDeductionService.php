@@ -15,7 +15,8 @@ class StockDeductionService
     public function deduct(
         ProductUnit $selectedUnit,
         int $quantity,
-        string $reason
+        string $reason,
+        ?int $orderId = null
     ): void {
         if (DB::transactionLevel() === 0) {
             throw new LogicException('Stock deduction must run inside a database transaction.');
@@ -30,6 +31,7 @@ class StockDeductionService
         $units = ProductUnit::query()
             ->where('product_id', $selectedUnit->product_id)
             ->orderBy('unit_quantity')
+            ->orderBy('id')
             ->lockForUpdate()
             ->get();
 
@@ -47,6 +49,8 @@ class StockDeductionService
 
         $stocks = ProductStocks::query()
             ->where('product_id', $selectedUnit->product_id)
+            ->orderBy('unit_id')
+            ->orderBy('id')
             ->lockForUpdate()
             ->get();
 
@@ -84,7 +88,13 @@ class StockDeductionService
 
         if ($directQuantity > 0 && $selectedStock) {
             $this->decrementStock($selectedStock, $directQuantity);
-            $this->movement($selectedUnit, 'out', $directQuantity, $reason);
+            $this->movement(
+                $selectedUnit,
+                'out',
+                $directQuantity,
+                $reason,
+                $orderId
+            );
         }
 
         if ($requiredBaseQuantity === 0) {
@@ -104,7 +114,8 @@ class StockDeductionService
                 $plan['unit'],
                 'convert',
                 $plan['source_quantity'],
-                "{$reason}: ลดหน่วยเพื่อแตกเป็น {$baseUnit->unit_name}"
+                "{$reason}: ลดหน่วยเพื่อแตกเป็น {$baseUnit->unit_name}",
+                $orderId
             );
 
             $this->incrementStock($baseStock, $plan['base_quantity']);
@@ -112,7 +123,8 @@ class StockDeductionService
                 $baseUnit,
                 'convert',
                 $plan['base_quantity'],
-                "{$reason}: เพิ่มจากการแตกหน่วย {$plan['unit']->unit_name}"
+                "{$reason}: เพิ่มจากการแตกหน่วย {$plan['unit']->unit_name}",
+                $orderId
             );
         }
 
@@ -121,7 +133,8 @@ class StockDeductionService
             $baseUnit,
             'out',
             $requiredBaseQuantity,
-            "{$reason}: ตัดหลังแตกหน่วย"
+            "{$reason}: ตัดหลังแตกหน่วย",
+            $orderId
         );
     }
 
@@ -232,10 +245,12 @@ class StockDeductionService
         ProductUnit $unit,
         string $type,
         int $quantity,
-        string $note
+        string $note,
+        ?int $orderId
     ): void {
         ProductStockMovement::create([
             'product_id' => $unit->product_id,
+            'order_id' => $orderId,
             'type' => $type,
             'quantity' => $quantity,
             'unit_quantity' => $unit->unit_quantity,

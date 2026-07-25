@@ -6,15 +6,17 @@ use App\Models\Category; // ← เพิ่มบรรทัดนี้ถ้
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
-use App\Models\ProductStockMovement;
 use App\Models\ProductStocks;
 use App\Models\ProductUnit;
 use App\Models\Sale;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\StockDeductionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Intervention\Image\Facades\Image;
 
 class OnlineController extends Controller
@@ -120,11 +122,24 @@ class OnlineController extends Controller
 
     public function add(Request $request)
     {
-        $product = Product::with('images')->findOrFail($request->product_id);
-        $productUnit = ProductUnit::findOrFail($request->product_unit_id);
+        $validated = $request->validate([
+            'product_id' => 'required|integer|exists:products,id',
+            'product_unit_id' =>
+                'required|integer|exists:product_units,id',
+        ]);
+        $product = Product::with('images')
+            ->whereKey($validated['product_id'])
+            ->where('is_active', true)
+            ->where('is_online', true)
+            ->firstOrFail();
+        $productUnit = ProductUnit::query()
+            ->whereKey($validated['product_unit_id'])
+            ->where('product_id', $product->id)
+            ->firstOrFail();
 
         $cart = session()->get('cart', []);
-        $key = $request->product_id . '_' . $request->product_unit_id;
+        $this->assertCartOwnership($cart);
+        $key = $product->id . '_' . $productUnit->id;
 
         // ตรวจสอบจากตาราง product_images ตามรูปที่คุณส่งมา
         $firstImagePath = null;
@@ -147,6 +162,7 @@ class OnlineController extends Controller
         }
 
         session()->put('cart', $cart);
+        session()->put('cart_owner_id', Auth::id());
 
         return response()->json([
             'success' => true,
@@ -159,13 +175,17 @@ class OnlineController extends Controller
     public function updateQuantity(Request $request, $id)
     {
         $cart = session()->get('cart', []);
+        $this->assertCartOwnership($cart);
+        $validated = $request->validate([
+            'quantity' => 'required|integer|min:1',
+        ]);
 
         if (!isset($cart[$id])) {
             return response()->json(['success' => false, 'message' => 'ไม่พบสินค้าในตะกร้า'], 404);
         }
 
         $item = $cart[$id];
-        $requestedQty = (int) $request->quantity;
+        $requestedQty = (int) $validated['quantity'];
 
         // ดึงสต็อกจากตาราง product_stocks ตาม product_id และ product_unit_id
         $stock = ProductStocks::where('product_id', $item['product_id'])
@@ -211,6 +231,7 @@ class OnlineController extends Controller
     public function cart()
     {
         $cart = session()->get('cart', []);
+        $this->assertCartOwnership($cart);
         $total = 0;
         $outOfStockItems = [];
 
@@ -246,6 +267,7 @@ class OnlineController extends Controller
 
     // ดึงข้อมูลสินค้าจาก session
     $cart = session()->get('cart', []);
+    $this->assertCartOwnership($cart);
     $total = 0;
     $smallestUnitId = null;
 
@@ -274,176 +296,232 @@ class OnlineController extends Controller
 
 
 
-    public function processCheckout(Request $request)
+    public function processCheckout(
+        Request $request,
+        StockDeductionService $stockDeduction
+    )
     {
-        $request->validate([
-            'order_token' => 'required|uuid', // ✅ เพิ่ม
-            'phone' => 'required',
-            'payment_method' => 'required',
-            'slip' => 'required_if:payment_method,โอนผ่านบัญชีธนาคาร|image|max:2048',
+        $validated = $request->validate([
+            'order_token' => 'required|uuid',
+            'phone' => 'required|string|max:20',
+            'payment_method' => [
+                'required',
+                'in:โอนผ่านบัญชีธนาคาร,เก็บเงินปลายทาง',
+            ],
+            'slip' =>
+                'required_if:payment_method,โอนผ่านบัญชีธนาคาร|image|max:2048',
         ]);
-        if (Order::where('order_token', $request->order_token)->exists()) {
-            return redirect('/online/track')
-                ->with('info', 'คำสั่งซื้อนี้ถูกบันทึกแล้ว');
-        }
-        $member = Auth::user();
+        $memberId = Auth::id();
         $cartItems = session('cart', []);
-        $totalAmount = collect($cartItems)->sum(fn($item) => $item['price'] * $item['quantity']);
-
-        $slipPath = $request->hasFile('slip')
-            ? $request->file('slip')->store('slips', 'public')
-            : null;
-
-        DB::beginTransaction();
+        $cartOwnerId = session('cart_owner_id');
+        $slipPath = null;
 
         try {
-            $order = Order::create([
-                'order_token' => $request->order_token,
-                'order_code' => 'ORD' . mt_rand(1000, 9999),
-                'user_id' => $member?->id,
-                'payment_method' => $request->payment_method,
-                'status' => 'รอเจ้าหน้าที่รับคำสั่งซื้อ',
-                'tracking_number' => $request->phone,
-                'slip_path' => $slipPath,
-                'total_amount' => $totalAmount,
-            ]);
-
-            foreach ($cartItems as $item) {
-                $unit = ProductUnit::findOrFail($item['product_unit_id']);
-                $productId = $unit->product_id;
-                $unitQty = $unit->unit_quantity;
-                $qty = (int) $item['quantity'];
-                $totalBaseQty = $qty * $unitQty;
-
-                $baseUnit = ProductUnit::where('product_id', $productId)
-                    ->orderBy('unit_quantity', 'asc')
+            $result = DB::transaction(function () use (
+                $request,
+                $validated,
+                $memberId,
+                $cartItems,
+                $cartOwnerId,
+                $stockDeduction,
+                &$slipPath
+            ) {
+                $member = User::query()
+                    ->lockForUpdate()
+                    ->findOrFail($memberId);
+                $existingOrder = Order::query()
+                    ->where('order_token', $validated['order_token'])
+                    ->lockForUpdate()
                     ->first();
 
-                // Step 1: หักจากหน่วยที่เลือก
-                $stock = ProductStocks::where('product_id', $productId)
-                    ->where('unit_id', $unit->id)
-                    ->first();
+                if ($existingOrder) {
+                    abort_unless(
+                        (int) $existingOrder->user_id === (int) $member->id,
+                        403
+                    );
 
-                $availableQty = $stock?->store_stock ?? 0;
-                $deductQty = min($qty, $availableQty);
-                $remainingQty = $qty - $deductQty;
+                    if (
+                        in_array(
+                            $existingOrder->status,
+                            ['cancelled', 'ยกเลิก'],
+                            true
+                        )
+                    ) {
+                        throw ValidationException::withMessages([
+                            'order_token' =>
+                                'Cancelled order tokens cannot be reused.',
+                        ]);
+                    }
 
-                if ($deductQty > 0 && $stock) {
-                    $stock->decrement('store_stock', $deductQty);
-                    ProductStockMovement::create([
-                        'product_id' => $productId,
-                        'order_id' => $order->id, // ✅ เพิ่ม order_id
-                        'type' => 'out',
-                        'quantity' => $deductQty,
-                        'unit_quantity' => $unitQty,
-                        'unit' => $unit->unit_name,
-                        'location' => 'store',
-                        'note' => 'ขายจากหน่วยที่เลือก (online)',
+                    return [
+                        'order' => $existingOrder,
+                        'created' => false,
+                    ];
+                }
+
+                if (
+                    empty($cartItems) ||
+                    (int) $cartOwnerId !== (int) $member->id
+                ) {
+                    throw ValidationException::withMessages([
+                        'cart' => 'Cart is empty or belongs to another user.',
                     ]);
                 }
 
-                // Step 2: ถ้าไม่พอ → แปลงจากหน่วยอื่น
-                if ($remainingQty > 0) {
-                    $remainingBaseQty = $remainingQty * $unitQty;
+                $items = $this->checkoutItems($cartItems);
+                $totalAmount = round($items->sum('subtotal'), 2);
 
-                    $otherUnits = ProductUnit::where('product_id', $productId)
-                        ->where('id', '!=', $unit->id)
-                        ->orderBy('unit_quantity', 'asc')
-                        ->get();
-                    $convertedBaseQty = 0; // ← เพิ่มบรรทัดนี้
-                    foreach ($otherUnits as $otherUnit) {
-                        $stockOther = ProductStocks::where('product_id', $productId)
-                            ->where('unit_id', $otherUnit->id)
-                            ->first();
-
-                        $available = $stockOther?->store_stock ?? 0;
-                        $basePerUnit = $otherUnit->unit_quantity;
-
-                        if ($basePerUnit == 0 || $available == 0) continue;
-
-                        $neededUnit = ceil($remainingBaseQty / $basePerUnit);
-                        $usableQty = min($available, $neededUnit);
-                        $convertedBase = $usableQty * $basePerUnit;
-                        $convertedBaseQty += $convertedBase;
-                        $remainingBaseQty -= $convertedBase;
-
-                        if ($usableQty > 0) {
-                            $stockOther->decrement('store_stock', $usableQty);
-
-                            // เพิ่มเข้า base unit ก่อน (simulate การแตกหน่วย)
-                            if ($baseUnit) {
-                                $baseStock = ProductStocks::firstOrCreate([
-                                    'product_id' => $productId,
-                                    'unit_id' => $baseUnit->id,
-                                ]);
-
-                                $baseStock->increment('store_stock', $convertedBase);
-                            }
-
-                            ProductStockMovement::create([
-                                'product_id' => $productId,
-                                'order_id' => $order->id,
-                                'type' => 'out',
-                                'quantity' => $usableQty,
-                                'unit_quantity' => $basePerUnit,
-                                'unit' => $otherUnit->unit_name,
-                                'location' => 'store',
-                                'note' => "แตกหน่วยจาก {$otherUnit->unit_name} (online)",
-                            ]);
-                        }
-
-
-                        if ($remainingBaseQty <= 0) break;
-                    }
-
-                    if ($remainingBaseQty > 0) {
-                        throw new \Exception("สินค้ารหัส {$productId} สต็อกไม่พอ แม้พยายามแปลงหน่วยแล้ว");
-                    }
-
-                    $deductFromBase = $remainingQty * $unitQty;
-                    $finalBaseStock = ProductStocks::where('product_id', $productId)
-                        ->where('unit_id', $baseUnit->id)
-                        ->first();
-
-                    if ($deductFromBase > 0) {
-                        if (!$finalBaseStock || $finalBaseStock->store_stock < $deductFromBase) {
-                            throw new \Exception("สต็อกไม่พอที่จะขาย หลังจากแปลงหน่วยแล้ว");
-                        }
-
-                        $finalBaseStock->decrement('store_stock', $deductFromBase);
-                        ProductStockMovement::create([
-                            'product_id' => $productId,
-                            'order_id' => $order->id, // ✅ เพิ่ม order_id
-                            'type' => 'out',
-                            'quantity' => $deductFromBase,
-                            'unit_quantity' => $baseUnit->unit_quantity,
-                            'unit' => $baseUnit->unit_name,
-                            'location' => 'store',
-                            'note' => 'ขายสินค้าหลังแปลงหน่วย (online)',
-                        ]);
-                    }
+                if ($totalAmount <= 0) {
+                    throw ValidationException::withMessages([
+                        'cart' => 'Order total must be greater than zero.',
+                    ]);
                 }
-                // สร้างรายการสินค้า
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_unit_id' => $unit->id,
-                    'quantity' => $qty,
-                    'price' => $item['price'],
-                    'total' => $item['price'] * $qty,
-                    'cost' => $unit->cost_price,
+
+                if ($request->hasFile('slip')) {
+                    $slipPath = $request
+                        ->file('slip')
+                        ->store('slips', 'public');
+                }
+
+                $tokenCode = strtoupper(str_replace(
+                    '-',
+                    '',
+                    $validated['order_token']
+                ));
+                $order = Order::create([
+                    'order_token' => $validated['order_token'],
+                    'order_code' => 'ORD' . substr($tokenCode, 0, 16),
+                    'user_id' => $member->id,
+                    'payment_method' => $validated['payment_method'],
+                    'status' => 'รอเจ้าหน้าที่รับคำสั่งซื้อ',
+                    'tracking_number' => $validated['phone'],
+                    'slip_path' => $slipPath,
+                    'total_amount' => $totalAmount,
+                ]);
+
+                foreach ($items as $item) {
+                    $unit = $item['unit'];
+
+                    $stockDeduction->deduct(
+                        $unit,
+                        $item['quantity'],
+                        'ขายสินค้าออนไลน์',
+                        $order->id
+                    );
+
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'product_unit_id' => $unit->id,
+                        'quantity' => $item['quantity'],
+                        'price' => $item['price'],
+                        'total' => $item['subtotal'],
+                        'cost' => $unit->cost_price,
+                    ]);
+                }
+
+                return [
+                    'order' => $order,
+                    'created' => true,
+                ];
+            });
+        } catch (\Throwable $exception) {
+            if ($slipPath) {
+                Storage::disk('public')->delete($slipPath);
+            }
+
+            throw $exception;
+        }
+
+        if ($result['created']) {
+            session()->forget([
+                'cart',
+                'checkout_items',
+                'cart_owner_id',
+            ]);
+        }
+
+        return redirect('/online/track')->with(
+            $result['created'] ? 'success' : 'info',
+            $result['created']
+                ? 'สั่งซื้อสำเร็จ'
+                : 'คำสั่งซื้อนี้ถูกบันทึกแล้ว'
+        );
+    }
+
+    private function checkoutItems(array $cartItems)
+    {
+        $quantities = [];
+
+        foreach ($cartItems as $item) {
+            if (!is_array($item)) {
+                throw ValidationException::withMessages([
+                    'cart' => 'A cart item is invalid.',
                 ]);
             }
 
-            DB::commit();
+            $unitId = filter_var(
+                $item['product_unit_id'] ?? null,
+                FILTER_VALIDATE_INT
+            );
+            $quantity = filter_var(
+                $item['quantity'] ?? null,
+                FILTER_VALIDATE_INT
+            );
 
-            session()->forget('cart');
-            session()->forget('checkout_items');
+            if (!$unitId || !$quantity || $quantity < 1) {
+                throw ValidationException::withMessages([
+                    'cart' => 'Cart quantities and product units must be valid.',
+                ]);
+            }
 
-            return redirect('/online/track')->with('success', 'สั่งซื้อสำเร็จ');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['cart' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()]);
+            $quantities[$unitId] = ($quantities[$unitId] ?? 0) + $quantity;
         }
+
+        ksort($quantities);
+
+        $units = ProductUnit::query()
+            ->with('product')
+            ->whereIn('id', array_keys($quantities))
+            ->orderBy('product_id')
+            ->orderBy('unit_quantity')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
+
+        if ($units->count() !== count($quantities)) {
+            throw ValidationException::withMessages([
+                'cart' => 'A cart product unit no longer exists.',
+            ]);
+        }
+
+        return collect($quantities)->map(function (
+            int $quantity,
+            int $unitId
+        ) use ($units) {
+            $unit = $units->get($unitId);
+
+            if (
+                !$unit->product ||
+                !$unit->product->is_active ||
+                !$unit->product->is_online ||
+                $unit->price === null ||
+                (float) $unit->price < 0
+            ) {
+                throw ValidationException::withMessages([
+                    'cart' => 'A cart product is not available for online sale.',
+                ]);
+            }
+
+            $price = (float) $unit->price;
+
+            return [
+                'unit' => $unit,
+                'quantity' => $quantity,
+                'price' => $price,
+                'subtotal' => round($price * $quantity, 2),
+            ];
+        })->values();
     }
 
     public function generateQRCode(Request $request)
@@ -477,12 +555,17 @@ class OnlineController extends Controller
     public function remove($id)
 {
     $cart = session()->get('cart', []);
+    $this->assertCartOwnership($cart);
 
     if (isset($cart[$id])) {
         unset($cart[$id]);
     }
 
     session()->put('cart', $cart);
+
+    if (empty($cart)) {
+        session()->forget('cart_owner_id');
+    }
 
     $total = collect($cart)->sum(function ($item) {
         return $item['price'] * $item['quantity'];
@@ -495,6 +578,19 @@ class OnlineController extends Controller
         'total' => number_format($total, 2),
         'total_items' => $totalItems,
     ]);
+}
+
+private function assertCartOwnership(array $cart): void
+{
+    if (empty($cart)) {
+        return;
+    }
+
+    abort_unless(
+        Auth::check() &&
+            (int) session('cart_owner_id') === (int) Auth::id(),
+        403
+    );
 }
 
 private function authorizeSelfOrAdmin(User $member): void

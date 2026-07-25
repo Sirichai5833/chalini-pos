@@ -127,7 +127,8 @@ Route::middleware('auth')
           Route::put('/cart/update-quantity/{id}', [
             OnlineController::class,
             'updateQuantity'
-        ])->name('updateQuantity');
+        ])->block(15, 15)
+            ->name('updateQuantity');
 
 
         // ✏️ แก้ไขข้อมูลสมาชิก
@@ -143,10 +144,11 @@ Route::middleware('auth')
             'update'
         ])->name('update');
 
-        Route::patch(
+Route::patch(
     '/cart/update/{id}',
     [OnlineController::class, 'updateQuantity']
-)->name('online.updateQuantity');
+)->block(15, 15)
+    ->name('online.updateQuantity');
 
  // 💳 สร้าง QR พร้อมเพย์
         Route::get('/generate-qr', [
@@ -154,10 +156,11 @@ Route::middleware('auth')
             'generateQRCode'
         ])->name('generate.qr');
 
-        Route::delete(
+Route::delete(
     '/cart/remove/{id}',
     [OnlineController::class, 'remove']
-)->name('online.remove');
+)->block(15, 15)
+    ->name('online.remove');
 
         // ==========================================
         // 💳 CHECKOUT
@@ -172,7 +175,8 @@ Route::middleware('auth')
 Route::post('/checkout', [
     OnlineController::class,
     'processCheckout'
-])->name('checkout.store');
+])->block(15, 15)
+    ->name('checkout.store');
 
 
         // ==========================================
@@ -261,7 +265,7 @@ Route::get(
 // สมาชิกที่ Login แล้ว
 // ==========================================
 
-Route::middleware(CartMiddleware::class)
+Route::middleware(['auth', CartMiddleware::class])
     ->prefix('online')
     ->name('online.')
     ->group(function () {
@@ -278,7 +282,8 @@ Route::middleware(CartMiddleware::class)
         Route::post('/cart/add', [
             OnlineController::class,
             'add'
-        ])->name('add');
+        ])->block(15, 15)
+            ->name('add');
 
 
 
