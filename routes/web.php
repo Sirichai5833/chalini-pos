@@ -462,8 +462,6 @@ Route::middleware('role:admin,manager,staff,owner')->group(function () {
             )->only([
                 'index',
                 'show',
-                'edit',
-                'update',
                 'destroy',
             ]);
 
