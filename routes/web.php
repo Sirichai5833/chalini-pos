@@ -439,12 +439,14 @@ Route::middleware('role:admin,manager,staff,owner')->group(function () {
             Route::post('/staff/credit/pay-bill/{id}', [
                 CreditSaleController::class,
                 'payBill'
-            ])->name('credit.pay.bill');
+            ])->block(15, 15)
+                ->name('credit.pay.bill');
 
             Route::post('/staff/credit/pay-selected/{id}', [
                 CreditSaleController::class,
                 'paySelected'
-            ])->name('credit.pay.selected');
+            ])->block(15, 15)
+                ->name('credit.pay.selected');
 
             Route::post('/credit-sales/{id}/pay', [
                 CreditSaleController::class,
@@ -459,7 +461,8 @@ Route::middleware('role:admin,manager,staff,owner')->group(function () {
             Route::post('/credit-sales/pay-all/{id}', [
                 CreditSaleController::class,
                 'payAll'
-            ])->name('credit.pay.all');
+            ])->block(15, 15)
+                ->name('credit.pay.all');
 
             Route::resource(
                 'sales',

@@ -13,8 +13,8 @@ use App\Models\SaleItem;
 use App\Models\ProductUnit;
 use App\Models\ProductStocks;
 use App\Models\ProductStockMovement;
-use App\Models\CreditPaymentHistory;
 use App\Models\Shift;
+use App\Services\CreditPaymentService;
 
 class CreditSaleController extends Controller
 {
@@ -364,62 +364,38 @@ if (!$shift) {
         );
     }
 
-    public function paySelected(Request $request, $id)
+    public function paySelected(
+        Request $request,
+        $id,
+        CreditPaymentService $payments
+    )
     {
-        DB::beginTransaction();
+        $validated = $request->validate([
+            'request_token' => 'required|uuid',
+            'sales' => 'required|array|min:1',
+            'sales.*' => [
+                'required',
+                'integer',
+                'distinct',
+                'exists:credit_sales,id',
+            ],
+            'payment_method' => 'required|in:cash,qr',
+        ]);
 
-        try {
+        $result = $payments->paySelected(
+            $request->user(),
+            (int) $id,
+            $validated['sales'],
+            $validated['payment_method'],
+            $validated['request_token']
+        );
 
-            $customer = Customer::findOrFail($id);
-
-            $sales = CreditSale::whereIn(
-                'id',
-                $request->sales ?? []
-            )->get();
-
-            foreach ($sales as $sale) {
-                $amount = $sale->remaining_amount;
-
-                $sale->paid_amount += $amount;
-
-                $sale->remaining_amount = 0;
-
-                $sale->status = 'paid';
-
-                $sale->save();
-
-                CreditPaymentHistory::create([
-                    'customer_id' => $customer->id,
-                    'credit_sale_id' => $sale->id,
-                    'amount' => $amount,
-                    'user_id' => auth()->id(),
-                    'note' => 'ชำระเต็มจำนวน'
-                ]);
-
-                $customer->current_debt -= $amount;
-            }
-
-            if ($customer->current_debt < 0) {
-                $customer->current_debt = 0;
-            }
-
-            $customer->save();
-
-            DB::commit();
-
-            return back()->with(
-                'success',
-                'ชำระเงินสำเร็จ'
-            );
-        } catch (\Exception $e) {
-
-            DB::rollBack();
-
-            return back()->with(
-                'error',
-                $e->getMessage()
-            );
-        }
+        return back()->with(
+            'success',
+            $result['duplicate']
+                ? 'รายการชำระนี้ถูกบันทึกแล้ว'
+                : 'ชำระเงินสำเร็จ'
+        );
     }
 
     public function customerBills($id)
@@ -435,213 +411,73 @@ if (!$shift) {
         );
     }
 
-    public function payAll(Request $request, $id)
+    public function payAll(
+        Request $request,
+        $id,
+        CreditPaymentService $payments
+    )
     {
-        $request->validate([
-            'pay_amount' => 'required|numeric|min:1'
+        $validated = $request->validate([
+            'request_token' => 'required|uuid',
+            'pay_amount' => [
+                'required',
+                'numeric',
+                'decimal:0,2',
+                'gt:0',
+            ],
+            'payment_method' => 'required|in:cash,qr',
         ]);
 
-        DB::beginTransaction();
+        $result = $payments->payAmount(
+            $request->user(),
+            (int) $id,
+            (float) $validated['pay_amount'],
+            $validated['payment_method'],
+            $validated['request_token']
+        );
 
-        try {
-
-            $customer = Customer::findOrFail($id);
-
-            $money = $request->pay_amount;
-
-            $sales = CreditSale::where(
-                'customer_id',
-                $customer->id
-            )
-                ->where('status', '!=', 'paid')
-                ->orderBy('created_at', 'asc')
-                ->get();
-
-            foreach ($sales as $sale) {
-
-                if ($money <= 0) {
-                    break;
-                }
-
-                $remaining = $sale->remaining_amount;
-
-                // =========================
-                // จ่ายเต็มบิล
-                // =========================
-                if ($money >= $remaining) {
-
-                    $sale->paid_amount += $remaining;
-
-                    $sale->remaining_amount = 0;
-
-                    $sale->status = 'paid';
-
-                    $sale->save();
-
-                    // บันทึกประวัติการชำระ
-                    CreditPaymentHistory::create([
-                        'customer_id' => $customer->id,
-                        'credit_sale_id' => $sale->id,
-                        'amount' => $remaining,
-                        'user_id' => auth()->id(),
-                        'payment_method' => $request->payment_method,
-                        'note' => 'ชำระบิลเต็มจำนวน'
-                    ]);
-
-                    $money -= $remaining;
-                } else {
-
-                    // =========================
-                    // จ่ายบางส่วน
-                    // =========================
-                    $sale->paid_amount += $money;
-
-                    $sale->remaining_amount -= $money;
-
-                    $sale->save();
-
-                    // บันทึกประวัติการชำระ
-                    CreditPaymentHistory::create([
-                        'customer_id' => $customer->id,
-                        'credit_sale_id' => $sale->id,
-                        'amount' => $money,
-                        'payment_method' => $request->payment_method,
-                        'user_id' => auth()->id(),
-                        'note' => 'ชำระบางส่วน'
-                    ]);
-
-                    $money = 0;
-                }
-            }
-
-            // =========================
-            // ลดหนี้รวมลูกค้า
-            // =========================
-            $customer->current_debt -= $request->pay_amount;
-
-            if ($customer->current_debt < 0) {
-                $customer->current_debt = 0;
-            }
-
-            $customer->save();
-
-            DB::commit();
-
-            return back()->with(
-                'success',
-                'รับชำระรวมสำเร็จ'
-            );
-        } catch (\Exception $e) {
-
-            DB::rollBack();
-
-            return back()->with(
-                'error',
-                $e->getMessage()
-            );
-        }
+        return back()->with(
+            'success',
+            $result['duplicate']
+                ? 'รายการชำระนี้ถูกบันทึกแล้ว'
+                : 'รับชำระรวมสำเร็จ'
+        );
     }
 
-    public function payBill(Request $request, $id)
+    public function payBill(
+        Request $request,
+        $id,
+        CreditPaymentService $payments
+    )
     {
-        DB::beginTransaction();
+        $validated = $request->validate([
+            'request_token' => 'required|uuid',
+            'pay_type' => 'required|in:full,partial',
+            'amount' => [
+                'required_if:pay_type,partial',
+                'nullable',
+                'numeric',
+                'decimal:0,2',
+                'gt:0',
+            ],
+            'payment_method' => 'required|in:cash,qr',
+        ]);
 
-        try {
+        $result = $payments->payBill(
+            $request->user(),
+            (int) $id,
+            $validated['pay_type'] === 'full'
+                ? null
+                : (float) $validated['amount'],
+            $validated['payment_method'],
+            $validated['request_token']
+        );
 
-            $sale = CreditSale::findOrFail($id);
-
-            $customer = Customer::findOrFail(
-                $sale->customer_id
-            );
-
-            // =========================
-            // เลือกประเภทการชำระ
-            // =========================
-            if ($request->pay_type == 'full') {
-
-                $amount = $sale->remaining_amount;
-            } else {
-
-                $request->validate([
-                    'amount' => 'required|numeric|min:1'
-                ]);
-
-                $amount = $request->amount;
-            }
-
-            // =========================
-            // เช็คยอดเกิน
-            // =========================
-            if ($amount > $sale->remaining_amount) {
-
-                return back()->with(
-                    'error',
-                    'จำนวนเงินเกินยอดค้าง'
-                );
-            }
-
-            // =========================
-            // อัปเดตบิล
-            // =========================
-            $sale->paid_amount += $amount;
-
-            $sale->remaining_amount -= $amount;
-
-            if ($sale->remaining_amount <= 0) {
-
-                $sale->remaining_amount = 0;
-
-                $sale->status = 'paid';
-            }
-
-            $sale->save();
-
-            // =========================
-            // ประวัติการชำระ
-            // =========================
-            CreditPaymentHistory::create([
-
-    'customer_id' => $customer->id,
-
-    'credit_sale_id' => $sale->id,
-
-    'amount' => $amount,
-
-    'payment_method' => $request->payment_method,
-
-    'user_id' => auth()->id(),
-
-    'note' => $request->pay_type == 'full'
-        ? 'ชำระเต็มจำนวน'
-        : 'ชำระบางส่วน'
-]);
-
-            // =========================
-            // ลดหนี้รวมลูกค้า
-            // =========================
-            $customer->current_debt -= $amount;
-
-            if ($customer->current_debt < 0) {
-
-                $customer->current_debt = 0;
-            }
-
-            $customer->save();
-
-            DB::commit();
-
-            return back()->with(
-                'success',
-                'ชำระบิลสำเร็จ'
-            );
-        } catch (\Exception $e) {
-
-            DB::rollBack();
-
-            return back()->with(
-                'error',
-                $e->getMessage()
-            );
-        }
+        return back()->with(
+            'success',
+            $result['duplicate']
+                ? 'รายการชำระนี้ถูกบันทึกแล้ว'
+                : 'ชำระบิลสำเร็จ'
+        );
     }
 }

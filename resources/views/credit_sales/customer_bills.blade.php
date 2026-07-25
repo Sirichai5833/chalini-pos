@@ -115,6 +115,11 @@
                       id="paymentForm">
 
                     @csrf
+                    <input
+                        type="hidden"
+                        name="request_token"
+                        value="{{ (string) \Illuminate\Support\Str::uuid() }}"
+                    >
 
 
                     {{-- เลือกบิล --}}
