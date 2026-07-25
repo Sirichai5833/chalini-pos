@@ -20,7 +20,7 @@
 @endif
 
 <div class="container mt-4">
-    <h2 class="mb-4">สมาชิกในตึกชาลินี</h2>
+    <h2 class="mb-4">สมาชิกในตึก</h2>
 
     @if ($members->count())
         <table class="table table-striped table-bordered">

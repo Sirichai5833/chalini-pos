@@ -57,6 +57,7 @@ class ProductController extends Controller
             'images.*' => 'image|max:2048',
             'units' => 'required|array|min:1',
             'is_active' => 'required|boolean',
+            'min_stock' => 'required|integer|min:0',
             'units.*.unit_name' => 'required|string|max:255',
             'units.*.unit_quantity' => 'required|integer|min:1',
             'units.*.unit_barcode' => 'nullable|string|max:255',
@@ -65,7 +66,7 @@ class ProductController extends Controller
             'units.*.cost_price' => 'nullable|numeric',
         ]);
 
-        $product = Product::create($request->only(['name', 'category_id', 'barcode', 'sku', 'description', 'is_active']));
+        $product = Product::create($request->only(['name', 'category_id', 'barcode', 'sku', 'description', 'is_active', 'min_stock']));
 
         // จัดการรูปภาพ
         // ✅ บันทึกรูปภาพหลายรูป
@@ -105,15 +106,31 @@ class ProductController extends Controller
     }
 
     // แสดงฟอร์มแก้ไข
-    public function edit($id)
-    {
-        $product = Product::with('productUnits')->findOrFail($id);
-        $categories = Category::all();
-        return view('products.edit', compact('product', 'categories'));
-    }
+    // อัปเดตเมธอด edit ใน ProductController.php
+public function edit($id)
+{
+    $product = Product::with('productUnits')->findOrFail($id);
+    $categories = Category::all();
+
+    // 1. ดึงประวัติการรับเข้า-ออกของสต็อกเฉพาะสินค้าชิ้นนี้
+    $stockMovements = ProductStockMovement::where('product_id', $id)
+        ->latest()
+        ->take(10) // ดึง 10 รายการล่าสุด
+        ->get();
+
+    // 2. ดึงประวัติการทำรายการของระบบ (Spatie Activity Log)
+    $activities = \Spatie\Activitylog\Models\Activity::where('subject_type', Product::class)
+        ->where('subject_id', $id)
+        ->with('causer')
+        ->latest()
+        ->take(10)
+        ->get();
+
+    return view('products.edit', compact('product', 'categories', 'stockMovements', 'activities'));
+}
 
     // อัปเดตข้อมูลสินค้าพร้อมหน่วยนับ
-    public function updateWithUnit(Request $request, $id)
+   public function updateWithUnit(Request $request, $id)
     {
         $product = Product::findOrFail($id);
 
@@ -127,6 +144,7 @@ class ProductController extends Controller
             'images.*' => 'image|max:2048',
             'units' => 'required|array|min:1',
             'is_active' => 'required|boolean',
+            'min_stock' => 'required|integer|min:0',
             'units.*.unit_name' => 'required|string|max:255',
             'units.*.unit_quantity' => 'required|integer|min:1',
             'units.*.unit_barcode' => 'required|string|max:255',
@@ -135,10 +153,10 @@ class ProductController extends Controller
             'units.*.cost_price' => 'nullable|numeric',
         ]);
 
-        // จัดการรูปภาพ
-        // จัดการรูปภาพหลายรูป
-        // จัดการรูปภาพหลายรูปแบบอัตโนมัติ
+        // 🟢 จัดการและทำ Log สำหรับรูปภาพ
         if ($request->hasFile('images')) {
+            $oldImagesCount = $product->images->count();
+
             // ลบรูปเดิมทั้งหมด
             foreach ($product->images as $oldImage) {
                 Storage::disk('public')->delete($oldImage->image_path);
@@ -146,21 +164,44 @@ class ProductController extends Controller
             }
 
             // อัปโหลดรูปใหม่
+            $newImagesCount = 0;
             foreach ($request->file('images') as $image) {
                 $path = $image->store('products', 'public');
                 $product->images()->create([
                     'image_path' => $path,
                 ]);
+                $newImagesCount++;
             }
+
+            // 🟢 บันทึกประวัติการเปลี่ยนรูปภาพแบบ Manual ลงใน Log ของ Product ให้เอาไปโชว์เปรียบเทียบได้
+            activity('product')
+                ->performedOn($product)
+                ->causedBy(auth()->user() ?? Auth::user())
+                ->event('updated')
+                ->withProperties([
+                    'attributes' => ['image' => "อัปโหลดรูปภาพใหม่ ($newImagesCount รูป)"],
+                    'old' => ['image' => "รูปภาพเดิม ($oldImagesCount รูป)"]
+                ])
+                ->log('updated');
         }
 
-
         // อัปเดตข้อมูลสินค้า
-        $product->update($validated);
+        $product->update([
+            'name' => $request->name,
+            'category_id' => $request->category_id,
+            'barcode' => $request->barcode,
+            'sku' => $request->sku,
+            'description' => $request->description,
+            'is_active' => $request->is_active,
+            'min_stock' => $request->min_stock,
+        ]);
 
-        // ✅ ลบหน่วยนับที่ถูกลบจากฟอร์ม
+        // 🟢 แก้ไขตรงนี้: ลบหน่วยนับที่ถูกลบด้วย Eloquent (จากเดิมใช้ query delete ตรงๆ ทำให้ไม่มี Log)
         $unitIdsInForm = collect($request->units)->pluck('id')->filter()->all();
-        $product->productUnits()->whereNotIn('id', $unitIdsInForm)->delete();
+        $unitsToDelete = $product->productUnits()->whereNotIn('id', $unitIdsInForm)->get();
+        foreach ($unitsToDelete as $unitToDelete) {
+            $unitToDelete->delete(); // ตัวนี้จะกระตุ้น Log ตอนลบหน่วยสินค้าด้วย
+        }
 
         // อัปเดตหรือเพิ่มหน่วยนับ
         foreach ($request->units as $unitData) {
@@ -169,7 +210,7 @@ class ProductController extends Controller
 
             if (isset($unitData['id'])) {
                 $unit = ProductUnit::findOrFail($unitData['id']);
-                $unit->update($unitData);
+                $unit->update($unitData); // 🟢 ตัวนี้จะวิ่งไปเข้า tapActivity และบันทึกประวัติให้ตัวแม่ทันที
             } else {
                 ProductUnit::create(array_merge($unitData, ['product_id' => $product->id]));
             }
@@ -246,81 +287,92 @@ class ProductController extends Controller
     }
 
     public function addStockMulti(Request $request)
-{
-    if (!$request->has('items') || !is_array($request->items)) {
-        return redirect()->back()->with('error', 'กรุณาแสกนสินค้าอย่างน้อย 1 รายการก่อนบันทึก');
-    }
-
-    foreach ($request->items as $productItems) {
-        foreach ($productItems as $item) {
-
-            $productId  = $item['product_id'];
-            $unitId     = $item['unit_id'];
-            $quantity   = (int) $item['quantity'];        // จำนวนที่รับ (เช่น 1 แพ็ค)
-            $unitQty    = (int) $item['unit_quantity'];   // 1 แพ็ค = กี่ชิ้น
-            $location   = $item['location'];
-            $note       = $item['note'] ?? '';
-            $isFree     = isset($item['is_free']) && $item['is_free'] == 1;
-            $expiryDate = $item['expiry_date'] ?? null;
-
-            // ✅ แปลงเป็น "ชิ้นจริง"
-            $addQty = $quantity * $unitQty;
-
-            // ✅ stock ต้องมีแถวเดียวต่อสินค้า
-            $productStock = ProductStocks::firstOrCreate(
-                ['product_id' => $productId],
-                ['warehouse_stock' => 0, 'store_stock' => 0]
-            );
-
-            if ($location === 'store') {
-                $productStock->store_stock += $addQty;
-            } else {
-                $productStock->warehouse_stock += $addQty;
-            }
-
-            $productStock->save();
-
-            // ✅ บันทึก batch (เป็นชิ้น)
-            ProductBatch::create([
-                'product_id'       => $productId,
-                'quantity'         => $addQty,
-                'product_unit_id'  => $unitId,
-                'batch_code'       => $productId . '-' . now()->format('YmdHis'),
-                'expiry_date'      => $expiryDate,
-            ]);
-
-            // unit ใช้แค่ log
-            $unit = ProductUnit::find($unitId);
-
-            ProductStockMovement::create([
-                'product_id'    => $productId,
-                'type'          => 'in',
-                'quantity'      => $quantity,
-                'unit_quantity' => $unitQty,
-                'unit'          => $unit?->unit_name ?? '-',
-                'location'      => $location,
-                'note'          => $note,
-                'is_free'       => $isFree ? 1 : 0,
-            ]);
-
-            activity('product')
-                ->causedBy(Auth::user())
-                ->performedOn(Product::find($productId))
-                ->withProperties([
-                    'unit_id'        => $unitId,
-                    'quantity'       => $quantity,
-                    'unit_quantity'  => $unitQty,
-                    'location'       => $location,
-                ])
-                ->event('stock_added')
-                ->log('เพิ่มสต็อกสินค้า (คำนวณเป็นชิ้น)');
+    {
+        if (!$request->has('items') || !is_array($request->items)) {
+            return redirect()->back()->with('error', 'กรุณาแสกนสินค้าอย่างน้อย 1 รายการก่อนบันทึก');
         }
-    }
 
-    return redirect()
-        ->route('product.products.add-stock-form')
-        ->with('success', 'เพิ่มสต็อกสินค้าเรียบร้อยแล้ว');
+        foreach ($request->items as $productItems) {
+            foreach ($productItems as $item) {
+
+                $productId  = $item['product_id'];
+                $unitId     = $item['unit_id'];
+                $quantity   = (int) $item['quantity'];        // จำนวนที่รับ (เช่น 1 แพ็ค)
+                $unitQty    = (int) $item['unit_quantity'];   // 1 แพ็ค = กี่ชิ้น
+                $location   = $item['location'];
+                $note       = $item['note'] ?? '';
+                $isFree     = isset($item['is_free']) && $item['is_free'] == 1;
+                $expiryDate = $item['expiry_date'] ?? null;
+
+                // ✅ แปลงเป็น "ชิ้นจริง"
+                $addQty = $quantity * $unitQty;
+
+                // ✅ stock ต้องมีแถวเดียวต่อสินค้า
+                $productStock = ProductStocks::firstOrCreate(
+    [
+        'product_id' => $productId,
+        'unit_id' => $unitId
+    ],
+    [
+        'warehouse_stock' => 0,
+        'store_stock' => 0,
+        'track_stock' => 1
+    ]
+);
+
+                if ($location === 'store') {
+
+    $productStock->store_stock += $quantity;
+
+} else {
+
+    $productStock->warehouse_stock += $quantity;
+
 }
+
+                $productStock->save();
+
+                // ✅ บันทึก batch (เป็นชิ้น)
+                ProductBatch::create([
+                    'product_id'       => $productId,
+                    'quantity'         => $addQty,
+                    'product_unit_id'  => $unitId,
+                    'batch_code'       => $productId . '-' . now()->format('YmdHis'),
+                    'expiry_date'      => $expiryDate,
+                ]);
+
+                // unit ใช้แค่ log
+                $unit = ProductUnit::find($unitId);
+
+                ProductStockMovement::create([
+                    'product_id'    => $productId,
+                    'type'          => 'in',
+                    'quantity'      => $quantity,
+                    'unit_quantity' => $unitQty,
+                    'unit'          => $unit?->unit_name ?? '-',
+                    'location'      => $location,
+                    'note'          => $note,
+                    'is_free'       => $isFree ? 1 : 0,
+                ]);
+
+                activity('product')
+                    ->causedBy(Auth::user())
+                    ->performedOn(Product::find($productId))
+                    ->withProperties([
+                        'unit_id'        => $unitId,
+                        'quantity'       => $quantity,
+                        'unit_quantity'  => $unitQty,
+                        'location'       => $location,
+                    ])
+                    ->event('stock_added')
+                    ->log('เพิ่มสต็อกสินค้า (คำนวณเป็นชิ้น)');
+            }
+        }
+
+        return redirect()
+            ->route('product.products.add-stock-form')
+            ->with('success', 'เพิ่มสต็อกสินค้าเรียบร้อยแล้ว');
+    }
 
     public function indexstock(Request $request)
     {
@@ -370,29 +422,62 @@ class ProductController extends Controller
     }
 
 
-    public function searchStockInHistory(Request $request)
-    {
-        $search = $request->input('search');
-        $from = $request->input('from');
-        $to = $request->input('to');
-        $isPrint = $request->has('print');
+public function searchStockInHistory(Request $request)
+{
+    $search = $request->input('search');
+    $from = $request->input('from');
+    $to = $request->input('to');
+    $isPrint = $request->has('print');
 
-        $query = ProductStockMovement::with('product')
-            ->where('type', 'in')
-            ->when($search, function ($query, $search) {
-                $query->whereHas('product', function ($q) use ($search) {
-                    $q->where('name', 'like', "%$search%")
-                        ->orWhere('barcode', 'like', "%$search%");
-                });
-            })
-            ->when($from, fn($q) => $q->whereDate('created_at', '>=', $from))
-            ->when($to, fn($q) => $q->whereDate('created_at', '<=', $to))
-            ->orderBy('created_at', 'desc');
+    $query = ProductStockMovement::with('product')
+        ->where('type', 'in')
+        // ✅ กรองรายการที่ไม่ใช่การรับของเข้าออกไป
+        ->where(function ($q) {
+            $q->where('note', 'not like', '[ยกเลิกการขาย]%') // กรองรายการยกเลิกการขาย
+              ->where('note', 'not like', '[ย้ายคลัง]%')     // กรองรายการย้ายคลัง (ถ้าคุณใส่ note ไว้แบบนี้)
+              ->where('note', 'not like', 'คืน stock%');     // กรองคำอื่นๆ ที่ไม่ใช่การรับของ
+        })
+        ->when($search, function ($query, $search) {
+            $query->whereHas('product', function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                    ->orWhere('barcode', 'like', "%$search%");
+            });
+        })
+        ->when($from, fn($q) => $q->whereDate('created_at', '>=', $from))
+        ->when($to, fn($q) => $q->whereDate('created_at', '<=', $to))
+        ->orderBy('created_at', 'desc');
 
-        $movements = $isPrint ? $query->get() : $query->paginate(20);
+    $movements = $isPrint ? $query->get() : $query->paginate(20);
 
-        return view('products.stock-in-history', compact('movements', 'search', 'from', 'to', 'isPrint'));
-    }
+    return view('products.stock-in-history', compact('movements', 'search', 'from', 'to', 'isPrint'));
+}
+
+public function movementHistory(Request $request)
+{
+    $search = $request->input('search');
+    $from = $request->input('from');
+    $to = $request->input('to');
+
+    $query = ProductStockMovement::with(['product'])
+        // ✅ กรองเอาเฉพาะรายการที่เป็นการ "ย้ายคลัง" หรือ "ยกเลิกการขาย"
+        ->where(function ($q) {
+            $q->where('note', 'like', '[ยกเลิกการขาย]%')
+              ->orWhere('note', 'like', '[ย้ายคลัง]%');
+        })
+        ->when($search, function ($query, $search) {
+            $query->whereHas('product', function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('barcode', 'like', "%$search%");
+            });
+        })
+        ->when($from, fn($q) => $q->whereDate('created_at', '>=', $from))
+        ->when($to, fn($q) => $q->whereDate('created_at', '<=', $to))
+        ->orderBy('created_at', 'desc');
+
+    $movements = $query->paginate(30);
+
+    return view('products.movement-history', compact('movements', 'search', 'from', 'to'));
+}
 
     public function deleteImage($id)
     {
@@ -412,11 +497,37 @@ class ProductController extends Controller
     }
 
     public function checkBarcode(Request $request)
-    {
-        $barcode = $request->get('barcode');
+{
+    $barcode = $request->barcode;
+    $unitId = $request->unit_id;
 
-        $exists = \App\Models\ProductUnit::where('barcode', $barcode)->exists();
+    $query = ProductUnit::where('barcode', $barcode);
 
-        return response()->json(['exists' => $exists]);
+    // ถ้ามี unit_id ให้ยกเว้นตัวเอง
+    if ($unitId) {
+        $query->where('id', '!=', $unitId);
     }
+
+    return response()->json([
+        'exists' => $query->exists()
+    ]);
+}
+
+public function checkProductName(Request $request)
+{
+    $name = $request->name;
+    $productId = $request->product_id;
+
+    $query = Product::where('name', $name);
+
+    // ยกเว้นสินค้าตัวเองตอน edit
+    if ($productId) {
+
+        $query->where('id', '!=', $productId);
+    }
+
+    return response()->json([
+        'exists' => $query->exists()
+    ]);
+}
 }

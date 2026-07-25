@@ -164,7 +164,7 @@ function printReceipt(cash, change) {
         <html>
         <head><title>ใบเสร็จรับเงิน</title></head>
         <body>
-            <h2>Chalini POS</h2>
+            <h2>{{ $shopSettings->shop_name ?: 'ชาลินี' }} POS</h2>
             <p>วันที่: ${new Date().toLocaleString()}</p>
             <hr>
             ${productDetails}

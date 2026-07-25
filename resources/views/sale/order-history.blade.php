@@ -2,8 +2,23 @@
 
 @section('content')
     <div class="container py-4">
-        <h2 class="mb-4 text-center">🕘 ประวัติคำสั่งซื้อ</h2>
+        <h2 class="mb-4 text-center">ประวัติคำสั่งซื้อ</h2>
+<form method="GET" class="row g-2 mb-4">
+    <div class="col-md-4">
+        <input type="date" name="start_date" class="form-control"
+            value="{{ request('start_date') }}">
+    </div>
 
+    <div class="col-md-4">
+        <input type="date" name="end_date" class="form-control"
+            value="{{ request('end_date') }}">
+    </div>
+
+    <div class="col-md-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary w-100">🔍 ค้นหา</button>
+        <a href="{{ url()->current() }}" class="btn btn-secondary w-100">รีเซ็ต</a>
+    </div>
+</form>
         @if ($orders->count())
             @foreach ($orders as $order)
                 <div class="card shadow-sm mb-4">

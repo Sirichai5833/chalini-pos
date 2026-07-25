@@ -36,7 +36,7 @@ public function pollCount()
     public function render()
     {
         $orders = Order::with(['orderItems', 'user'])
-            ->whereNotIn('status', ['เสร็จสิ้น', 'ยกเลิก', 'กำลังดำเนินการ', 'กำลังจัดส่ง'])
+            ->whereNotIn('status', ['เสร็จสิ้น', 'ยกเลิก', 'กำลังจัดสินค้า', 'กำลังจัดส่ง'])
             ->orderBy('created_at', 'asc')
             ->paginate(10);
 
@@ -56,12 +56,12 @@ public function pollCount()
     $order->assigned_at = now();
 
     // ✅ เพิ่มบรรทัดนี้เพื่อเปลี่ยนสถานะเป็น "รอดำเนินการ"
-    $order->status = 'รอดำเนินการ';
+    $order->status = 'รอเจ้าหน้าที่รับคำสั่งซื้อ';
 
     $order->save();
 
     // ถ้าคุณใช้ count แสดงจำนวนออเดอร์ใหม่อยู่
-    $this->count = Order::where('status', 'รอดำเนินการ')
+    $this->count = Order::where('status', 'รอเจ้าหน้าที่รับคำสั่งซื้อ')
                         ->whereNull('assigned_to')
                         ->count();
 

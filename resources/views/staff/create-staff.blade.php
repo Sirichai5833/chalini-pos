@@ -3,43 +3,79 @@
 @section('content')
 <div class="container mt-5">
     <div class="card shadow-lg border-0 rounded-4 p-4 bg-white">
-        <h3 class="mb-4 text-center text-gold fw-bold">👥 เพิ่มพนักงานใหม่</h3>
+        <h3 class="mb-4 text-center text-gold fw-bold">เพิ่มพนักงานใหม่</h3>
 
+        {{-- success ปกติ --}}
         @if (session('success'))
         <x-sweet-alert 
             icon="success" 
-            title="Oh Yeah!" 
+            title="สำเร็จ!" 
             text="{{ session('success') }}" 
-            confirm-button-text="Ok"
+            confirm-button-text="ตกลง"
         />
         @endif
 
+        {{-- error --}}
         @if (session('error'))
         <x-sweet-alert 
             icon="error" 
-            title="Oops..." 
+            title="เกิดข้อผิดพลาด" 
             text="{{ session('error') }}" 
-            confirm-button-text="Ok"
+            confirm-button-text="ตกลง"
         />
         @endif
 
-        <form action="{{ route('staff.store') }}" method="POST" enctype="multipart/form-data">
+        {{-- 🔥 แสดงรหัสผ่านที่ generate --}}
+        @if(session('generated_password'))
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'เพิ่มพนักงานสำเร็จ 🎉',
+                    html: `
+                        <p>รหัสผ่านเริ่มต้น:</p>
+                        <h4 style="color:#f8b500">{{ session('generated_password') }}</h4>
+                        <small>กรุณาแจ้งให้พนักงานเปลี่ยนรหัสผ่านทันที</small>
+                    `,
+                    confirmButtonText: 'รับทราบ'
+                });
+            });
+        </script>
+        @endif
+
+        <form id="staffForm" action="{{ route('staff.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
 
             <div class="mb-3">
-                <label for="name" class="form-label text-gold">ชื่อพนักงาน</label>
-                <input type="text" name="name" class="form-control fancy-input" required>
-                @error('name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
-            </div>
+    <label class="form-label text-gold">ชื่อพนักงาน</label>
+    <input
+        type="text"
+        name="name"
+        class="form-control fancy-input"
+        placeholder="กรอกชื่อ-นามสกุล"
+        required
+    >
+    @error('name')
+        <div class="text-danger mt-1">{{ $message }}</div>
+    @enderror
+</div>
 
             <div class="mb-3">
-                <label for="email" class="form-label text-gold">อีเมล</label>
-                <input type="email" name="email" class="form-control fancy-input" required>
-                @error('email') <div class="text-danger mt-1">{{ $message }}</div> @enderror
-            </div>
+    <label class="form-label text-gold">อีเมล</label>
+    <input
+        type="email"
+        name="email"
+        class="form-control fancy-input"
+        placeholder="เช่น somchai@example.com"
+        required
+    >
+    @error('email')
+        <div class="text-danger mt-1">{{ $message }}</div>
+    @enderror
+</div>
 
             <div class="mb-3">
-                <label for="role" class="form-label text-gold">ตำแหน่ง</label>
+                <label class="form-label text-gold">ตำแหน่ง</label>
                 <select name="role" class="form-select fancy-input" required>
                     <option value="admin">แอดมิน</option>
                     <option value="staff">พนักงานขาย</option>
@@ -48,24 +84,19 @@
             </div>
 
             <div class="mb-3">
-                <label for="image" class="form-label text-gold">รูปโปรไฟล์</label>
+                <label class="form-label text-gold">รูปโปรไฟล์</label>
                 <input type="file" name="image" class="form-control fancy-input" accept="image/*">
                 @error('image') <div class="text-danger mt-1">{{ $message }}</div> @enderror
             </div>
 
-            <div class="mb-3">
-                <label for="password" class="form-label text-gold">รหัสผ่าน</label>
-                <input type="password" name="password" class="form-control fancy-input" required>
-                @error('password') <div class="text-danger mt-1">{{ $message }}</div> @enderror
-            </div>
-
-            <div class="mb-4">
-                <label for="password_confirmation" class="form-label text-gold">ยืนยันรหัสผ่าน</label>
-                <input type="password" name="password_confirmation" class="form-control fancy-input" required>
+            <div class="mb-4 text-muted small text-center">
+                🔐 ระบบจะสร้างรหัสผ่านเริ่มต้นให้อัตโนมัติ
             </div>
 
             <div class="text-center">
-                <button type="submit" class="btn btn-gold px-4 py-2 rounded-pill shadow">💾 บันทึกข้อมูล</button>
+                <button type="submit" class="btn btn-gold px-4 py-2 rounded-pill shadow">
+                    บันทึกข้อมูล
+                </button>
             </div>
         </form>
     </div>
@@ -113,4 +144,44 @@
         to { opacity: 1; transform: translateY(0); }
     }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const form = document.getElementById('staffForm');
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        Swal.fire({
+            title: 'ยืนยันการบันทึก?',
+            text: 'คุณต้องการเพิ่มพนักงานคนนี้ใช่หรือไม่',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#f8b500',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'ใช่, บันทึก',
+            cancelButtonText: 'ยกเลิก',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+
+                Swal.fire({
+                    title: 'กำลังบันทึก...',
+                    text: 'กรุณารอสักครู่',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                form.submit();
+            }
+        });
+
+    });
+
+});
+</script>
 @endsection

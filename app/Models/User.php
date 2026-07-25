@@ -14,6 +14,10 @@ class User extends Authenticatable implements AuditableContract // 👈 เพ�
 
     protected $fillable = [
         'name',
+        'first_name',
+        'last_name',
+        'phone',
+        'name',
         'email',
         'password',
         'role',
@@ -33,7 +37,10 @@ class User extends Authenticatable implements AuditableContract // 👈 เพ�
             'password' => 'hashed',
         ];
     }
-
+public function shifts()
+{
+    return $this->hasMany(Shift::class);
+}
    public function getIsAdminAttribute()
 {
     return $this->role === 'admin';

@@ -3,46 +3,65 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\PasswordOtp;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class ResetPasswordController extends Controller
 {
-    // แสดงหน้า form ตั้งรหัสผ่านใหม่
-    public function showResetForm(Request $request, $token = null)
+    public function showResetForm(Request $request)
     {
+        $email = $request->session()->get('password_reset_email');
+
+        if (! $email) {
+            return redirect()
+                ->route('password.request')
+                ->withErrors(['email' => 'กรุณายืนยัน OTP ก่อนตั้งรหัสผ่านใหม่']);
+        }
+
+        $otpRecord = PasswordOtp::where('email', $email)
+            ->where('verified', true)
+            ->first();
+
+        if (! $otpRecord) {
+            return redirect()
+                ->route('password.request')
+                ->withErrors(['email' => 'OTP ยังไม่ถูกยืนยันหรือถูกใช้งานแล้ว']);
+        }
+
         return view('auth.reset-password', [
-            'token' => $token,
-            'email' => $request->email,
+            'email' => $email,
         ]);
     }
 
-    // ฟังก์ชันที่กด submit ตั้งรหัสผ่านใหม่
     public function reset(Request $request)
     {
         $request->validate([
-            'token' => ['required'],
-            'email' => ['required', 'email'],
+            'email' => ['required', 'email', 'exists:users,email'],
             'password' => ['required', 'confirmed', 'min:8'],
         ]);
 
-        $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user, $password) {
-                $user->forceFill([
-                    'password' => Hash::make($password),
-                ])->save();
-            }
-        );
+        $otpRecord = PasswordOtp::where('email', $request->email)
+            ->where('verified', true)
+            ->first();
 
-        if ($status === Password::PASSWORD_RESET) {
-            return redirect()->route('login')->with('status', __($status));
+        if (! $otpRecord) {
+            return back()
+                ->withErrors(['email' => 'OTP ยังไม่ถูกยืนยันหรือหมดอายุ'])
+                ->withInput();
         }
 
-        throw ValidationException::withMessages([
-            'email' => [trans($status)],
-        ]);
+        $user = User::where('email', $request->email)->first();
+        $user->forceFill([
+            'password' => Hash::make($request->password),
+        ])->save();
+
+        $otpRecord->delete();
+        $request->session()->forget('password_reset_email');
+
+        return redirect()
+            ->route('login')
+            ->with('status', 'รีเซ็ตรหัสผ่านสำเร็จ โปรดเข้าสู่ระบบด้วยรหัสผ่านใหม่');
     }
 }

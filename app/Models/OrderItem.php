@@ -15,6 +15,8 @@ class OrderItem extends Model
         'quantity',
         'price',
         'total',
+        'unit_quantity',  // เพิ่ม unit_quantity ที่นี่
+        'cost',           // เพิ่ม cost ที่นี่
     ];
 
     // ความสัมพันธ์กับ Order (หลาย OrderItem เป็นของ 1 Order)

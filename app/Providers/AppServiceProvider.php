@@ -5,39 +5,35 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
-use Spatie\Activitylog\Models\Activity;
-namespace App\Providers;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
-use App\Models\Order;
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Pagination\Paginator;
-use Illuminate\Support\Facades\Auth;
-use Spatie\Activitylog\Models\Activity;
 use Illuminate\Support\Facades\View;
-use App\Models\Product;
-use App\Models\ProductBatch;
+use App\Models\Setting;
+use Spatie\Activitylog\Models\Activity;
 
+use App\Models\ProductStocks;
+use App\Models\ProductBatch;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        Paginator::useBootstrap(); // ใช้ Bootstrap pagination style
-        if (app()->environment('production')) {
+
+     $shopName = DB::table('settings')
+        ->where('key', 'shop_name')
+        ->value('value') ?? 'ชาลินี';
+
+    View::share('shopName', $shopName);
+    
+        Paginator::useBootstrap();
+
         URL::forceScheme('https');
-    }
-        // 👇 เพิ่ม Activity log binding ตรงนี้
+
         Activity::saving(function (Activity $activity) {
             if (Auth::check()) {
                 $activity->causer_id = Auth::id();
@@ -45,26 +41,61 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-         View::composer('*', function ($view) {
-        // สินค้าใกล้หมด
-        $lowStockCount = Product::with('stock')->get()
-            ->filter(fn ($product) =>
-                ($product->stock->warehouse_stock ?? 0) < 10 ||
-                ($product->stock->store_stock ?? 0) < 5
-            )->count();
+        View::composer(['layouts.*', 'dashboard.*'], function ($view) {
+            if (!Auth::check()) {
+                return;
+            }
 
-        // สินค้าใกล้หมดอายุ (ใน 30 วัน)
-       $expireCount = ProductBatch::where('is_acknowledged', false)
-    ->whereDate('expiry_date', '<=', now()->addDays(30))
-    ->count();
+            $lowStockCount = cache()->remember('dashboard.low_stock_count', 60, function () {
+                return ProductStocks::query()
+                    ->join('products', 'products.id', '=', 'product_stocks.product_id')
+                    ->whereRaw('(COALESCE(product_stocks.store_stock, 0) + COALESCE(product_stocks.warehouse_stock, 0)) <= COALESCE(products.min_stock, 0)')
+                    ->distinct('product_stocks.product_id')
+                    ->count('product_stocks.product_id');
+            });
 
+            $expireCount = cache()->remember('dashboard.expire_count', 60, function () {
+                return ProductBatch::query()
+                    ->where('is_acknowledged', false)
+                    ->whereDate('expiry_date', '<=', now()->addDays(30))
+                    ->count();
+            });
 
-        $view->with('lowStockCount', $lowStockCount)
-             ->with('expireCount', $expireCount);
-    });
-     View::composer('*', function ($view) {
-        $view->with('pendingOrderCount', Order::where('status', 'pending')->count());
-    });
+            $view->with([
+                'lowStockCount' => $lowStockCount,
+                'expireCount' => $expireCount,
+            ]);
+        });
 
+        View::composer('*', function ($view) {
+            $keys = [
+                'shop_name',
+                'phone',
+                'address',
+                'promptpay',
+                'account_name',
+                'qr_image',
+                'receipt_footer',
+                'receipt_size',
+                'stock_warning',
+            ];
+
+            $shopSettings = cache()->remember('shop_settings', 60 * 60, function () use ($keys) {
+                $settings = Setting::query()
+                    ->whereIn('key', $keys)
+                    ->pluck('value', 'key')
+                    ->map(function ($value) {
+                        $decoded = json_decode($value, true);
+                        return $decoded === null ? $value : $decoded;
+                    })
+                    ->toArray();
+
+                $defaults = array_combine($keys, array_fill(0, count($keys), ''));
+                return (object) array_merge($defaults, $settings);
+            });
+
+            $view->with('shopSettings', $shopSettings);
+        });
     }
 }
+

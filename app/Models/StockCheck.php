@@ -13,6 +13,7 @@ class StockCheck extends Model
         'cycle',
         'checked_by',
         'remark',
+        'note', // ✅ เพิ่ม note ใน fillable
     ];
  public function user()
     {

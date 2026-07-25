@@ -11,9 +11,13 @@ class SaleItem extends Model
         'staff_id',
         'product_id',
         'product_unit_id',
+        'sale_type',
         'quantity',
+        'sale_date',
         'price',
         'unit_quantity',  // เพิ่ม unit_quantity ที่นี่
+        'cost',           // เพิ่ม cost ที่นี่
+        'total_price',
     ];
 
     public function sale()

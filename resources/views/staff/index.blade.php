@@ -11,7 +11,7 @@
 
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="mb-0">👨‍💼 รายการพนักงาน</h2>
+            <h2 class="mb-0 text-warning">รายชื่อพนักงาน</h2>
 
             <!-- ฟอร์มค้นหาตามชื่อ -->
             <form action="{{ route('staff.index') }}" method="GET" class="d-flex">

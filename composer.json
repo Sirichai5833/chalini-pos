@@ -14,12 +14,12 @@
         "laravel/tinker": "^2.10.1",
         "laravel/ui": "^4.6",
         "livewire/livewire": "^3.6",
-        "maatwebsite/excel": "^1.1",
         "owen-it/laravel-auditing": "^14.0",
         "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/laravel-activitylog": "^4.10"
     },
     "require-dev": {
+        "barryvdh/laravel-debugbar": "^3.16",
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.13",
@@ -34,6 +34,7 @@
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
+      
     },
     "autoload-dev": {
         "psr-4": {

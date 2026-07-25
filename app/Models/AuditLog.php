@@ -6,11 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class AuditLog extends Model
 {
-    protected $table = 'audits';  // กำหนดชื่อตารางที่ใช้
+    protected $table = 'audits';
 
     protected $fillable = [
-        'user_id', 'action', 'auditable_type', 'auditable_id',
-        'old_values', 'new_values',
+        'user_id',
+        'action',
+        'auditable_type',
+        'auditable_id',
+        'old_values',
+        'new_values',
     ];
 
     protected $casts = [
@@ -20,6 +24,6 @@ class AuditLog extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 }

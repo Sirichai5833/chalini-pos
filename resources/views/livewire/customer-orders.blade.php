@@ -1,140 +1,151 @@
 <div wire:poll.5s="pollOrders" class="container py-4">
-    <h3 class="mb-4 text-center text-primary fw-bold">
-        <i class="bi bi-bell-fill me-2"></i> คำสั่งซื้อล่าสุด
-    </h3>
-    <hr class="mb-5">
+
+    {{-- ส่วนหัวและสถิติย่อ --}}
+    <div class="text-center mb-5">
+        <h2 class="fw-bold text-primary mb-2">
+            <i class="bi bi-box-seam-fill me-2"></i> ระบบจัดการคำสั่งซื้อ
+        </h2>
+        
+    </div>
+
+    {{-- ส่วนตัวกรองสถานะ (Filter) --}}
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-3">
+                    <label class="form-label small fw-bold text-secondary text-uppercase">กรองตามสถานะ</label>
+                    <select class="form-select border-0 bg-light fw-bold" wire:model.live="statusFilter">
+                        <option value="all">ทั้งหมด (ทุกสถานะ)</option>
+                        <option value="รอเจ้าหน้าที่รับคำสั่งซื้อ">รอเจ้าหน้าที่ฯ</option>
+                        <option value="กำลังจัดสินค้า">กำลังจัดสินค้า</option>
+                        <option value="กำลังจัดส่ง">กำลังจัดส่ง</option>
+                        <option value="เสร็จสิ้น">เสร็จสิ้น</option>
+                        <option value="ยกเลิก">ยกเลิก</option>
+                    </select>
+                </div>
+            </div>
+            
+            {{-- Badge แสดงสถานะปัจจุบัน --}}
+           
+        </div>
+    </div>
+  
+    <hr class="opacity-10 mb-5">
 
     @if ($orders->count())
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4"> {{-- Responsive grid for cards, up to 3 columns --}}
+        <div class="row g-4">
             @foreach ($orders as $order)
-                <div class="col">
-                    <div class="card h-100 shadow-lg border-primary rounded-3 position-relative overflow-hidden">
-                        {{-- Decorative stripe based on status --}}
-                        <div class="status-stripe {{
+                <div class="col-12 col-md-6 col-lg-4" wire:key="order-{{ $order->id }}">
+                    <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden position-relative">
+                        
+                        {{-- แถบสีสถานะด้านบน --}}
+                        <div style="height: 6px;" class="{{
                             ($order->status == 'กำลังจัดส่ง') ? 'bg-info' :
-                            (($order->status == 'รอดำเนินการ') ? 'bg-warning' :
+                            (($order->status == 'รอเจ้าหน้าที่รับคำสั่งซื้อ') ? 'bg-warning' :
                             (($order->status == 'เสร็จสิ้น') ? 'bg-success' :
-                            'bg-secondary'))
+                            (($order->status == 'ยกเลิก') ? 'bg-danger' : 'bg-secondary')))
                         }}"></div>
 
-                        <div class="card-body d-flex flex-column">
-                            <h5 class="card-title fw-bold text-dark mb-3">
-                                คำสั่งซื้อ #{{ $order->order_code }}
+                        <div class="card-body p-4">
+                            {{-- หัวการ์ด: เลขที่สั่งซื้อและ Badge --}}
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h6 class="text-uppercase text-muted small mb-1">Order Code</h6>
+                                    <h5 class="fw-bold text-dark mb-0">#{{ $order->order_code }}</h5>
+                                </div>
                                 <span class="badge {{
                                     ($order->status == 'กำลังจัดส่ง') ? 'bg-info text-dark' :
-                                    (($order->status == 'รอดำเนินการ') ? 'bg-warning text-dark' :
+                                    (($order->status == 'รอเจ้าหน้าที่รับคำสั่งซื้อ') ? 'bg-warning text-dark' :
                                     (($order->status == 'เสร็จสิ้น') ? 'bg-success' :
-                                    'bg-secondary'))
-                                }} ms-2 fs-6 px-3 py-2 rounded-pill float-end">
+                                    (($order->status == 'ยกเลิก') ? 'bg-danger' : 'bg-secondary')))
+                                }} px-3 py-2 rounded-pill">
                                     {{ $order->status }}
                                 </span>
-                            </h5>
+                            </div>
 
-                            <ul class="list-unstyled mb-3">
-                                <li class="mb-2">
-                                    <strong class="text-secondary"><i class="bi bi-calendar-event me-2"></i> วันที่:</strong>
-                                    <span class="float-end">{{ $order->created_at->format('d M Y H:i') }}</span>
-                                </li>
-                                <li class="mb-2">
-                                    <strong class="text-secondary"><i class="bi bi-credit-card-fill me-2"></i> ชำระเงิน:</strong>
-                                    <span class="float-end">{{ $order->payment_method }}</span>
-                                </li>
-                                @if ($order->user)
-                                    <li class="mb-2">
-                                        <strong class="text-secondary"><i class="bi bi-person-circle me-2"></i> ลูกค้า:</strong>
-                                        <span class="float-end">{{ $order->user->name }}</span>
-                                    </li>
-                                    @if ($order->user->room_number)
-                                        <li class="mb-2">
-                                            <strong class="text-secondary"><i class="bi bi-house-door-fill me-2"></i> ห้อง:</strong>
-                                            <span class="float-end">{{ $order->user->room_number }}</span>
-                                        </li>
-                                    @endif
+                            {{-- รายละเอียดลูกค้า/เวลา --}}
+                            <div class="bg-light rounded-3 p-3 mb-3">
+                                <div class="d-flex justify-content-between mb-2 small">
+                                    <span class="text-muted"><i class="bi bi-clock me-1"></i> เวลาสั่งซื้อ:</span>
+                                    <span class="fw-bold">{{ $order->created_at->format('d/m/Y H:i') }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2 small">
+                                    <span class="text-muted"><i class="bi bi-wallet2 me-1"></i> ชำระโดย:</span>
+                                    <span class="fw-bold text-primary">{{ $order->payment_method }}</span>
+                                </div>
+                                @if ($order->user && $order->user->room_number)
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-muted"><i class="bi bi-door-closed me-1"></i> เลขห้อง:</span>
+                                    <span class="fw-bold ">{{ $order->user->room_number }}</span>
+                                </div>
                                 @endif
-                                @if ($order->tracking_number)
-                                    <li class="mb-2">
-                                        <strong class="text-secondary"><i class="bi bi-phone-fill me-2"></i> ติดต่อ:</strong>
-                                        <span class="float-end">{{ $order->tracking_number }}</span>
-                                    </li>
-                                @endif
-                            </ul>
+                            </div>
 
-                            <hr class="my-3">
-
-                            <h6 class="text-primary mb-3"><i class="bi bi-basket-fill me-2"></i> รายการสินค้า</h6>
-                            <div class="flex-grow-1 overflow-auto pe-2" style="max-height: 200px;"> {{-- Scrollable item list --}}
-                                <ul class="list-group list-group-flush border-top border-bottom rounded">
+                            {{-- รายการสินค้า --}}
+                            <h6 class="fw-bold small mb-2 text-uppercase text-secondary">รายการสินค้า</h6>
+                            <div class="overflow-auto mb-3" style="max-height: 150px;">
+                                <ul class="list-group list-group-flush">
                                     @foreach ($order->orderItems as $item)
-                                        <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-0">
-                                            <div>
+                                        <li class="list-group-item px-0 py-2 bg-transparent border-light d-flex justify-content-between align-items-center">
+                                            <div class="small">
                                                 @if ($item->product)
-                                                    <strong class="text-dark">{{ $item->product->name }}</strong>
-                                                    <small class="d-block text-muted">
-                                                        x{{ $item->quantity }} {{ $item->productUnit->unit_name ?? '' }}
-                                                        (<span class="text-muted">฿{{ number_format($item->price, 2) }}/หน่วย</span>)
-                                                    </small>
+                                                    <div class="fw-bold">{{ $item->product->name }}</div>
+                                                    <div class="text-muted small">x{{ $item->quantity }} {{ $item->productUnit->unit_name ?? '' }}</div>
                                                 @else
-                                                    <strong class="text-danger">[สินค้าถูกลบ]</strong>
-                                                    <small class="d-block text-muted">
-                                                        x{{ $item->quantity }}
-                                                        (<span class="text-muted">฿{{ number_format($item->price, 2) }}/หน่วย</span>)
-                                                    </small>
+                                                    <span class="text-danger small">[สินค้าถูกลบ]</span>
                                                 @endif
                                             </div>
-                                            <span class="fw-bold text-success text-nowrap">฿{{ number_format($item->price * $item->quantity, 2) }}</span>
+                                            <span class="fw-bold small">฿{{ number_format($item->price * $item->quantity, 2) }}</span>
                                         </li>
                                     @endforeach
                                 </ul>
                             </div>
 
-                            <p class="text-end mt-3 fw-bold fs-5 text-primary">
-    <i class="bi bi-currency-dollar me-1"></i> รวม: 
-    <span class="text-success">฿{{ number_format($order->total_amount, 2) }}</span>
-</p>
+                            <hr class="my-3 border-light">
 
-{{-- ✅ แสดงรูปหลักฐานถ้ามี --}}
-@if ($order->proof_image)
-    <div class="mt-3">
-        <strong class="text-secondary">
-            <i class="bi bi-image-fill me-2"></i> หลักฐานการจัดส่ง:
-        </strong><br>
+                            {{-- ยอดรวม --}}
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="fw-bold">ยอดรวมสุทธิ</span>
+                                <h4 class="fw-bold text-success mb-0">฿{{ number_format($order->total_amount, 2) }}</h4>
+                            </div>
 
-        <a href="{{ $order->proof_image }}" target="_blank">
-            <img src="{{ $order->proof_image }}"
-                 class="img-fluid mt-2 rounded shadow-sm"
-                 style="max-width:150px;border:1px solid #ddd;">
-        </a>
-    </div>
-@endif
+                            {{-- หลักฐานการโอน / เหตุผลการยกเลิก --}}
+                            @if ($order->proof_image)
+                                <div class="mt-2 text-center">
+                                    <p class="small text-muted mb-1 text-start">หลักฐานการชำระเงิน:</p>
+                                    <img src="{{ asset('storage/' . $order->proof_image) }}" 
+                                         class="img-fluid rounded-3 shadow-sm border cursor-pointer" 
+                                         style="max-height: 300px; width: 100%; object-fit: cover;">
+                                </div>
+                            @endif
 
-
-
-{{-- ✅ แสดงหมายเหตุถ้ามี --}}
-@if ($order->cancel_reason)
-    <div class="mt-3">
-        <strong class="text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i> หมายเหตุการยกเลิก:</strong>
-        <p class="mb-0 text-muted">{{ $order->cancel_reason }}</p>
-    </div>
-@endif
-
-                         
+                            @if ($order->cancel_reason)
+                                <div class="alert alert-danger py-2 px-3 mt-2 mb-0 rounded-3">
+                                    <small class="fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> เหตุผลที่ยกเลิก:</small>
+                                    <div class="small">{{ $order->cancel_reason }}</div>
+                                </div>
+                            @endif
                         </div>
+
+   
                     </div>
                 </div>
             @endforeach
         </div>
     @else
-        <div class="alert alert-info text-center mt-5 p-4 rounded-3 shadow-sm">
-            <h4 class="alert-heading mb-3"><i class="bi bi-info-circle-fill me-2"></i> ไม่มีคำสั่งซื้อในระบบ</h4>
-            <p class="mb-0">ขณะนี้ยังไม่มีคำสั่งซื้อใหม่เข้ามา กรุณารอสักครู่</p>
+        {{-- หน้าจอเมื่อไม่มีข้อมูล --}}
+        <div class="text-center py-5">
+            <div class="mb-3">
+                <i class="bi bi-inbox text-light-emphasis" style="font-size: 5rem;"></i>
+            </div>
+            <h4 class="text-muted">ไม่พบคำสั่งซื้อ</h4>
+            <p class="text-secondary">ในขณะนี้ยังไม่มีรายการในสถานะ "{{ $statusFilter == 'all' ? 'ทั้งหมด' : $statusFilter }}"</p>
+            @if($statusFilter != 'all')
+                <button wire:click="$set('statusFilter', 'all')" class="btn btn-primary rounded-pill px-4">ดูออเดอร์ทั้งหมด</button>
+            @endif
         </div>
     @endif
 
-    {{-- Sound notification --}}
-    <audio id="orderSound" src="{{ asset('sounds/notify.mp3') }}" preload="auto"></audio>
+    {{-- เสียงแจ้งเตือน --}}
+    <audio id="orderSound" src="{{ asset('sounds/notify.mp3') }}"></audio>
 </div>
-
-
-
-{{-- Make sure you have Bootstrap Icons included in your main layout file: --}}
-{{-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"> --}}

@@ -10,12 +10,14 @@ class ProductStockMovement extends Model
 
     protected $fillable = [
         'product_id',
+            'order_id', // ✅ เพิ่ม order_id
         'type',
         'quantity',
         'unit',
         'reason',
          'is_free', // ✅ เพิ่มตรงนี้
         'ref_code',
+            'note',
           'location', // ✅ เพิ่ม location
           'unit_quantity', // เพิ่ม unit_quantity
     ];

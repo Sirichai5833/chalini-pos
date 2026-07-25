@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS System - Chalini</title>
+    <title>POS System - {{ $shopSettings->shop_name ?: 'ชาลินี' }}</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
@@ -97,8 +97,8 @@
         <div class="container-fluid d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center">
                 <a href="{{ url('/') }}" class="navbar-brand fw-bold me-2 mb-0">
-                    <i class="bi bi-shop"></i> ชาลินี
-                </a>
+    <i class="bi bi-shop"></i> {{ $shopName }}
+</a>
                 <button class="btn btn-outline-light me-2" id="sidebarToggle">
                     <i class="bi bi-list"></i>
                 </button>
@@ -145,6 +145,14 @@
                                     <i class="bi bi-cash-stack text-white"></i> หน้าขายสินค้า
                                 </a>
                             </li>
+                            <li class="nav-item">
+
+                                <a href="{{ route('staff.credit.sales.index') }}" class="nav-link text-white">
+
+                                    <i class="bi bi-journal-text text-white"></i> รายการเงินเชื่อ
+                                </a>
+
+                            </li>
                             <li class="nav-item mb-1">
                                 <a class="nav-link {{ request()->routeIs('staff.sales.history') ? 'active' : '' }} text-white"
                                     href="{{ route('staff.sales.history') }}">
@@ -167,14 +175,14 @@
                             <li class="nav-item mb-1">
                                 <a class="nav-link {{ request()->routeIs('product.product.index') ? 'active' : '' }} text-white"
                                     href="{{ route('product.product.index') }}">
-                                    <i class="bi bi-list-ul text-white"></i> รายการสินค้าหน้าร้าน
+                                    <i class="bi bi-list-ul text-white"></i> รายการสินค้า/เพิ่มสินค้าใหม่
                                 </a>
                             </li>
 
                             <li class="nav-item mb-1">
                                 <a class="nav-link {{ request()->routeIs('product.products.add-stock-form') ? 'active' : '' }} text-white"
                                     href="{{ route('product.products.add-stock-form') }}">
-                                    <i class="bi bi-list-ul text-white"></i> เพิ่มสินค้าเข้าหน้าบ้าน/คลังสินค้า
+                                    <i class="bi bi-list-ul text-white"></i> เพิ่มสินค้าเข้าหน้าร้าน/คลังสินค้า
                                 </a>
                             </li>
 
@@ -188,7 +196,7 @@
                             <li class="nav-item mb-1">
                                 <a class="nav-link {{ request()->routeIs('categories.index') ? 'active' : '' }} text-white"
                                     href="{{ route('categories.index') }}">
-                                    <i class="bi bi-folder text-white"></i> จัดการหมวดหมู่
+                                    <i class="bi bi-folder text-white"></i> จัดการประเภทสินค้า
                                 </a>
                             </li>
 
@@ -218,7 +226,13 @@
                             <li class="nav-item mb-1">
                                 <a class="nav-link {{ request()->routeIs('product.stock-in-history') ? 'active' : '' }} text-white"
                                     href="{{ route('product.stock-in-history') }}">
-                                    <i class="bi bi-journal-text text-white"></i> ประวัติการเพิ่มสินค้า
+                                    <i class="bi bi-journal-text text-white"></i> ประวัติการนำสินค้าเข้า
+                                </a>
+                            </li>
+                            <li class="nav-item mb-1">
+                                <a class="nav-link {{ request()->routeIs('product.movement-history') ? 'active' : '' }} text-white"
+                                    href="{{ route('product.movement-history') }}">
+                                    <i class="bi bi-journal-text text-white"></i> ประวัติเคลื่อนย้ายสินค้า
                                 </a>
                             </li>
 
@@ -387,6 +401,54 @@
                         </ul>
                     </div>
                 </li>
+                {{-- เมนู: ตั้งค่าร้าน (เฉพาะ Admin) --}}
+{{-- เมนู: ตั้งค่าร้าน (เฉพาะ Admin) --}}
+@if (auth()->check() && auth()->user()->role === 'admin')
+    <li class="nav-item mb-1">
+        <a class="nav-link {{ request()->routeIs('staff.settings') ? 'active' : '' }} text-white dy-menu-link"
+           href="{{ route('staff.settings') }}">
+            <i class="bi bi-gear-fill text-white me-2"></i> ตั้งค่าร้าน
+        </a>
+    </li>
+    <li class="nav-item mb-1">
+        <a class="nav-link {{ request()->routeIs('manager.dashboard') ? 'active' : '' }} text-white dy-menu-link"
+           href="{{ route('manager.dashboard') }}">
+
+            <i class="bi bi-bar-chart-fill text-white me-2"></i>
+            สรุปยอดขายแต่งกะ
+
+        </a>
+    </li>
+@endif
+
+
+{{-- เช็กว่า User คนนี้เปิดกะไว้อยู่หรือไม่ --}}
+@php
+    $hasOpenShift = \App\Models\Shift::where('user_id', auth()->id())
+                        ->where('status', 'open')
+                        ->exists();
+@endphp
+
+{{-- เมนู: ปิดกะ --}}
+<li class="nav-item mb-1">
+    @if($hasOpenShift)
+        {{-- ถ้าเปิดกะอยู่ -> แสดงปุ่มกดได้ปกติ --}}
+        <a class="nav-link {{ request()->routeIs('shift.close') ? 'active' : '' }} text-white dy-menu-link"
+           href="{{ route('shift.close') }}">
+            <i class="bi bi-door-closed-fill text-white me-2"></i> ปิดกะ
+        </a>
+    @else
+        {{-- ถ้ายังไม่ได้เปิดกะ -> จางปุ่มลง และห้ามกด (pe-none) --}}
+        <a class="nav-link text-white-50 opacity-50 dy-menu-link pe-none" 
+           href="#" 
+           tabindex="-1" 
+           aria-disabled="true"
+           title="กรุณาเปิดกะก่อนปิดกะ">
+            <i class="bi bi-door-closed-fill me-2"></i> ปิดกะ
+            <small class="badge bg-secondary ms-auto" style="font-size: 0.65rem;">ยังไม่เปิดกะ</small>
+        </a>
+    @endif
+</li>
 
             </ul>
 
@@ -398,7 +460,6 @@
         @livewireScripts
     </main>
     <footer class="bg-dark text-white text-center py-2">
-        Copyright &copy; 2025 ชาลินี
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"></script>

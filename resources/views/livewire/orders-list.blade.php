@@ -14,7 +14,7 @@
                             <span
                                 class="badge {{ $order->status == 'กำลังจัดส่ง'
                                     ? 'bg-info text-dark'
-                                    : ($order->status == 'รอดำเนินการ'
+                                    : ($order->status == 'กำลังจัดสินค้า'
                                         ? 'bg-warning text-dark'
                                         : ($order->status == 'เสร็จสิ้น'
                                             ? 'bg-success'
@@ -47,13 +47,15 @@
 
                             @if ($order->slip_path)
                                 <hr class="my-3">
-                                <h6 class="text-primary mb-2"><i class="bi bi-image-fill me-2"></i> สลิปการชำระเงิน</h6>
-                                <a href="{{ $order->slip_path }}" target="_blank">
-    <img src="{{ $order->slip_path }}" alt="Slip Image"
-        class="img-fluid rounded shadow-sm mb-3"
-        style="max-height: 150px; cursor: pointer;">
-</a>
+                                <h6 class="text-primary mb-2">
+                                    <i class="bi bi-image-fill me-2"></i> สลิปการชำระเงิน
+                                </h6>
 
+                                <a href="{{ asset('storage/' . $order->slip_path) }}" target="_blank">
+                                    <img src="{{ asset('storage/' . $order->slip_path) }}"
+                                        class="img-fluid rounded shadow-sm mb-3"
+                                        style="max-height:150px; cursor:pointer;">
+                                </a>
                             @else
                                 <p class="text-muted fst-italic mt-3"><i class="bi bi-info-circle-fill me-2"></i>
                                     ไม่มีสลิปการชำระเงิน</p>
@@ -68,8 +70,17 @@
                                         <li
                                             class="list-group-item d-flex justify-content-between align-items-center py-2 px-0">
                                             <div>
-                                                <strong
-                                                    class="text-dark">{{ $item->product ? $item->product->name : '[สินค้าโดนลบ]' }}</strong><br>
+                                                <strong class="text-dark">
+                                                    {{ $item->product->name ?? '[สินค้าโดนลบ]' }}
+                                                </strong>
+
+                                                {{-- แสดงของแถม --}}
+                                                @if (!empty($item->product->description))
+                                                    <div class="text-success small">
+                                                        ของแถม: {{ $item->product->description }}
+                                                    </div>
+                                                @endif
+
                                                 <small class="text-muted">
                                                     ราคา: ฿{{ number_format($item->price, 2) }} x
                                                     {{ $item->quantity }} {{ $item->productUnit->unit_name ?? '' }}

@@ -152,7 +152,7 @@ class StockController extends Controller
                     'unit' => $unit->unit_name,
                     'unit_quantity' => $unit->unit_quantity,
                     'location' => 'store',
-                    'note' => 'รับเข้าหน้าร้าน',
+                    'note' => '[ย้ายคลัง]ย้ายเข้าหน้าร้าน',
                 ]);
             }
 

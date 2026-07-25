@@ -7,34 +7,41 @@ use App\Models\User; // เพิ่มบรรทัดนี้
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash; // เพิ่มบรรทัดนี้
-
+use Illuminate\Support\Str;
 class StaffController extends Controller
 {
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-            'role' => 'required|string',
-            'image' => 'nullable|image|max:2048' // รองรับไฟล์ภาพ
-        ]);
 
-        $imagePath = null;
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('staff_images', 'public');
-        }
+public function store(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|unique:users,email',
+        'role' => 'required',
+        'image' => 'nullable|image'
+    ]);
 
-        User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => $request->role,
-            'image' => $imagePath,
-        ]);
+    // 🔥 สร้างรหัสผ่านอัตโนมัติ
+    $randomPassword = Str::random(8);
 
-        return redirect()->route('staff.index')->with('success', 'เพิ่มพนักงานเรียบร้อยแล้ว');
+    // upload รูป
+    $imagePath = null;
+    if ($request->hasFile('image')) {
+        $imagePath = $request->file('image')->store('staff', 'public');
     }
+
+    $user = User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'role' => $request->role,
+        'password' => Hash::make($randomPassword),
+        'image' => $imagePath,
+    ]);
+
+    // 🔥 แจ้งรหัสผ่าน
+    return redirect()->back()->with('success', 
+        "เพิ่มพนักงานสำเร็จ | รหัสผ่านเริ่มต้น: $randomPassword"
+    );
+}
 
     public function create()
 {
@@ -75,7 +82,15 @@ public function allupdate(Request $request, $id)
     $validated = $request->validate([
         'name' => 'required|string|max:255',
         'email' => 'required|email|unique:users,email,' . $id,
-        'password' => 'nullable|string|min:6|confirmed',
+        'password' => [
+    'nullable',
+    'string',
+    'min:6',
+    'confirmed',
+    'regex:/[a-z]/',      // ต้องมีพิมพ์เล็ก
+    'regex:/[A-Z]/',      // ต้องมีพิมพ์ใหญ่
+    'regex:/[\W_]/',      // ต้องมีอักขระพิเศษ
+    ],
         'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
         'role' => 'required|string|in:admin,staff', // ตรวจสอบตำแหน่ง (แอดมินหรือพนักงาน)
     ]);
@@ -123,7 +138,15 @@ public function update(Request $request, $id)
     $validated = $request->validate([
         'name' => 'required|string|max:255',
         'email' => 'required|email|unique:users,email,' . $id,
-        'password' => 'nullable|string|min:6|confirmed',
+        'password' => [
+    'nullable',
+    'string',
+    'min:6',
+    'confirmed',
+    'regex:/[a-z]/',      // ต้องมีพิมพ์เล็ก
+    'regex:/[A-Z]/',      // ต้องมีพิมพ์ใหญ่
+    'regex:/[\W_]/',      // ต้องมีอักขระพิเศษ
+],
         'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
     ]);
 

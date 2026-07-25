@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container py-4">
-    <h3 class="mb-4">🔍 ค้นหาประวัติการเพิ่มสินค้า</h3>
+    <h3 class="mb-4">🔍 ประวัติการนำสินค้าเข้า</h3>
 
     <form method="GET" action="{{ route('product.stock-in-history') }}" class="mb-4">
     <div class="row g-2 align-items-end">
@@ -36,15 +36,25 @@
 
 
     @if($movements->count() > 0)
-       <a href="{{ route('product.stock-in-history', array_merge(request()->all(), ['print' => 1])) }}"
-   class="btn btn-outline-dark btn-sm">
-    🖨️ พิมพ์รายการ
-</a>
+       <div class="mb-3">
+    <button type="button"
+        class="btn btn-success btn-sm"
+        onclick="exportToExcel()">
+        📊 Export Excel
+    </button>
+
+    <a href="{{ route('product.stock-in-history', array_merge(request()->all(), ['print'=>1])) }}"
+        class="btn btn-outline-dark btn-sm">
+        🖨️ พิมพ์รายการ
+    </a>
+</div>
+
 
 
 
         <div class="table-responsive">
-            <table class="table table-bordered text-center align-middle printable-area">
+            <table id="stockHistoryTable"
+       class="table table-bordered text-center align-middle printable-area">
                 <thead class="table-dark">
                     <tr>
                         <th>วันที่</th>
@@ -52,7 +62,7 @@
                         <th>จำนวน</th>
                         <th>หน่วย</th>
                         <th>สถานที่</th>
-                        <th>หมายเหตุ</th>
+                        {{-- <th>หมายเหตุ</th> --}}
                     </tr>
                 </thead>
                 <tbody>
@@ -63,7 +73,7 @@
                             <td>{{ $move->quantity }}</td>
                             <td>{{ $move->unit ?? '-' }}</td>
                             <td>{{ $move->location === 'warehouse' ? 'คลัง' : 'หน้าร้าน' }}</td>
-                            <td>{{ $move->note ?? '-' }}</td>
+                            {{-- <td>{{ $move->note ?? '-' }}</td> --}}
                         </tr>
                     @endforeach
                 </tbody>
@@ -105,13 +115,52 @@
     }
 }
 </style>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script>
+function exportToExcel() {
 
+    // สร้าง Workbook
+    let wb = XLSX.utils.book_new();
+
+    // สร้าง Sheet
+    let ws = XLSX.utils.aoa_to_sheet([
+        ["ประวัติการนำสินค้าเข้า"],
+        ["ค้นหา", "{{ $search }}"],
+        ["วันที่เริ่ม", "{{ $from }}"],
+        ["วันที่สิ้นสุด", "{{ $to }}"],
+        []
+    ]);
+
+    // เพิ่มตาราง HTML ลงใน Sheet
+    XLSX.utils.sheet_add_dom(
+        ws,
+        document.getElementById("stockHistoryTable"),
+        {
+            origin: "A6"
+        }
+    );
+
+    // เพิ่ม Sheet เข้า Workbook
+    XLSX.utils.book_append_sheet(
+        wb,
+        ws,
+        "ประวัตินำสินค้าเข้า"
+    );
+
+    // ดาวน์โหลดไฟล์
+    XLSX.writeFile(
+        wb,
+        "stock-in-history.xlsx"
+    );
+}
+</script>
 @if($isPrint)
 <script>
     window.onload = function () {
         window.print();
     };
 </script>
+
 @endif
 
 @endsection

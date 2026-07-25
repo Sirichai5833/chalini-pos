@@ -12,27 +12,39 @@ class NotifiController extends Controller
     // แสดงสินค้าคงคลังใกล้หมด
 public function lowStock()
 {
-    // ดึงข้อมูล stock แยกตาม product + unit ที่ stock ต่ำกว่าเกณฑ์
-    $stocks = ProductStocks::with(['product', 'unit'])
-        ->where(function ($query) {
-            $query->where('warehouse_stock', '<', 10)
-                  ->orWhere('store_stock', '<', 5);
+    $stocks = ProductStocks::with(['product', 'unit'])->get();
+
+    $lowStockProducts = $stocks
+        ->groupBy('product_id') // 🔥 รวมตามสินค้า
+        ->map(function ($items) {
+
+            $product = $items->first()->product;
+            $minStock = $product->min_stock ?? 0;
+
+            // ✅ รวมทุกหน่วย → แปลงเป็นหน่วยเล็กสุด
+            $totalStock = $items->sum(function ($item) {
+                $unitQty = $item->unit_quantity ?? 1;
+
+                $stock = ($item->warehouse_stock ?? 0) + ($item->store_stock ?? 0);
+
+                return $stock * $unitQty;
+            });
+
+            return (object)[
+                'product_name' => $product->name,
+                'total_stock' => $totalStock,
+                'min_stock' => $minStock,
+            ];
         })
-        ->get();
+        ->filter(function ($item) {
+            return $item->total_stock <= $item->min_stock;
+        })
+        ->values(); // reset index
 
-    $lowStockProducts = $stocks->map(function ($stock) {
-        return (object)[
-            'product_name' => $stock->product->name,
-            'unit_name' => $stock->unit->unit_name ?? '-',
-            'warehouse_stock' => $stock->warehouse_stock,
-            'store_stock' => $stock->store_stock,
-        ];
-    });
-
-    return view('notification.OutStock', ['lowStockProducts' => $lowStockProducts]);
+    return view('notification.OutStock', [
+        'lowStockProducts' => $lowStockProducts
+    ]);
 }
-
-
 
 
     // แสดงสินค้าใกล้หมดอายุ

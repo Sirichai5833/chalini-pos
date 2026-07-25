@@ -11,6 +11,9 @@ class CustomerOrders extends Component
     public $orders = [];
     public $latestStatuses = [];
 
+    // ✅ เพิ่มตัวนี้กลับมา
+    public $statusFilter = 'all';
+
     public function mount()
     {
         $this->fetchOrders();
@@ -18,14 +21,26 @@ class CustomerOrders extends Component
 
     public function fetchOrders()
     {
-        $this->orders = Order::with('orderItems.product')
+        $query = Order::with('orderItems.product')
             ->where('user_id', Auth::id())
-            ->latest()
-            ->get();
+            ->latest();
+
+        // ✅ ใช้ filter
+        if ($this->statusFilter !== 'all') {
+            $query->where('status', $this->statusFilter);
+        }
+
+        $this->orders = $query->get();
 
         foreach ($this->orders as $order) {
             $this->latestStatuses[$order->id] = $order->status;
         }
+    }
+
+    public function updatedStatusFilter()
+    {
+        // 🔥 เวลาเลือก dropdown → โหลดใหม่ทันที
+        $this->fetchOrders();
     }
 
     public function pollOrders()
@@ -33,7 +48,10 @@ class CustomerOrders extends Component
         $updatedOrders = Order::where('user_id', Auth::id())->get();
 
         foreach ($updatedOrders as $order) {
-            if (isset($this->latestStatuses[$order->id]) && $order->status !== $this->latestStatuses[$order->id]) {
+            if (
+                isset($this->latestStatuses[$order->id]) &&
+                $order->status !== $this->latestStatuses[$order->id]
+            ) {
                 $this->dispatch('order-status-changed', id: $order->id, status: $order->status);
             }
 
@@ -45,6 +63,8 @@ class CustomerOrders extends Component
 
     public function render()
     {
-        return view('livewire.customer-orders');
+        return view('livewire.customer-orders', [
+            'orders' => $this->orders
+        ]);
     }
 }

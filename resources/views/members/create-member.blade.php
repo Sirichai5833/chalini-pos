@@ -42,15 +42,52 @@
                     </button>
                 </div>
             @endif
+@if(session('generated_password'))
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    Swal.fire({
+        icon: 'success',
+        title: 'เพิ่มสมาชิกสำเร็จ 🎉',
+        html: `
+            <p>รหัสผ่านเริ่มต้น</p>
+            <h4 style="color:#f8b500">{{ session('generated_password') }}</h4>
+            <small>กรุณาแจ้งให้สมาชิกเปลี่ยนรหัสผ่านหลังเข้าสู่ระบบ</small>
+        `,
+        confirmButtonText: 'รับทราบ'
+    });
+});
+</script>
+@endif
 
-
-            <form action="{{ route('members.store') }}" method="POST">
+            <form id="memberForm" action="{{ route('members.store') }}" method="POST">
                 @csrf
 
-                <div class="mb-3">
-                    <label for="name" class="form-label text-gold">ชื่อสมาชิก</label>
-                    <input type="text" name="name" class="form-control fancy-input" required>
-                </div>
+                <!-- แยก ชื่อ - นามสกุล -->
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label for="first_name" class="form-label text-gold">ชื่อ</label>
+        <input type="text" name="first_name" class="form-control fancy-input" value="{{ old('first_name') }}" required>
+        @error('first_name')
+            <div class="text-danger">{{ $message }}</div>
+        @enderror
+    </div>
+    <div class="col-md-6 mb-3">
+        <label for="last_name" class="form-label text-gold">นามสกุล</label>
+        <input type="text" name="last_name" class="form-control fancy-input" value="{{ old('last_name') }}" required>
+        @error('last_name')
+            <div class="text-danger">{{ $message }}</div>
+        @enderror
+    </div>
+</div>
+
+<!-- เพิ่มเบอร์โทรศัพท์ -->
+<div class="mb-3">
+    <label for="phone" class="form-label text-gold">เบอร์โทรศัพท์</label>
+    <input type="tel" name="phone" class="form-control fancy-input" value="{{ old('phone') }}" placeholder="08X-XXX-XXXX" required>
+    @error('phone')
+        <div class="text-danger">{{ $message }}</div>
+    @enderror
+</div>
 
                 <div class="mb-3">
                     <label for="room_number" class="form-label text-gold">เลือกห้อง</label>
@@ -99,23 +136,9 @@
                 </div>
 
                 <input type="hidden" name="role" value="member">
-
-                <div class="mb-3">
-                    <label for="password" class="form-label text-gold">รหัสผ่าน</label>
-                    <input type="password" name="password" class="form-control fancy-input" required>
-                    <small class="text-muted d-block mt-1">
-                        รหัสผ่านต้องมีอย่างน้อย 8 ตัว, ตัวอักษรพิมพ์ใหญ่ 1 ตัว และอักขระพิเศษอย่างน้อย 1 ตัว เช่น @#$%
-                    </small>
-                    @error('password')
-                        <div class="text-danger">{{ $message }}</div>
-                    @enderror
-                </div>
-
-
-                <div class="mb-4">
-                    <label for="password_confirmation" class="form-label text-gold">ยืนยันรหัสผ่าน</label>
-                    <input type="password" name="password_confirmation" class="form-control fancy-input" required>
-                </div>
+                <div class="mb-4 text-muted small text-center">
+    ระบบจะสร้างรหัสผ่านเริ่มต้นให้อัตโนมัติ
+</div>
 
                 <div class="text-center">
                     <button type="submit" class="btn btn-gold px-4 py-2 rounded-pill shadow">💾 บันทึกข้อมูล</button>
@@ -230,4 +253,46 @@
             }
         }
     </style>
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const memberForm = document.getElementById('memberForm');
+
+    if (memberForm) {
+        memberForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: 'ยืนยันการบันทึก?',
+                text: 'คุณต้องการเพิ่มสมาชิกคนนี้ใช่หรือไม่',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#f8b500',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'ใช่, บันทึก',
+                cancelButtonText: 'ยกเลิก',
+                reverseButtons: true
+            }).then((result) => {
+
+                if (result.isConfirmed) {
+
+                    Swal.fire({
+                        title: 'กำลังบันทึก...',
+                        text: 'กรุณารอสักครู่',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    memberForm.submit();
+                }
+
+            });
+        });
+    }
+
+});
+</script>
 @endsection

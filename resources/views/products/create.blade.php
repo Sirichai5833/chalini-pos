@@ -57,6 +57,20 @@
                 <!-- ฝั่งข้อมูลหน่วยนับ -->
                 <div class="col-md-6">
                     <h4>ข้อมูลหน่วยนับ</h4>
+
+                    <div class="alert alert-info">
+                        <strong>วิธีกรอกหน่วยนับ</strong><br>
+
+                        • หน่วยแรกเป็นหน่วยเล็กที่สุด เช่น ขวด, ชิ้น, ซอง, ถุง ระบบกำหนดเป็น <b>1</b><br>
+
+                        • หน่วยถัดไปให้กรอกจำนวนของหน่วยฐาน เช่น<br><br>
+
+                        ขวด = 1<br>
+                        แพ็ค = 6<br>
+                        ลัง = 24
+                    </div>
+
+
                     <div id="units-container">
                         <!-- Template หน่วยนับ -->
                         <div class="unit-group border rounded p-3 mb-3">
@@ -65,8 +79,18 @@
                                 <input type="text" name="units[0][unit_name]" class="form-control" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">จำนวนหน่วย</label>
-                                <input type="number" name="units[0][unit_quantity]" class="form-control" required>
+                                <label class="form-label">
+                                    จำนวนหน่วย
+                                    <span class="text-success">(หน่วยฐาน)</span>
+                                </label>
+
+                                <input type="number" class="form-control" value="1" disabled>
+
+                                <input type="hidden" name="units[0][unit_quantity]" value="1">
+
+                                <small class="text-muted">
+                                    หน่วยแรกเป็นหน่วยเล็กที่สุดของสินค้า ระบบกำหนดเป็น 1 อัตโนมัติ
+                                </small>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">บาร์โค้ดหน่วยนับ</label>
@@ -112,7 +136,12 @@
         </div>
         <div class="mb-3">
             <label class="form-label">จำนวนหน่วย</label>
-            <input type="number" name="units[${unitIndex}][unit_quantity]" class="form-control" required>
+            <input
+    type="number"
+    name="units[${unitIndex}][unit_quantity]"
+    class="form-control"
+    min="2"
+    required>
         </div>
         <div class="mb-3">
             <label class="form-label">บาร์โค้ดหน่วยนับ</label>

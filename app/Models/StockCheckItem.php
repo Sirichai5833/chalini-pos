@@ -14,6 +14,7 @@ class StockCheckItem extends Model
     'system_qty',
     'real_qty',
     'diff_qty',
+    'note', // ✅ เพิ่ม note ใน fillable
 ];
 
 public function product()

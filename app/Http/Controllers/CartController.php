@@ -2,108 +2,130 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
-use App\Models\ProductStocks;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use App\Models\User;
-use App\Models\ProductUnit;
+use App\Models\Product; // ⚠️ ตรวจสอบชื่อ Model สินค้าของคุณให้ถูกต้อง (เช่น Product หรือ Item)
+
 class CartController extends Controller
 {
-    public function add(Request $request)
+    /**
+     * แสดงหน้าตะกร้าสินค้า
+     */
+    public function index()
     {
-        $productId = $request->input('product_id');
         $cart = session()->get('cart', []);
-    
-        // เพิ่มสินค้าลงในตะกร้า
-        if (isset($cart[$productId])) {
-            $cart[$productId]['quantity']++;
-        } else {
-            // เพิ่มข้อมูลสินค้าใหม่
-            $product = Product::findOrFail($productId);
-            $productUnit = $product->productUnits->first();
-    
-            $cart[$productId] = [
-                'name' => $product->name,
-                'price' => $productUnit->price,
-                'quantity' => 1,
-                'image' => $product->image,
-            ];
-        }
-    
-        session()->put('cart', $cart);
-    
-        // คำนวณจำนวนสินค้าทั้งหมดในตะกร้า
-        $totalItems = collect($cart)->sum('quantity');
-    
-        // ส่งกลับจำนวนสินค้าทั้งหมดที่อัพเดต
-        return response()->json(['success' => true, 'totalItems' => $totalItems]);
-    }
-    
-    
+        $total = 0;
+        $outOfStockItems = [];
 
-    public function updateQuantity(Request $request, $productId)
-    {
-        $cart = session()->get('cart', []);
-    
-        if (isset($cart[$productId])) {
-            if ($request->input('action') === 'increase') {
-                $cart[$productId]['quantity']++;
-            } elseif ($request->input('action') === 'decrease' && $cart[$productId]['quantity'] > 1) {
-                $cart[$productId]['quantity']--;
-            } else {
-                // กรณีป้อนจำนวนที่ไม่ถูกต้อง
-                $cart[$productId]['quantity'] = max(1, $cart[$productId]['quantity']);
+        // ตรวจสอบข้อมูลสต็อกล่าสุดจาก DB และคำนวณยอดรวม
+        foreach ($cart as $id => &$item) {
+            $product = Product::find($id);
+
+            if ($product) {
+                // อัปเดตสต็อกคงเหลือปัจจุบันลง Session
+                $item['stock'] = $product->stock;
+                
+                // คำนวณราคารวม
+                $total += $item['price'] * $item['quantity'];
+
+                // ตรวจสอบว่าจำนวนที่เลือกไว้เกินสต็อกที่มีจริงหรือไม่
+                if ($item['quantity'] > $product->stock) {
+                    $outOfStockItems[] = [
+                        'name' => $item['name'],
+                        'requested' => $item['quantity'],
+                        'available' => $product->stock
+                    ];
+                }
             }
         }
-    
+
+        // เซฟค่าสต็อกที่อัปเดตกลับเข้า Session
         session()->put('cart', $cart);
-    
-        return redirect()->route('online.cart')->with('success', 'อัปเดตจำนวนสินค้าในตะกร้าแล้ว!');
-    }
-    
 
-public function index()
-{
-    $cart = session('cart', []);
-    $total = 0;
-    $outOfStockItems = [];
-
-    foreach ($cart as $key => $item) {
-        $total += $item['price'] * $item['quantity'];
-
-        // ดึง stock พร้อมโหลด unit
-        $stocks = ProductStocks::with('unit')
-            ->where('product_id', $item['product_id'])
-            ->get();
-
-        $totalAvailableInPieces = 0;
-
-        foreach ($stocks as $stock) {
-            $unitQuantity = optional($stock->unit)->unit_quantity ?? 1;
-            $totalAvailableInPieces += $stock->store_stock * $unitQuantity;
-        }
-
-        $selectedUnitQuantity = optional(
-            ProductUnit::find($item['product_unit_id'])
-        )->unit_quantity ?? 1;
-
-        $requestedInPieces = $item['quantity'] * $selectedUnitQuantity;
-
-        if ($requestedInPieces > $totalAvailableInPieces) {
-            $outOfStockItems[$key] = [
-                'name' => $item['name'],
-                'requested' => $requestedInPieces,
-                'available' => $totalAvailableInPieces,
-            ];
-        }
+        // ส่งข้อมูลไปยัง View (ปรับ path view ให้ตรงตามโฟลเดอร์ของคุณ เช่น online.cart)
+        return view('online.cart', compact('cart', 'total', 'outOfStockItems'));
     }
 
-    return view('online.cart', compact('cart', 'total', 'outOfStockItems'));
-}
+    /**
+     * อัปเดตจำนวนสินค้า (รองรับ AJAX PUT)
+     */
+    public function updateQuantity(Request $request, $id)
+    {
+        $request->validate([
+            'quantity' => 'required|integer|min:1'
+        ]);
 
+        $cart = session()->get('cart', []);
 
+        if (!isset($cart[$id])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ไม่พบสินค้านี้ในตะกร้า'
+            ], 404);
+        }
 
+        // ดึงข้อมูลสินค้าจาก Database เพื่อเช็คสต็อกจริง
+        $product = Product::find($id);
+        $requestedQty = (int) $request->quantity;
 
+        if ($product && $requestedQty > $product->stock) {
+            return response()->json([
+                'success' => false,
+                'message' => "สินค้าคงเหลือเพียง {$product->stock} ชิ้น ไม่พอสำหรับจำนวนที่ระบุ"
+            ], 400);
+        }
 
+        // อัปเดตจำนวนลงใน Session
+        $cart[$id]['quantity'] = $requestedQty;
+        if ($product) {
+            $cart[$id]['stock'] = $product->stock;
+        }
+        
+        session()->put('cart', $cart);
+
+        // คำนวณยอดรวมใหม่ทั้งหมด
+        $itemTotal = $cart[$id]['price'] * $requestedQty;
+        $total = 0;
+        $totalItems = 0;
+
+        foreach ($cart as $item) {
+            $total += $item['price'] * $item['quantity'];
+            $totalItems += $item['quantity'];
+        }
+
+        return response()->json([
+            'success' => true,
+            'quantity' => $requestedQty,
+            'item_total' => number_format($itemTotal, 2),
+            'total' => number_format($total, 2),
+            'total_items' => $totalItems
+        ]);
+    }
+
+    /**
+     * ลบสินค้าออกจากตะกร้า (รองรับ AJAX DELETE)
+     */
+    public function remove($id)
+    {
+        $cart = session()->get('cart', []);
+
+        if (isset($cart[$id])) {
+            unset($cart[$id]);
+            session()->put('cart', $cart);
+        }
+
+        // คำนวณยอดรวมใหม่หลังลบ
+        $total = 0;
+        $totalItems = 0;
+
+        foreach ($cart as $item) {
+            $total += $item['price'] * $item['quantity'];
+            $totalItems += $item['quantity'];
+        }
+
+        return response()->json([
+            'success' => true,
+            'total' => number_format($total, 2),
+            'total_items' => $totalItems
+        ]);
+    }
 }

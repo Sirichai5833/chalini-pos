@@ -33,48 +33,85 @@ class StockCheckController extends Controller
 
     // บันทึกผลตรวจนับ
 
-    public function store(Request $request)
-    {
-        DB::transaction(function () use ($request) {
+   public function store(Request $request)
+{
+    DB::transaction(function () use ($request) {
 
-            // 1️⃣ สร้างหัวการตรวจนับ
-            $check = StockCheck::create([
-                'check_date' => now(),
-                'cycle' => now()->format('Y-m'), // ✅ ตัวที่ขาด
-                'checked_by' => Auth::id(),
-                'remark' => $request->remark ?? null,
+        // 1️⃣ สร้างหัวการตรวจนับ
+        $check = StockCheck::create([
+            'check_date' => now(),
+            'cycle' => now()->format('Y-m'),
+            'checked_by' => Auth::id(),
+            'remark' => $request->remark ?? null,
+        ]);
+
+        // 2️⃣ บันทึกรายการตรวจนับ
+        foreach ($request->items as $stockId => $item) {
+
+            $stock = ProductStocks::find($stockId);
+            if (!$stock) continue;
+
+            $system = $item['system_qty'];
+            $actual = $item['actual_qty'];
+            $diff   = $actual - $system;
+
+            // ✅ ดึง note
+            $note = $item['note'] ?? null;
+
+            StockCheckItem::create([
+                'stock_check_id' => $check->id,
+                'product_id'     => $stock->product_id,
+                'unit_id'        => $stock->unit_id,
+                'system_qty'     => $system,
+                'real_qty'       => $actual,
+                'diff_qty'       => $diff,
             ]);
 
-            // 2️⃣ บันทึกรายการตรวจนับ
-            foreach ($request->items as $stockId => $item) {
+            // 🔧 ปรับสต็อก
+            // 🔧 ปรับสต็อก
 
-                $stock = ProductStocks::find($stockId);
-                if (!$stock) continue;
+// กรณีสินค้าเกิน
+if ($diff > 0) {
 
-                $system = $item['system_qty'];
-                $actual = $item['actual_qty'];
-                $diff   = $actual - $system;
+    $stock->warehouse_stock += $diff;
+}
 
-                StockCheckItem::create([
-                    'stock_check_id' => $check->id,
-                    'product_id'     => $stock->product_id,
-                    'unit_id'        => $stock->unit_id,
-                    'system_qty'     => $system,
-                    'real_qty'       => $actual,
-                    'diff_qty'       => $diff,
-                ]);
+// กรณีสินค้าขาด
+elseif ($diff < 0) {
 
-                // 🔧 ปรับสต็อก (ปรับที่คลัง)
-                $stock->update([
-                    'warehouse_stock' => $stock->warehouse_stock + $diff
-                ]);
-            }
-        });
+    $needToReduce = abs($diff);
 
-        return redirect()
-            ->route('staff.stock.check.index')
-            ->with('success', 'บันทึกการตรวจนับเรียบร้อย');
+    // หักคลังก่อน
+    if ($stock->warehouse_stock >= $needToReduce) {
+
+        $stock->warehouse_stock -= $needToReduce;
+
+    } else {
+
+        // คลังไม่พอ
+        $remaining = $needToReduce - $stock->warehouse_stock;
+
+        // เคลียร์คลังให้เหลือ 0
+        $stock->warehouse_stock = 0;
+
+        // หักหน้าร้านต่อ
+        $stock->store_stock -= $remaining;
+
+        // กันค่าติดลบ
+        if ($stock->store_stock < 0) {
+            $stock->store_stock = 0;
+        }
     }
+}
+
+$stock->save();
+        }
+    });
+
+    return redirect()
+        ->route('staff.stock.check.index')
+        ->with('success', 'บันทึกการตรวจนับเรียบร้อย');
+}
 
     public function report()
     {

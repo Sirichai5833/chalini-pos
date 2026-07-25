@@ -13,7 +13,7 @@ class Product extends Model
   
 
     protected $fillable = [
-        'name', 'barcode', 'sku', 'category_id', 'description', 'image', 'is_active', 'is_online'
+        'name', 'barcode', 'sku', 'category_id', 'description', 'image', 'is_active', 'is_online','min_stock'
     ];
     
     protected static $logName = 'product';

@@ -16,6 +16,6 @@ class ProductStockMovementsTable extends Model
         'is_free',
         'note',
         'unit_quantity', // เพิ่ม unit_quantity
-          'location', // ✅ เพิ่ม location
+        'location', // ✅ เพิ่ม location
     ];
 }

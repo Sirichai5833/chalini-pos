@@ -17,6 +17,7 @@ use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\BarcodeController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\LocationController;
@@ -24,9 +25,9 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OnlineController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\ProductController;
-use App\Http\Controllers\StockController as ControllersStockController;
 use App\Http\Controllers\UnitController;
 use App\Http\Middleware\CartMiddleware;
+use App\Http\Controllers\ManagerController;
 use App\Models\Product;
 use App\Models\ProductUnit;
 use App\Http\Controllers\StockAuditController;
@@ -34,203 +35,856 @@ use App\Http\Controllers\notifiController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Livewire\LowStockProducts;
 use App\Http\Controllers\StockCheckController;
+use App\Http\Controllers\CreditSaleController;
 use Carbon\Carbon;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\ShiftController;
+
 
 Route::redirect('/', '/login');
 
-// 👤 Guest Routes (เส้นทางสำหรับผู้เยี่ยมชม)
+
+// ==========================================
+// 👤 Guest Routes
+// ==========================================
+
 Route::middleware('guest')->group(function () {
-    Route::get('/login', [AuthController::class, 'loginPage'])->name('login');
+
+    Route::get('/login', [AuthController::class, 'loginPage'])
+        ->name('login');
+
     Route::post('/login', [AuthController::class, 'login']);
-    Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request'); // ลืมรหัสผ่าน
-    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email'); // ส่งอีเมลรีเซ็ตรหัสผ่าน
+
+
+    // Forgot Password
+    Route::get('/forgot-password', [
+        ForgotPasswordController::class,
+        'showRequestForm'
+    ])->name('password.request');
+
+    Route::post('/forgot-password', [
+        ForgotPasswordController::class,
+        'sendOtp'
+    ])->name('password.email');
+
+
+    // Verify OTP
+    Route::get('/verify-otp', [
+        ForgotPasswordController::class,
+        'showVerifyForm'
+    ])->name('password.otp.verify');
+
+    Route::post('/verify-otp', [
+        ForgotPasswordController::class,
+        'verifyOtp'
+    ])->name('password.otp.check');
+
+
+    // Reset Password
+    Route::get('/reset-password', [
+        ResetPasswordController::class,
+        'showResetForm'
+    ])->name('password.reset');
+
+    Route::post('/reset-password', [
+        ResetPasswordController::class,
+        'reset'
+    ])->name('password.update');
 });
 
 
 
-Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset'); // แสดงฟอร์มรีเซ็ตรหัสผ่าน
-Route::post('/reset-password', [ResetPasswordController::class, 'reset']); // รีเซ็ตรหัสผ่าน
-Route::get('/online/pagenologin', [OnlineController::class, 'pagenologin'])->name('online.pagenologin');
+// ==========================================
+// 🛒 ONLINE SHOP
+// ==========================================
 
-// 🔐 Authenticated Routes (เส้นทางสำหรับผู้ที่เข้าสู่ระบบแล้ว)
+// หน้าร้านออนไลน์
+// เข้าได้ทั้ง Guest และ Member
+// ไม่ต้อง Login
+// ไม่ต้องเปิดกะ
+Route::get('/online/pos', [
+    OnlineController::class,
+    'index'
+])->name('online.index');
+
+
+// ==========================================
+// 🔐 ONLINE SHOP สำหรับสมาชิกที่ Login แล้ว
+// ==========================================
+
+Route::middleware('auth')
+    ->prefix('online')
+    ->name('online.')
+    ->group(function () {
+
+        // 🛒 ตะกร้าสินค้า
+        Route::get('/cart', [
+            OnlineController::class,
+            'cart'
+        ])->name('cart');
+
+
+
+        // ➕ เพิ่มสินค้าลงตะกร้า
+        Route::post('/cart/add', [
+            OnlineController::class,
+            'add'
+        ])->name('add');
+
+          Route::put('/cart/update-quantity/{id}', [
+            OnlineController::class,
+            'updateQuantity'
+        ])->name('updateQuantity');
+
+
+        // ✏️ แก้ไขข้อมูลสมาชิก
+        Route::get('/{member}/edit', [
+            OnlineController::class,
+            'edit'
+        ])->name('edit');
+
+
+        // 🔄 อัปเดตข้อมูลสมาชิก
+        Route::put('/{member}', [
+            OnlineController::class,
+            'update'
+        ])->name('update');
+
+        Route::patch(
+    '/cart/update/{id}',
+    [OnlineController::class, 'updateQuantity']
+)->name('online.updateQuantity');
+
+ // 💳 สร้าง QR พร้อมเพย์
+        Route::get('/generate-qr', [
+            OrderController::class,
+            'generateQRCode'
+        ])->name('generate.qr');
+
+        Route::delete(
+    '/cart/remove/{id}',
+    [OnlineController::class, 'remove']
+)->name('online.remove');
+
+        // ==========================================
+        // 💳 CHECKOUT
+        // ใช้ OrderController
+        // ==========================================
+        
+        Route::get('/checkout', [
+    OnlineController::class,
+    'showCheckoutForm'
+])->name('checkout');
+
+Route::post('/checkout', [
+    OnlineController::class,
+    'processCheckout'
+])->name('checkout.store');
+
+
+        // ==========================================
+        // 📦 ติดตามคำสั่งซื้อ
+        // ==========================================
+
+        Route::get('/track', [
+            OrderController::class,
+            'track'
+        ])->name('track');
+
+    });
+
+// ==========================================
+// 🔐 Authenticated Routes
+// ==========================================
+
 Route::middleware('auth')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout'])->name('logout'); // ออกจากระบบ
+
+// ==========================================
+// Logout
+// ==========================================
+
+Route::post('/logout', [
+    AuthController::class,
+    'logout'
+])->name('logout');
 
 
-    // 🎯 Member (เส้นทางของสมาชิก)
+// ==========================================
+// SHIFT
+// เปิดกะ / ปิดกะ
+// ==========================================
 
-    Route::middleware(['role:member', CartMiddleware::class])
-        ->prefix('online')
-        ->name('online.')
+Route::get('/shift/open', [
+    ShiftController::class,
+    'create'
+])->name('shift.open');
+
+Route::post('/shift/open', [
+    ShiftController::class,
+    'store'
+])->name('shift.store');
+
+Route::get('/shift/close', [
+    ShiftController::class,
+    'close'
+])->name('shift.close');
+
+Route::post('/shift/close', [
+    ShiftController::class,
+    'update'
+])->name('shift.update');
+
+
+// ==========================================
+// 🛒 POS หน้าร้าน
+// เฉพาะหน้าขายหน้าร้านเท่านั้น
+// ต้อง Login + เปิดร้าน + เปิดกะ
+// ==========================================
+
+Route::middleware([
+    'shop.open',
+    'check.shift'
+])->group(function () {
+
+    Route::get('/sale', [
+        SaleController::class,
+        'index'
+    ])->name('sale');
+
+});
+
+Route::middleware(['auth'])->group(function () {
+
+    Route::get(
+        '/manager/dashboard',
+        [ManagerController::class, 'dashboard']
+    )->name('manager.dashboard');
+
+});
+
+
+// ==========================================
+// 🛍️ ONLINE SHOP
+// สมาชิกที่ Login แล้ว
+// ==========================================
+
+Route::middleware(CartMiddleware::class)
+    ->prefix('online')
+    ->name('online.')
+    ->group(function () {
+
+
+        // ตะกร้าสินค้า
+        Route::get('/cart', [
+            OnlineController::class,
+            'cart'
+        ])->name('cart');
+
+
+        // เพิ่มสินค้าเข้าตะกร้า
+        Route::post('/cart/add', [
+            OnlineController::class,
+            'add'
+        ])->name('add');
+
+
+
+        // แก้ไขจำนวนสินค้า
+        Route::get('{member}/edit', [
+            OnlineController::class,
+            'edit'
+        ])->name('edit');
+
+
+        // อัปเดตสินค้าในตะกร้า
+        Route::put('{member}', [
+            OnlineController::class,
+            'update'
+        ])->name('update');
+
+        // อัปเดตจำนวนสินค้าในตะกร้า
+
+    });
+
+
+// ==========================================
+// 👨‍💼 Admin / Staff / Owner
+// ==========================================
+
+Route::middleware('role:admin,staff,owner')->group(function () {
+
+
+    // ==========================================
+    // Products JSON
+    // ==========================================
+
+    Route::get('/products', function () {
+
+        return Product::select(
+            'id',
+            'name',
+            'barcode',
+            'price',
+            'unit'
+        )
+            ->where('is_active', true)
+            ->get();
+
+    })->name('products.json');
+
+
+    // ==========================================
+    // Staff Management
+    // ==========================================
+
+    Route::prefix('staff')
+        ->name('staff.')
         ->group(function () {
-            Route::get('/pos', [OnlineController::class, 'index'])->name('index'); // 🛒 ร้านค้า
-            Route::get('{member}/edit', [OnlineController::class, 'edit'])->name('edit'); // หน้าแก้ไขสมาชิก
-            Route::put('{member}', [OnlineController::class, 'update'])->name('update'); // อัพเดทข้อมูลสมาชิก
-            // 🛒 ตะกร้าสินค้า
-            Route::post('/cart/add', [OnlineController::class, 'add'])->name('add');
-            Route::get('/cart', [CartController::class, 'index'])->name('cart');
-            // 💳 ชำระเงิน
-            // ต้องแน่ใจว่า route นี้รองรับ query string
-            Route::get('/checkout', [CartController::class, 'checkout'])->name('checkout');
-            Route::get('/online/checkout', [OnlineController::class, 'showCheckoutForm'])->name('checkout.form');
-            Route::get('/online/generate-qr', [OnlineController::class, 'generateQRCode'])->name('online.generate.qr');
-            Route::post('/online/checkout', [OnlineController::class, 'processCheckout'])->name('online.checkout');
-            Route::delete('/cart/{id}', [OnlineController::class, 'remove'])->name('remove');
 
-            Route::post('/checkout', [OrderController::class, 'placeOrder'])->name('placeOrder');
-            // routes/web.php
+            Route::get('/', [
+                StaffController::class,
+                'index'
+            ])->name('index');
 
-            // 📦 ติดตามคำสั่งซื้อ
-            Route::get('/track', [OrderController::class, 'track'])->name('track');
-            Route::post('/track', [OrderController::class, 'track'])->name('track.submit');
-            Route::patch('/cart/{productId}/update', [CartController::class, 'updateQuantity'])->name('updateQuantity');
-            Route::post('/settings/update-alert', [OnlineController::class, 'updateAlert'])->name('settings.updateAlert');
+            Route::get('/edit/{member}', [
+                StaffController::class,
+                'edit'
+            ])->name('edit');
+
+            Route::get('/alledit/{member}', [
+                StaffController::class,
+                'alledit'
+            ])->name('alledit');
+
+            Route::get('/create', [
+                StaffController::class,
+                'create'
+            ])->name('create');
+
+            Route::post('/store', [
+                StaffController::class,
+                'store'
+            ])->name('store');
+
+            Route::put('/update/{member}', [
+                StaffController::class,
+                'update'
+            ])->name('update');
+
+            Route::put('/allupdate/{member}', [
+                StaffController::class,
+                'allupdate'
+            ])->name('allupdate');
+
+            Route::delete('/delete/{member}', [
+                StaffController::class,
+                'destroy'
+            ])->name('delete');
+
+
+            // ==========================================
+            // Stock Check
+            // ==========================================
+
+            Route::get(
+                'stock-check',
+                [StockCheckController::class, 'index']
+            )->name('stock.check.index');
+
+            Route::get(
+                'stock-check-report',
+                [StockCheckController::class, 'report']
+            )->name('stock.check.report');
+
+            Route::get(
+                'stock-check/{stockCheck}/export',
+                [StockCheckController::class, 'export']
+            )->name('stock.check.export');
+
+            Route::get(
+                'stock-check/{check}',
+                [StockCheckController::class, 'detail']
+            )->name('stock.check.detail');
+
+            Route::get(
+                'stock-check/{product}',
+                [StockCheckController::class, 'form']
+            )->name('stock.check.form');
+
+            Route::post(
+                'stock-check',
+                [StockCheckController::class, 'store']
+            )->name('stock.check.store');
+
+
+            // ==========================================
+            // Audit
+            // ==========================================
+
+            Route::get('/audits', [
+                StaffController::class,
+                'auditLogs'
+            ])->name('audits');
+
+
+            // ==========================================
+            // Sales History
+            // ==========================================
+
+            Route::get('/sales/history', [
+                SaleController::class,
+                'history'
+            ])->name('sales.history');
+
+
+            // ==========================================
+            // Credit Sales
+            // ==========================================
+
+            Route::post('/credit-sale', [
+                SaleController::class,
+                'creditSale'
+            ]);
+
+            Route::get('/staff/credit-sales/{id}', [
+                CreditSaleController::class,
+                'show'
+            ])->name('credit.sales.show');
+
+            Route::get('/credit-sales/customer/{id}', [
+                CreditSaleController::class,
+                'customerBills'
+            ])->name('credit.customer');
+
+            Route::post('/staff/credit/pay-bill/{id}', [
+                CreditSaleController::class,
+                'payBill'
+            ])->name('credit.pay.bill');
+
+            Route::post('/staff/credit/pay-selected/{id}', [
+                CreditSaleController::class,
+                'paySelected'
+            ])->name('credit.pay.selected');
+
+            Route::post('/credit-sales/{id}/pay', [
+                CreditSaleController::class,
+                'pay'
+            ])->name('credit.sales.pay');
+
+            Route::get('/credit-sales', [
+                CreditSaleController::class,
+                'index'
+            ])->name('credit.sales.index');
+
+            Route::post('/credit-sales/pay-all/{id}', [
+                CreditSaleController::class,
+                'payAll'
+            ])->name('credit.pay.all');
+
+            Route::resource(
+                'sales',
+                SaleController::class
+            );
+
         });
 
+});
 
 
-    // 🎯 Admin/Staff/Owner (เส้นทางสำหรับผู้ดูแลระบบ, พนักงาน, เจ้าของ)
+// ==========================================
+// Admin Dashboard
+// ==========================================
 
-    Route::middleware('role:admin,staff,owner')->group(function () {
-        Route::get('/sale', [SaleController::class, 'index'])->name('sale');
+Route::get('/admin', [
+    AdminController::class,
+    'index'
+])->name('admin');
 
-        // ✅ เพิ่ม endpoint สำหรับโหลดสินค้า
-        Route::get('/products', function () {
-            return Product::select('id', 'name', 'barcode', 'price', 'unit')->where('is_active', true)->get();
-        })->name('products.json');
+
+// ==========================================
+// Shop Settings
+// ==========================================
+
+Route::get('/staff/settings', [
+    SettingController::class,
+    'index'
+])
+    ->middleware('role:admin,staff,owner')
+    ->name('staff.settings');
+
+Route::put('/staff/settings', [
+    SettingController::class,
+    'update'
+])
+    ->middleware('role:admin')
+    ->name('staff.settings.update');
+
+
+// ==========================================
+// Orders / History
+// ==========================================
+
+Route::get('/orders', [
+    OrderController::class,
+    'ordersList'
+])->name('orders.list');
+
+Route::get('/orders/history', [
+    OrderController::class,
+    'orderHistory'
+])->name('orders.history');
+
+Route::get('/product/movement-history', [
+    ProductController::class,
+    'movementHistory'
+])->name('product.movement-history');
+
+
+// ==========================================
+// Customer
+// ==========================================
+
+Route::post('/customers/{id}/suspend', [
+    CustomerController::class,
+    'suspend'
+]);
+
+Route::post('/customers/{id}/restore', [
+    CustomerController::class,
+    'restore'
+]);
+
+
+// ==========================================
+// Update Stock
+// ==========================================
+
+Route::post('/update-stock', [
+    SaleController::class,
+    'updateStockAfterSale'
+])->name('update.stock');
+
+
+// ==========================================
+// Categories
+// ==========================================
+
+Route::prefix('categories')
+    ->name('categories.')
+    ->group(function () {
+
+        Route::get('/', [
+            CategoryController::class,
+            'index'
+        ])->name('index');
+
+        Route::get('/create', [
+            CategoryController::class,
+            'create'
+        ])->name('create');
+
+        Route::post('/store', [
+            CategoryController::class,
+            'store'
+        ])->name('store');
+
+        Route::get('/edit/{category}', [
+            CategoryController::class,
+            'edit'
+        ])->name('edit');
+
+        Route::put('/update/{category}', [
+            CategoryController::class,
+            'update'
+        ])->name('update');
+
+        Route::delete('/delete/{category}', [
+            CategoryController::class,
+            'destroy'
+        ])->name('delete');
+
     });
 
 
-    // เส้นทางที่เกี่ยวข้องกับการโพสต์ (สร้าง, แก้ไข, ลบ)
+// ==========================================
+// Orders
+// ==========================================
+
+Route::post('/orders/{id}/accept', [
+    OrderController::class,
+    'acceptOrder'
+])->name('orders.accept');
+
+Route::get('/orders/{id}', [
+    OrderController::class,
+    'show'
+])->name('orders.show');
+
+Route::get('/my-orders', [
+    OrderController::class,
+    'myOrders'
+])->name('orders.my');
+
+Route::patch('/orders/{order}/status', [
+    OrderController::class,
+    'updateStatus'
+])->name('orders.updateStatus');
+
+Route::get('/orders/my-accepted', [
+    OrderController::class,
+    'myAcceptedOrders'
+])->name('orders.myAccepted');
 
 
-    // หน้าแอดมิน
-    Route::get('/admin', [AdminController::class, 'index'])->name('admin');
 
-    Route::get('/orders', [OrderController::class, 'ordersList'])->name('orders.list');
-    Route::get('/orders/history', [OrderController::class, 'orderHistory'])->name('orders.history');
+// ==========================================
+// Barcode
+// ==========================================
 
-    // สำหรับอัปเดตสถานะ (ถ้าใช้ฟอร์มเปลี่ยนสถานะ)
-    // Route::patch('/orders/{order}/update-status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
-    // เส้นทางของพนักงาน
-    Route::prefix('staff')->name('staff.')->group(function () {
-        Route::get('/', [StaffController::class, 'index'])->name('index'); // หน้าแสดงรายชื่อพนักงาน
-        Route::get('/edit/{member}', [StaffController::class, 'edit'])->name('edit');
-        Route::get('/alledit/{member}', [StaffController::class, 'alledit'])->name('alledit');
-        Route::get('/create', [StaffController::class, 'create'])->name('create');  // หน้าเพิ่มพนักงาน
-        Route::post('/store', [StaffController::class, 'store'])->name('store'); // บันทึกพนักงาน
-        Route::put('/update/{member}', [StaffController::class, 'update'])->name('update'); // อัพเดทโพสต์
-        Route::put('/allupdate/{member}', [StaffController::class, 'allupdate'])->name('allupdate'); // อัพเดทโพสต์
-        Route::delete('/delete/{member}', [StaffController::class, 'destroy'])->name('delete'); // ลบโพสต์
-        Route::get('stock-check', [StockCheckController::class, 'index'])
-            ->name('stock.check.index');
-Route::get('stock-check-report', [StockCheckController::class, 'report'])
-    ->name('stock.check.report');
-Route::get(
-    'stock-check/{stockCheck}/export',
-    [StockCheckController::class, 'export']
-)->name('stock.check.export');
+Route::get('/barcode/check', [
+    ProductController::class,
+    'checkBarcode'
+])->name('barcode.check');
 
-     Route::get('stock-check/{check}', [StockCheckController::class, 'detail'])
-        ->name('stock.check.detail');
-        Route::get('stock-check/{product}', [StockCheckController::class, 'form'])
-            ->name('stock.check.form');
+Route::get('/check-product-name', [
+    ProductController::class,
+    'checkProductName'
+])->name('product.name.check');
 
-        Route::post('stock-check', [StockCheckController::class, 'store'])
-            ->name('stock.check.store');
-        // Route แบบไม่ใช้ parameter
-        Route::get('/audits', [StaffController::class, 'auditLogs'])->name('audits');
-        Route::get('/sale', [SaleController::class, 'index']);
-        Route::get('/sales/history', [SaleController::class, 'history'])->name('sales.history');
-        // Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
-        // Route::get('/sale/{id}', [SaleController::class, 'show'])->name('sale.show');
-        Route::patch('/sales/{sale}/cancel', [SaleController::class, 'cancel'])->name('sales.cancel');
-        // Route::get('/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit');
-        // Route::put('/sales/{sale}', [SaleController::class, 'update'])->name('sales.update');
-        Route::resource('sales', SaleController::class);
+Route::get('/check-barcode', [
+    ProductController::class,
+    'checkBarcode'
+])->name('barcode.verify');
+
+
+// ==========================================
+// Units
+// ==========================================
+
+Route::prefix('units')
+    ->name('units.')
+    ->group(function () {
+
+        Route::get('/', [
+            UnitController::class,
+            'index'
+        ])->name('index');
+
+        Route::get('/create', [
+            UnitController::class,
+            'create'
+        ])->name('create');
+
+        Route::post('/store', [
+            UnitController::class,
+            'store'
+        ])->name('store');
+
+        Route::get('/edit/{unit}', [
+            UnitController::class,
+            'edit'
+        ])->name('edit');
+
+        Route::put('/update/{unit}', [
+            UnitController::class,
+            'update'
+        ])->name('update');
+
+        Route::delete('/delete/{unit}', [
+            UnitController::class,
+            'destroy'
+        ])->name('delete');
+
+        Route::get('/units/by-product', [
+            UnitController::class,
+            'byProduct'
+        ])->name('byProduct');
+
     });
 
-    Route::post('/update-stock', [SaleController::class, 'updateStockAfterSale'])->name('update.stock');
-    Route::prefix('categories')->name('categories.')->group(function () {
-        Route::get('/', [CategoryController::class, 'index'])->name('index'); // หน้าแสดงรายการหมวดหมู่
-        Route::get('/create', [CategoryController::class, 'create'])->name('create'); // หน้าเพิ่มหมวดหมู่
-        Route::post('/store', [CategoryController::class, 'store'])->name('store'); // สร้างหมวดหมู่
-        Route::get('/edit/{category}', [CategoryController::class, 'edit'])->name('edit'); // หน้าแก้ไขหมวดหมู่
-        Route::put('/update/{category}', [CategoryController::class, 'update'])->name('update'); // อัปเดตหมวดหมู่
-        Route::delete('/delete/{category}', [CategoryController::class, 'destroy'])->name('delete'); // ลบหมวดหมู่
+
+// ==========================================
+// Reports
+// ==========================================
+
+Route::prefix('reports')
+    ->name('reports.')
+    ->group(function () {
+
+        Route::get('/daily', [
+            ReportsController::class,
+            'index'
+        ])->name('daily');
+
     });
 
-    Route::post('/orders/{id}/accept', [OrderController::class, 'acceptOrder'])->name('orders.accept');
-    Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
-    Route::get('/my-orders', [OrderController::class, 'myOrders'])->name('orders.my');
-    Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
 
+// ==========================================
+// Products
+// ==========================================
 
-    Route::get('/check-barcode', [App\Http\Controllers\ProductController::class, 'checkBarcode'])->name('barcode.check');
+Route::prefix('products')
+    ->name('product.')
+    ->group(function () {
 
-    Route::prefix('units')->name('units.')->group(function () {
-        Route::get('/', [UnitController::class, 'index'])->name('index'); // หน้าแสดงรายการหน่วยนับ
-        Route::get('/create', [UnitController::class, 'create'])->name('create'); // หน้าเพิ่มหน่วยนับ
-        Route::post('/store', [UnitController::class, 'store'])->name('store'); // บันทึกหน่วยนับ
-        Route::get('/edit/{unit}', [UnitController::class, 'edit'])->name('edit'); // หน้าแก้ไขหน่วยนับ
-        Route::put('/update/{unit}', [UnitController::class, 'update'])->name('update'); // อัปเดตหน่วยนับ
-        Route::delete('/delete/{unit}', [UnitController::class, 'destroy'])->name('delete'); // ลบหน่วยนับ
-        Route::get('/units/by-product', [UnitController::class, 'byProduct'])->name('byProduct');
+        Route::resource(
+            'product',
+            ProductController::class
+        );
+
+        Route::post(
+            'storeWithUnit',
+            [ProductController::class, 'storeWithUnit']
+        )->name('product.storeWithUnit');
+
+        Route::put(
+            'product/{product}/update-with-unit',
+            [ProductController::class, 'updateWithUnit']
+        )->name('updateWithUnit');
+
+        Route::get(
+            '/products/stock-in-history/export',
+            [ProductController::class, 'exportStockInHistory']
+        )->name('stock-in-export');
+
+        Route::get(
+            '/products/add-stock',
+            [ProductController::class, 'showAddStockForm']
+        )->name('products.add-stock-form');
+
+        Route::post(
+            '/products/add-stock',
+            [ProductController::class, 'storeStock']
+        )->name('products.add-stock');
+
+        Route::post(
+            '/products/add-stock-multi',
+            [ProductController::class, 'addStockMulti']
+        )->name('products.add-stock-multi');
+
+        Route::get(
+            '/products/indexstock',
+            [ProductController::class, 'indexstock']
+        )->name('indexstock');
+
+        Route::delete(
+            'product/image/{id}',
+            [ProductController::class, 'deleteImage']
+        )->name('product.image.delete');
+
+        Route::delete(
+            '/product/image/{id}',
+            [ProductController::class, 'deleteImage']
+        )->name('image.delete');
+
+        Route::get(
+            '/barcode/{barcode}',
+            [BarcodeController::class, 'showByBarcode']
+        )->name('barcode.lookup');
+
+        Route::get(
+            '/barcodes',
+            [BarcodeController::class, 'index']
+        )->name('barcodes.index');
+
+        Route::get(
+            '/products/history',
+            [ProductController::class, 'allHistory']
+        )->name('products.allHistory');
+
+        Route::get(
+            '/products/move-to-store',
+            [StockController::class, 'formMoveToStore']
+        )->name('stock.to.store');
+
+        Route::post(
+            '/products/move-to-moveToStore',
+            [StockController::class, 'moveToStore']
+        )->name('stock.to.frontstore');
+
+        Route::get(
+            '/stock-in-history',
+            [ProductController::class,
+            'searchStockInHistory'
+        ])->name('stock-in-history');
+
     });
 
-    Route::prefix('units')->name('reports.')->group(function () {
-        Route::get('/daily', [ReportsController::class, 'index'])->name('daily'); // หน้าแสดงรายการหน่วยนับ
+
+// ==========================================
+// Notifications
+// ==========================================
+
+Route::get('/notifications/low-stock', [
+    notifiController::class,
+    'lowStock'
+])->name('notification.OutStock');
+
+Route::get('/notifications/near-expiry', [
+    notifiController::class,
+    'nearExpiry'
+])->name('notification.expire');
+
+Route::post('/products/expiry/{id}/acknowledge', [
+    notifiController::class,
+    'acknowledgeExpiry'
+])->name('notification.expiry.acknowledge');
+
+
+// ==========================================
+// Members Management
+// ==========================================
+
+Route::prefix('members')
+    ->name('members.')
+    ->group(function () {
+
+        Route::get('/index', [
+            MemberController::class,
+            'index'
+        ])->name('index');
+
+        Route::get('/create', [
+            MemberController::class,
+            'create'
+        ])->name('create');
+
+        Route::post('/members/set-floors', [
+            MemberController::class,
+            'setFloors'
+        ])->name('members.setFloors');
+
+        Route::post('/', [
+            MemberController::class,
+            'store'
+        ])->name('store');
+
+        Route::get('{member}', [
+            MemberController::class,
+            'show'
+        ])->name('show');
+
+        Route::get('{member}/edit', [
+            MemberController::class,
+            'edit'
+        ])->name('edit');
+
+        Route::put('{member}', [
+            MemberController::class,
+            'update'
+        ])->name('update');
+
+        Route::delete('{member}', [
+            MemberController::class,
+            'destroy'
+        ])->name('destroy');
+
+        Route::post('/customers', [
+            CustomerController::class,
+            'store'
+        ]);
+
     });
 
-    Route::prefix('products')->name('product.')->group(function () {
-        Route::resource('product', ProductController::class); // Route สำหรับ CRUD ทั่วไป
-
-        // Route เพิ่มสินค้า
-        Route::post('storeWithUnit', [ProductController::class, 'storeWithUnit'])->name('product.storeWithUnit');
-        Route::put('product/{product}/update-with-unit', [ProductController::class, 'updateWithUnit'])->name('updateWithUnit');
-        Route::get('/products/stock-in-history/export', [ProductController::class, 'exportStockInHistory'])->name('stock-in-export');
-        Route::get('/products/add-stock', [ProductController::class, 'showAddStockForm'])->name('products.add-stock-form');
-        Route::post('/products/add-stock', [ProductController::class, 'storeStock'])->name('products.add-stock');
-        Route::post('/products/add-stock-multi', [ProductController::class, 'addStockMulti'])->name('products.add-stock-multi');
-        Route::get('/products/indexstock', [ProductController::class, 'indexstock'])->name('indexstock');
-        Route::delete('product/image/{id}', [ProductController::class, 'deleteImage'])
-            ->name('product.image.delete');
-
-
-
-
-
-        Route::delete('/product/image/{id}', [ProductController::class, 'deleteImage'])->name('image.delete');
-        // แก้ route นี้
-        // Route ใน web.php
-        Route::get('/barcode/{barcode}', [BarcodeController::class, 'showByBarcode'])->name('barcode.lookup');
-
-        Route::get('/barcodes', [BarcodeController::class, 'index'])->name('barcodes.index');
-
-        // routes/web.php
-        Route::get('/products/history', [ProductController::class, 'allHistory'])->name('products.allHistory');
-
-
-        Route::get('/products/move-to-store', [StockController::class, 'formMoveToStore'])->name('stock.to.store');
-        Route::post('/products/move-to-moveToStore', [StockController::class, 'moveToStore'])->name('stock.to.frontstore');
-        Route::get('/stock-in-history', [ProductController::class, 'searchStockInHistory'])->name('stock-in-history');
-    });
-
-    Route::get('/notifications/low-stock', [NotifiController::class, 'lowStock'])->name('notification.OutStock');
-    Route::get('/notifications/near-expiry', [NotifiController::class, 'nearExpiry'])->name('notification.expire');
-    Route::post('/products/expiry/{id}/acknowledge', [NotifiController::class, 'acknowledgeExpiry'])->name('notification.expiry.acknowledge');
-
-
-
-    // เส้นทางการจัดการสมาชิก
-    Route::prefix('members')->name('members.')->group(function () {
-        Route::get('/index', [MemberController::class, 'index'])->name('index'); // บันทึกสมาชิก
-        Route::get('/create', [MemberController::class, 'create'])->name('create'); // หน้าเพิ่มสมาชิก
-        Route::post('/members/set-floors', [MemberController::class, 'setFloors'])->name('members.setFloors');
-        Route::post('/', [MemberController::class, 'store'])->name('store'); // บันทึกสมาชิก
-        Route::get('{member}', [MemberController::class, 'show'])->name('show'); // แสดงรายละเอียดสมาชิก
-        Route::get('{member}/edit', [MemberController::class, 'edit'])->name('edit'); // หน้าแก้ไขสมาชิก
-        Route::put('{member}', [MemberController::class, 'update'])->name('update'); // อัพเดทข้อมูลสมาชิก
-        Route::delete('{member}', [MemberController::class, 'destroy'])->name('destroy'); // ลบสมาชิก
-    });
 });

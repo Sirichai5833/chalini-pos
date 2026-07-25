@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
+use App\Models\Shift;
 class AuthController extends Controller
 {
     public function loginPage()
@@ -31,16 +31,25 @@ class AuthController extends Controller
             }
 
             if (in_array($user->role, ['staff', 'owner', 'admin'])) {
-                return redirect()->route('sale'); // ไปหน้าขายของแอดมิน
-            }
+
+    $hasShift = Shift::where('user_id', $user->id)
+        ->where('status', 'open')
+        ->exists();
+
+    if (!$hasShift) {
+        return redirect()->route('shift.open');
+    }
+
+    return redirect()->route('sale');
+}
 
             return redirect()->route('login'); // fallback
         }
 
         // login fail
         return back()->withErrors([
-            'email' => 'ข้อมูลไม่ถูกต้อง',
-        ]);
+    'email' => 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+])->withInput();
     }
 
     public function logout(Request $request)
