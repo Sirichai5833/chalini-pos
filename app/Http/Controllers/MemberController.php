@@ -127,7 +127,7 @@ class MemberController extends Controller
      */
     public function store(Request $request)
 {
-    $request->validate([
+    $validated = $request->validate([
 
         'first_name' => [
             'required',
@@ -155,6 +155,7 @@ class MemberController extends Controller
         'role' => [
             'required',
             'string',
+            'in:member',
         ],
 
         'room_number' => [
@@ -202,25 +203,25 @@ class MemberController extends Controller
     $user = User::create([
 
     'name' =>
-        $request->first_name . ' ' . $request->last_name,
+        $validated['first_name'] . ' ' . $validated['last_name'],
 
         'first_name' =>
-            $request->first_name,
+            $validated['first_name'],
 
         'last_name' =>
-            $request->last_name,
+            $validated['last_name'],
 
         'phone' =>
-            $request->phone,
+            $validated['phone'],
 
         'email' =>
-            $request->email,
+            $validated['email'],
 
         'role' =>
-            $request->role,
+            'member',
 
         'room_number' =>
-            $request->room_number,
+            $validated['room_number'],
 
         'password' =>
             Hash::make(
@@ -261,6 +262,8 @@ class MemberController extends Controller
      */
     public function edit(User $member)
     {
+        abort_unless(auth()->user()?->role === 'admin', 403);
+
         return view(
             'members.edit',
             compact('member')
@@ -275,6 +278,8 @@ class MemberController extends Controller
         Request $request,
         User $member
     ) {
+        abort_unless($request->user()?->role === 'admin', 403);
+
         $request->validate([
 
            'first_name' => [
@@ -428,6 +433,8 @@ $member->phone =
      */
     public function destroy(User $member)
     {
+        abort_unless(auth()->user()?->role === 'admin', 403);
+
         $member->delete();
 
 

@@ -119,18 +119,10 @@ Route::middleware('auth')
     ->group(function () {
 
         // 🛒 ตะกร้าสินค้า
-        Route::get('/cart', [
-            OnlineController::class,
-            'cart'
-        ])->name('cart');
 
 
 
         // ➕ เพิ่มสินค้าลงตะกร้า
-        Route::post('/cart/add', [
-            OnlineController::class,
-            'add'
-        ])->name('add');
 
           Route::put('/cart/update-quantity/{id}', [
             OnlineController::class,
@@ -215,25 +207,27 @@ Route::post('/logout', [
 // เปิดกะ / ปิดกะ
 // ==========================================
 
-Route::get('/shift/open', [
-    ShiftController::class,
-    'create'
-])->name('shift.open');
+Route::middleware('role:admin,manager,owner,staff')->group(function () {
+    Route::get('/shift/open', [
+        ShiftController::class,
+        'create'
+    ])->name('shift.open');
 
-Route::post('/shift/open', [
-    ShiftController::class,
-    'store'
-])->name('shift.store');
+    Route::post('/shift/open', [
+        ShiftController::class,
+        'store'
+    ])->name('shift.store');
 
-Route::get('/shift/close', [
-    ShiftController::class,
-    'close'
-])->name('shift.close');
+    Route::get('/shift/close', [
+        ShiftController::class,
+        'close'
+    ])->name('shift.close');
 
-Route::post('/shift/close', [
-    ShiftController::class,
-    'update'
-])->name('shift.update');
+    Route::post('/shift/close', [
+        ShiftController::class,
+        'update'
+    ])->name('shift.update');
+});
 
 
 // ==========================================
@@ -243,6 +237,7 @@ Route::post('/shift/close', [
 // ==========================================
 
 Route::middleware([
+    'role:admin,manager,owner,staff',
     'shop.open',
     'check.shift'
 ])->group(function () {
@@ -254,14 +249,11 @@ Route::middleware([
 
 });
 
-Route::middleware(['auth'])->group(function () {
-
-    Route::get(
-        '/manager/dashboard',
-        [ManagerController::class, 'dashboard']
-    )->name('manager.dashboard');
-
-});
+Route::get(
+    '/manager/dashboard',
+    [ManagerController::class, 'dashboard']
+)->middleware('role:admin,manager,owner')
+    ->name('manager.dashboard');
 
 
 // ==========================================
@@ -291,17 +283,9 @@ Route::middleware(CartMiddleware::class)
 
 
         // แก้ไขจำนวนสินค้า
-        Route::get('{member}/edit', [
-            OnlineController::class,
-            'edit'
-        ])->name('edit');
 
 
         // อัปเดตสินค้าในตะกร้า
-        Route::put('{member}', [
-            OnlineController::class,
-            'update'
-        ])->name('update');
 
         // อัปเดตจำนวนสินค้าในตะกร้า
 
@@ -312,7 +296,7 @@ Route::middleware(CartMiddleware::class)
 // 👨‍💼 Admin / Staff / Owner
 // ==========================================
 
-Route::middleware('role:admin,staff,owner')->group(function () {
+Route::middleware('role:admin,manager,staff,owner')->group(function () {
 
 
     // ==========================================
@@ -398,19 +382,9 @@ Route::middleware('role:admin,staff,owner')->group(function () {
             )->name('stock.check.report');
 
             Route::get(
-                'stock-check/{stockCheck}/export',
-                [StockCheckController::class, 'export']
-            )->name('stock.check.export');
-
-            Route::get(
                 'stock-check/{check}',
                 [StockCheckController::class, 'detail']
             )->name('stock.check.detail');
-
-            Route::get(
-                'stock-check/{product}',
-                [StockCheckController::class, 'form']
-            )->name('stock.check.form');
 
             Route::post(
                 'stock-check',
@@ -485,7 +459,13 @@ Route::middleware('role:admin,staff,owner')->group(function () {
             Route::resource(
                 'sales',
                 SaleController::class
-            );
+            )->only([
+                'index',
+                'show',
+                'edit',
+                'update',
+                'destroy',
+            ]);
 
         });
 
@@ -499,7 +479,8 @@ Route::middleware('role:admin,staff,owner')->group(function () {
 Route::get('/admin', [
     AdminController::class,
     'index'
-])->name('admin');
+])->middleware('role:admin')
+    ->name('admin');
 
 
 // ==========================================
@@ -510,7 +491,7 @@ Route::get('/staff/settings', [
     SettingController::class,
     'index'
 ])
-    ->middleware('role:admin,staff,owner')
+    ->middleware('role:admin,manager,staff,owner')
     ->name('staff.settings');
 
 Route::put('/staff/settings', [
@@ -524,6 +505,8 @@ Route::put('/staff/settings', [
 // ==========================================
 // Orders / History
 // ==========================================
+
+Route::middleware('role:admin,manager,staff,owner')->group(function () {
 
 Route::get('/orders', [
     OrderController::class,
@@ -616,25 +599,26 @@ Route::post('/orders/{id}/accept', [
     'acceptOrder'
 ])->name('orders.accept');
 
-Route::get('/orders/{id}', [
-    OrderController::class,
-    'show'
-])->name('orders.show');
-
 Route::get('/my-orders', [
     OrderController::class,
     'myOrders'
 ])->name('orders.my');
+
+Route::get('/orders/my-accepted', [
+    OrderController::class,
+    'myAcceptedOrders'
+])->name('orders.myAccepted');
 
 Route::patch('/orders/{order}/status', [
     OrderController::class,
     'updateStatus'
 ])->name('orders.updateStatus');
 
-Route::get('/orders/my-accepted', [
+Route::get('/orders/{id}', [
     OrderController::class,
-    'myAcceptedOrders'
-])->name('orders.myAccepted');
+    'show'
+])->whereNumber('id')
+    ->name('orders.show');
 
 
 
@@ -731,7 +715,13 @@ Route::prefix('products')
         Route::resource(
             'product',
             ProductController::class
-        );
+        )->only([
+            'index',
+            'create',
+            'show',
+            'edit',
+            'destroy',
+        ]);
 
         Route::post(
             'storeWithUnit',
@@ -742,11 +732,6 @@ Route::prefix('products')
             'product/{product}/update-with-unit',
             [ProductController::class, 'updateWithUnit']
         )->name('updateWithUnit');
-
-        Route::get(
-            '/products/stock-in-history/export',
-            [ProductController::class, 'exportStockInHistory']
-        )->name('stock-in-export');
 
         Route::get(
             '/products/add-stock',
@@ -772,11 +757,6 @@ Route::prefix('products')
             'product/image/{id}',
             [ProductController::class, 'deleteImage']
         )->name('product.image.delete');
-
-        Route::delete(
-            '/product/image/{id}',
-            [ProductController::class, 'deleteImage']
-        )->name('image.delete');
 
         Route::get(
             '/barcode/{barcode}',
@@ -886,5 +866,7 @@ Route::prefix('members')
         ]);
 
     });
+
+});
 
 });

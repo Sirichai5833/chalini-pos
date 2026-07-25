@@ -26,11 +26,15 @@ class OnlineController extends Controller
 }
     public function edit(User $member)
     {
+        $this->authorizeSelfOrAdmin($member);
+
         return view('online.edit', compact('member'));
     }
 
     public function update(Request $request, User $member)
 {
+    $this->authorizeSelfOrAdmin($member);
+
     $request->validate([
         'name' =>$request->first_name . ' ' . $request->last_name,
         'first_name' => 'required|string|max:255',
@@ -491,5 +495,15 @@ class OnlineController extends Controller
         'total' => number_format($total, 2),
         'total_items' => $totalItems,
     ]);
+}
+
+private function authorizeSelfOrAdmin(User $member): void
+{
+    $actor = auth()->user();
+
+    abort_unless(
+        $actor && ($actor->role === 'admin' || $actor->is($member)),
+        403
+    );
 }
 }

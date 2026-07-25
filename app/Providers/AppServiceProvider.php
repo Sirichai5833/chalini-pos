@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Schema;
 use App\Models\Setting;
 use Spatie\Activitylog\Models\Activity;
 
@@ -24,9 +25,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
 
-     $shopName = DB::table('settings')
-        ->where('key', 'shop_name')
-        ->value('value') ?? 'ชาลินี';
+     $shopName = Schema::hasTable('settings')
+        ? DB::table('settings')->where('key', 'shop_name')->value('value')
+        : null;
+
+     $shopName ??= 'ชาลินี';
 
     View::share('shopName', $shopName);
     
@@ -98,4 +101,3 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 }
-

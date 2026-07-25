@@ -8,15 +8,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash; // เพิ่มบรรทัดนี้
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 class StaffController extends Controller
 {
 
 public function store(Request $request)
 {
-    $request->validate([
+    $validated = $request->validate([
         'name' => 'required|string|max:255',
         'email' => 'required|email|unique:users,email',
-        'role' => 'required',
+        'role' => [
+            'required',
+            'string',
+            Rule::in($this->assignableRoles($request->user())),
+        ],
         'image' => 'nullable|image'
     ]);
 
@@ -30,9 +35,9 @@ public function store(Request $request)
     }
 
     $user = User::create([
-        'name' => $request->name,
-        'email' => $request->email,
-        'role' => $request->role,
+        'name' => $validated['name'],
+        'email' => $validated['email'],
+        'role' => $validated['role'],
         'password' => Hash::make($randomPassword),
         'image' => $imagePath,
     ]);
@@ -61,11 +66,15 @@ public function index(Request $request)
 
 public function edit(User $member)
 {
+    $this->authorizeSelfOrAdmin($member);
+
     return view('staff.edit', compact('member'));
 }
 
 public function alledit($id)
 {
+    abort_unless(auth()->user()?->role === 'admin', 403);
+
     // ค้นหาข้อมูลผู้ใช้จากฐานข้อมูล
     $user = User::findOrFail($id);
     
@@ -76,6 +85,8 @@ public function alledit($id)
 
 public function allupdate(Request $request, $id)
 {
+    abort_unless($request->user()?->role === 'admin', 403);
+
     $user = User::findOrFail($id);
 
     // Validate ข้อมูลจากฟอร์ม
@@ -92,7 +103,11 @@ public function allupdate(Request $request, $id)
     'regex:/[\W_]/',      // ต้องมีอักขระพิเศษ
     ],
         'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
-        'role' => 'required|string|in:admin,staff', // ตรวจสอบตำแหน่ง (แอดมินหรือพนักงาน)
+        'role' => [
+            'required',
+            'string',
+            Rule::in($this->assignableRoles($request->user())),
+        ],
     ]);
 
     // อัปเดตข้อมูลพื้นฐาน
@@ -134,6 +149,7 @@ public function allupdate(Request $request, $id)
 public function update(Request $request, $id)
 {
     $user = User::findOrFail($id);
+    $this->authorizeSelfOrAdmin($user);
 
     $validated = $request->validate([
         'name' => 'required|string|max:255',
@@ -193,6 +209,8 @@ public function update(Request $request, $id)
 
 public function destroy($id)
 {
+    abort_unless(auth()->user()?->role === 'admin', 403);
+
     $user = User::findOrFail($id);
     
     // ตรวจสอบก่อนว่าผู้ใช้งานที่กำลังจะลบมีข้อมูลที่เกี่ยวข้องกับภาพหรือไม่
@@ -226,8 +244,22 @@ public function auditLogs(Request $request)
     return view('staff.audit_logs', compact('audits'));
 }
 
+private function authorizeSelfOrAdmin(User $user): void
+{
+    $actor = auth()->user();
 
+    abort_unless(
+        $actor && ($actor->role === 'admin' || $actor->is($user)),
+        403
+    );
+}
 
+private function assignableRoles(?User $actor): array
+{
+    return $actor?->role === 'admin'
+        ? ['admin', 'manager', 'staff']
+        : ['staff'];
+}
 
 
 

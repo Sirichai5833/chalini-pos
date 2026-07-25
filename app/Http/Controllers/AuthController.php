@@ -30,7 +30,11 @@ class AuthController extends Controller
                 return redirect()->route('online.index'); // ไปหน้า POS ของลูกค้า
             }
 
-            if (in_array($user->role, ['staff', 'owner', 'admin'])) {
+            if ($user->role === 'manager') {
+                return redirect()->route('manager.dashboard');
+            }
+
+            if (in_array($user->role, ['staff', 'owner', 'admin'], true)) {
 
     $hasShift = Shift::where('user_id', $user->id)
         ->where('status', 'open')

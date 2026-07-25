@@ -250,11 +250,24 @@ class OrderController extends Controller
         Request $request,
         $id
     ) {
+        $actor = $request->user();
+
+        abort_unless(
+            $actor && in_array($actor->role, ['admin', 'manager', 'owner', 'staff'], true),
+            403
+        );
 
         $order =
             Order::with(
                 'orderItems'
             )->findOrFail($id);
+
+        if (
+            $actor->role === 'staff' &&
+            (int) $order->assigned_to !== (int) $actor->id
+        ) {
+            abort(403);
+        }
 
 
         $oldStatus =
@@ -542,6 +555,13 @@ class OrderController extends Controller
 
     public function acceptOrder($id)
     {
+        $actor = Auth::user();
+
+        abort_unless(
+            $actor && in_array($actor->role, ['admin', 'manager', 'owner', 'staff'], true),
+            403
+        );
+
         $order =
             Order::findOrFail($id);
 
@@ -621,6 +641,13 @@ class OrderController extends Controller
 
     public function show($id)
     {
+        $actor = Auth::user();
+
+        abort_unless(
+            $actor && in_array($actor->role, ['admin', 'manager', 'owner', 'staff'], true),
+            403
+        );
+
         $order =
             Order::with([
                 'user',
@@ -631,7 +658,8 @@ class OrderController extends Controller
 
 
         if (
-            $order->assigned_to !== Auth::id()
+            $actor->role === 'staff' &&
+            (int) $order->assigned_to !== (int) $actor->id
         ) {
 
             abort(
