@@ -78,4 +78,11 @@ class LoginController extends Controller
         // รีไดเรกไปยังหน้า login
         return redirect()->route('login');
     }
+
+    public function test_the_application_redirects_guests_to_login(): void
+{
+    $response = $this->get('/');
+
+    $response->assertRedirect(route('login'));
+}
 }
