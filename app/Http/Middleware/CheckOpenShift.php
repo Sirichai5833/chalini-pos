@@ -16,7 +16,8 @@ class CheckOpenShift
         }
 
         // ตรวจว่ามีกะใดกะหนึ่งเปิดอยู่หรือไม่
-        $hasShift = Shift::where('status', 'open')
+        $hasShift = Shift::where('user_id', $request->user()?->id)
+            ->where('status', 'open')
             ->exists();
 
         if (!$hasShift) {

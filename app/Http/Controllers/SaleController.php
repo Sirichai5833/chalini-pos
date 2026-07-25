@@ -17,7 +17,9 @@ use App\Models\Customer;
 use App\Models\CreditSale;
 use App\Models\Shift;
 use App\Models\CreditSaleItem;
+use App\Models\User;
 use App\Services\StockDeductionService;
+use Illuminate\Support\Str;
 
 
 
@@ -65,77 +67,193 @@ class SaleController extends Controller
         StockDeductionService $stockDeduction
     ) {
         $validated = $request->validate([
+            'request_token' => 'required|uuid',
             'products' => 'required|array|min:1',
-            'products.*.product_unit_id' => 'required|exists:product_units,id',
+            'products.*.product_unit_id' => [
+                'required',
+                'integer',
+                'distinct',
+                'exists:product_units,id',
+            ],
             'products.*.qty' => 'required|integer|min:1',
-            'payment_method' => 'required|in:cash,qr,card,credit',
+            'price_type' => 'required|in:retail,wholesale',
+            'payment_method' => 'required|in:cash,qr,card',
         ]);
 
-        $sale = DB::transaction(function () use (
+        $result = DB::transaction(function () use (
             $request,
             $validated,
             $stockDeduction
         ) {
-            $shift = Shift::query()
-                ->where('user_id', Auth::id())
-                ->where('status', 'open')
+            $actor = User::query()
                 ->lockForUpdate()
-                ->first();
+                ->findOrFail($request->user()->id);
 
-            abort_unless($shift, 403, 'กรุณาเปิดกะก่อนทำรายการ');
+            abort_unless(
+                in_array(
+                    $actor->role,
+                    ['admin', 'manager', 'owner', 'staff'],
+                    true
+                ),
+                403
+            );
 
+            $requestReference = 'pos-request:' .
+                $validated['request_token'];
+            $existingSales = Sale::query()
+                ->where('staff_id', $actor->id)
+                ->where('slip', $requestReference)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($existingSales->count() > 1) {
+                throw ValidationException::withMessages([
+                    'request_token' =>
+                        'Duplicate POS request references were found.',
+                ]);
+            }
+
+            if ($existingSales->isNotEmpty()) {
+                return [
+                    'sale' => $existingSales->first(),
+                    'duplicate' => true,
+                ];
+            }
+
+            $openShifts = Shift::query()
+                ->where('user_id', $actor->id)
+                ->where('status', 'open')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            abort_unless(
+                $openShifts->isNotEmpty(),
+                403,
+                'กรุณาเปิดกะก่อนทำรายการ'
+            );
+
+            if ($openShifts->count() > 1) {
+                throw ValidationException::withMessages([
+                    'shift' => 'Multiple open shifts were found for this user.',
+                ]);
+            }
+
+            $shift = $openShifts->first();
+            $quantities = collect($validated['products'])
+                ->mapWithKeys(fn (array $item) => [
+                    (int) $item['product_unit_id'] => (int) $item['qty'],
+                ]);
             $units = ProductUnit::query()
+                ->with('product')
                 ->whereIn(
                     'id',
-                    collect($validated['products'])->pluck('product_unit_id')
+                    $quantities->keys()
                 )
+                ->orderBy('product_id')
+                ->orderBy('unit_quantity')
+                ->orderBy('id')
                 ->lockForUpdate()
-                ->get()
-                ->keyBy('id');
+                ->get();
+
+            if ($units->count() !== $quantities->count()) {
+                throw ValidationException::withMessages([
+                    'products' => 'A product unit no longer exists.',
+                ]);
+            }
+
+            $priceField = $validated['price_type'] === 'wholesale'
+                ? 'wholesale'
+                : 'price';
+            $items = $units->map(function (
+                ProductUnit $unit
+            ) use ($quantities, $priceField) {
+                if (!$unit->product || !$unit->product->is_active) {
+                    throw ValidationException::withMessages([
+                        'products' => 'A product is not available for sale.',
+                    ]);
+                }
+
+                $price = $unit->{$priceField};
+
+                if ($price === null || (float) $price < 0) {
+                    throw ValidationException::withMessages([
+                        'price_type' =>
+                            'The selected server-side price is unavailable.',
+                    ]);
+                }
+
+                $quantity = $quantities->get($unit->id);
+
+                return [
+                    'unit' => $unit,
+                    'quantity' => $quantity,
+                    'price' => (float) $price,
+                    'subtotal' => round((float) $price * $quantity, 2),
+                ];
+            });
+            $total = round($items->sum('subtotal'), 2);
+
+            if ($total <= 0) {
+                throw ValidationException::withMessages([
+                    'products' => 'Sale total must be greater than zero.',
+                ]);
+            }
 
             $sale = Sale::create([
-                'staff_id' => Auth::id(),
+                'staff_id' => $actor->id,
                 'shift_id' => $shift->id,
-                'sale_type' => $request->input('price_type', 'retail'),
-                'total_price' => 0,
+                'sale_type' => $validated['price_type'],
+                'total_price' => $total,
                 'payment_method' => $validated['payment_method'],
                 'sale_date' => now(),
+                'slip' => $requestReference,
             ]);
 
-            $total = 0;
-
-            foreach ($validated['products'] as $item) {
-                $selectedUnit = $units->get($item['product_unit_id']);
-                $quantity = (int) $item['qty'];
-                $price = (float) $selectedUnit->price;
+            foreach ($items as $item) {
+                $selectedUnit = $item['unit'];
 
                 $stockDeduction->deduct(
                     $selectedUnit,
-                    $quantity,
+                    $item['quantity'],
                     'ขายหน้าร้าน'
                 );
 
                 SaleItem::create([
                     'sale_id' => $sale->id,
                     'product_unit_id' => $selectedUnit->id,
-                    'quantity' => $quantity,
+                    'quantity' => $item['quantity'],
                     'unit_quantity' => $selectedUnit->unit_quantity,
-                    'price' => $price,
-                    'cost' => $selectedUnit->cost_price,
+                    'price' => $item['price'],
+                    'cost' => (float) ($selectedUnit->cost_price ?? 0),
                 ]);
-
-                $total += $price * $quantity;
             }
 
-            $sale->update(['total_price' => round($total, 2)]);
-
-            return $sale;
+            return [
+                'sale' => $sale,
+                'duplicate' => false,
+            ];
         });
+
+        $sale = $result['sale']->load('items');
 
         return response()->json([
             'success' => true,
             'message' => 'บันทึกการขายสำเร็จแล้ว',
             'sale_id' => $sale->id,
+            'duplicate' => $result['duplicate'],
+            'total' => (float) $sale->total_price,
+            'items' => $sale->items->map(fn (SaleItem $item) => [
+                'product_unit_id' => $item->product_unit_id,
+                'quantity' => $item->quantity,
+                'price' => (float) $item->price,
+                'subtotal' => round(
+                    (float) $item->price * $item->quantity,
+                    2
+                ),
+            ])->values(),
+            'next_request_token' => (string) Str::uuid(),
         ]);
     }
 

@@ -549,7 +549,8 @@ Route::post('/customers/{id}/restore', [
 Route::post('/update-stock', [
     SaleController::class,
     'updateStockAfterSale'
-])->name('update.stock');
+])->block(15, 15)
+    ->name('update.stock');
 
 
 // ==========================================

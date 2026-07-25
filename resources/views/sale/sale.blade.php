@@ -196,6 +196,9 @@ const shopPromptPayID = @json(\DB::table('settings')->where('key', 'promptpay')-
     let products = [];
     let heldBills = [];
     let totalAmount = 0;
+    let posSaleRequestToken =
+        @json((string) \Illuminate\Support\Str::uuid());
+    let saleSubmissionInFlight = false;
     const productCatalog = @json($products ?? []);
     let isAlertOpen = false;
 
@@ -642,10 +645,11 @@ onchange="updateQty(${i}, this.value)">
                     playSound();
 
                    submitSaleData('cash', () => {
+    const serverChange = cash - totalAmount;
     playSound();
 
     if (autoPrintEnabled) {
-        printReceipt(cash, change, 'เงินสด');
+        printReceipt(cash, serverChange, 'เงินสด');
     }
 
     clearCart();
@@ -653,7 +657,7 @@ onchange="updateQty(${i}, this.value)">
     showAlert(
         'success',
         'ชำระเงินสดสำเร็จ!',
-        `เงินทอน: ${change.toFixed(2)} บาท`
+        `เงินทอน: ${serverChange.toFixed(2)} บาท`
     );
 });
                 }
@@ -804,8 +808,14 @@ hr {
         }
 
        function submitSaleData(paymentMethod, callback) {
+    if (saleSubmissionInFlight) {
+        return;
+    }
 
-    const total_price = products.reduce((sum, p) => sum + p.qty * p.price, 0);
+    saleSubmissionInFlight = true;
+    const priceType =
+        document.querySelector('input[name="priceType"]:checked')?.value
+        ?? 'retail';
 
     fetch('{{ route('update.stock') }}', {
         method: 'POST',
@@ -815,15 +825,12 @@ hr {
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
         body: JSON.stringify({
-
+            request_token: posSaleRequestToken,
             payment_method: paymentMethod,
-
-            total_price: total_price,
-
+            price_type: priceType,
             products: products.map(p => ({
                 product_unit_id: p.unit_id,
-                qty: p.qty,
-                price: p.price
+                qty: p.qty
             }))
         })
     })
@@ -845,7 +852,36 @@ hr {
 
                 .then(data => {
                     if (data.success) {
-                        callback(); // ✅ เรียก callback ได้
+                        products = data.items.map(item => {
+                            const current = products.find(product =>
+                                Number(
+                                    product.product_unit_id
+                                    || product.unit_id
+                                ) === Number(item.product_unit_id)
+                            );
+                            const catalog = productCatalog.find(product =>
+                                Number(
+                                    product.product_unit_id
+                                    || product.unit_id
+                                ) === Number(item.product_unit_id)
+                            );
+
+                            return {
+                                ...catalog,
+                                ...current,
+                                product_unit_id: item.product_unit_id,
+                                unit_id: item.product_unit_id,
+                                qty: item.quantity,
+                                price: Number(item.price),
+                                price_type: priceType
+                            };
+                        });
+                        totalAmount = Number(data.total);
+                        renderProductList();
+                        updateTotalAmount();
+                        updateQRCode();
+                        posSaleRequestToken = data.next_request_token;
+                        callback(data);
                     } else {
                         showAlert('error', 'เกิดข้อผิดพลาด', data.message || 'ไม่สามารถบันทึกการขายได้');
                     }
@@ -853,6 +889,9 @@ hr {
                 .catch((err) => {
                     console.error("submitSaleData Error", err);
                     showAlert('error', 'ข้อผิดพลาด', 'การเชื่อมต่อกับเซิร์ฟเวอร์ล้มเหลว');
+                })
+                .finally(() => {
+                    saleSubmissionInFlight = false;
                 });
         }
 

@@ -310,7 +310,9 @@ class CreditSaleFlowTest extends TestCase
         [$unit, $stock] = $this->productUnit('Cash Item', 11.50, 4);
 
         $this->actingAs($staff)->postJson('/update-stock', [
+            'request_token' => (string) \Illuminate\Support\Str::uuid(),
             'payment_method' => 'cash',
+            'price_type' => 'retail',
             'products' => [
                 ['product_unit_id' => $unit->id, 'qty' => 2],
             ],
