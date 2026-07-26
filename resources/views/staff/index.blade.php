@@ -1,14 +1,10 @@
 @extends('layouts.layout')
 
+@section('flash-messages')
+    @include('layouts.partials.flash-messages')
+@endsection
+
 @section('content')
-    @if (session('success'))
-        <x-sweet-alert icon="success" title="สำเร็จ!" text="{{ session('success') }}" confirm-button-text="ตกลง" />
-    @endif
-
-    @if (session('error'))
-        <x-sweet-alert icon="error" title="ผิดพลาด" text="{{ session('error') }}" confirm-button-text="ตกลง" />
-    @endif
-
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="mb-0 text-warning">รายชื่อพนักงาน</h2>
@@ -65,6 +61,7 @@
         @endif
     </div>
 
+    @push('styles')
     <style>
         h2 {
             color: #444;
@@ -90,4 +87,5 @@
             color: #000;
         }
     </style>
+    @endpush
 @endsection

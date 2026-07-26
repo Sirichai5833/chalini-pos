@@ -1,5 +1,9 @@
 @extends('layouts.layout')
 
+@section('validation-errors')
+    @include('layouts.partials.validation-errors')
+@endsection
+
 @section('content')
 
 <div class="container">

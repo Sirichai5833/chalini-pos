@@ -89,44 +89,15 @@
             pointer-events: none;
         }
     </style>
+    @stack('styles')
 </head>
 
 <body>
-    <livewire:styles />
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm fixed-top">
-        <div class="container-fluid d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center">
-                <a href="{{ url('/') }}" class="navbar-brand fw-bold me-2 mb-0">
-    <i class="bi bi-shop"></i> {{ $shopName }}
-</a>
-                <button class="btn btn-outline-light me-2" id="sidebarToggle">
-                    <i class="bi bi-list"></i>
-                </button>
-                {{-- Theme Toggle Button --}}
-                <button class="btn btn-outline-light" id="themeToggle">
-                    <i class="bi bi-moon-fill"></i> <span class="d-none d-md-inline">เปลี่ยนธีม</span>
-                </button>
-            </div>
-
-            <div class="d-flex">
-                <a href="{{ route('staff.edit', ['member' => Auth::user()->id]) }}" class="btn btn-outline-light me-2">
-                    <i class="bi bi-person"></i>
-                    {{ Auth::user()->name }} ({{ Auth::user()->role }})
-                </a>
-
-                <a href="{{ route('logout') }}" class="btn btn-danger"
-                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                    <i class="bi bi-box-arrow-right"></i> ออกจากระบบ
-                </a>
-                <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
-                    @csrf
-                </form>
-            </div>
-        </div>
-    </nav>
+    @include('layouts.partials.topbar')
 
     <main>
         <aside id="sidebar" class="p-3">
+            @if (auth()->check() && in_array(auth()->user()->role, ['admin', 'manager', 'owner', 'staff'], true))
             <h5 class="mb-4">POS System</h5>
             <ul class="nav flex-column">
 
@@ -451,10 +422,13 @@
 </li>
 
             </ul>
+            @endif
 
         </aside>
 
         <div class="content-wrapper w-full px-4" id="mainContentWrapper">
+            @yield('flash-messages')
+            @yield('validation-errors')
             @yield('content')
         </div>
         @livewireScripts
@@ -464,7 +438,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
@@ -516,9 +489,6 @@
     </script>
 
     @stack('scripts')
-
-
-    @livewireScripts
 </body>
 
 </html>

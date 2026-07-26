@@ -1,26 +1,16 @@
 @extends('layouts.layout')
 
+@section('flash-messages')
+    @include('layouts.partials.flash-messages', [
+        'successTitle' => 'Oh Yeah!',
+        'errorTitle' => 'Oops...',
+        'confirmButtonText' => 'Ok',
+    ])
+@endsection
+
 @section('content')
 <div class="container mt-4">
     <h3 class="mb-4 text-center">รายชื่อสมาชิกตามห้อง</h3>
-
-    @if (session('success'))
-    <x-sweet-alert 
-        icon="success" 
-        title="Oh Yeah!" 
-        text="{{ session('success') }}" 
-        confirm-button-text="Ok"
-    />
-    @endif
-    
-    @if (session('error'))
-    <x-sweet-alert 
-        icon="error" 
-        title="Oops..." 
-        text="{{ session('error') }}" 
-        confirm-button-text="Ok"
-    />
-    @endif
 
   @php
     use App\Models\Setting;
@@ -105,6 +95,7 @@
 
 
 </div>
+@push('styles')
 <style>
     body {
         background-color: #f9f9f9; /* ขาวนวล */
@@ -172,6 +163,7 @@
         font-weight: 600;
     }
 </style>
+@endpush
 
 
 

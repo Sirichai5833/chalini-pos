@@ -4,6 +4,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
+@push('styles')
 <style>
     :root {
         --primary-color: #4e73df;
@@ -100,6 +101,7 @@
         .kpi-col .small { font-size: 0.7rem !important; }
     }
 </style>
+@endpush
 
 <div class="container-fluid px-xl-5 mt-4 mb-5">
     

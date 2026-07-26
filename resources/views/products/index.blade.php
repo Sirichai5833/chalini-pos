@@ -1,3 +1,6 @@
+@extends('layouts.layout')
+
+@push('styles')
 <style>
     .btn-edit-custom {
         background: linear-gradient(135deg, #ffb74d, #ff9800);
@@ -23,18 +26,17 @@
         transform: rotate(-10deg) scale(1.1);
     }
 </style>
-@extends('layouts.layout')
+@endpush
+
+@section('flash-messages')
+    @include('layouts.partials.flash-messages', [
+        'successTitle' => 'Success!',
+        'errorTitle' => 'Oops...',
+        'confirmButtonText' => 'Ok',
+    ])
+@endsection
 
 @section('content')
-
-    {{-- Sweet Alert for success and error messages --}}
-    @if (session('success'))
-        <x-sweet-alert icon="success" title="Success!" text="{{ session('success') }}" confirm-button-text="Ok" />
-    @endif
-
-    @if (session('error'))
-        <x-sweet-alert icon="error" title="Oops..." text="{{ session('error') }}" confirm-button-text="Ok" />
-    @endif
 
     <div class="container py-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
