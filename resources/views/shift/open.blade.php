@@ -1,8 +1,14 @@
-@extends('layouts.open')
+@extends('layouts.layout')
 
-@section('content')
+@section('flash-messages')
+    @include('layouts.partials.flash-messages')
+@endsection
 
-{{-- เพิ่ม Style เฉพาะหน้านี้เพื่อให้คุมโทน ดำ-เหลือง ได้สมบูรณ์ --}}
+@section('validation-errors')
+    @include('layouts.partials.validation-errors')
+@endsection
+
+@push('styles')
 <style>
     /* ตั้งค่าพื้นหลังของหน้าจอเป็นสีดำกึ่งเข้ม */
     body {
@@ -70,6 +76,9 @@
         border-color: #e0ac06;
     }
 </style>
+@endpush
+
+@section('content')
 
 <div class="container mt-5 dy-form">
     <div class="row justify-content-center">
@@ -144,8 +153,5 @@
         </div>
     </div>
 </div>
-
-{{-- แนะนำให้ใช้ Bootstrap Icons เพื่อความสวยงาม --}}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
 @endsection
