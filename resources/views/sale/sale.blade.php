@@ -1,25 +1,418 @@
 @extends('layouts.layout')
 
 @section('content')
+    <style>
+        :root {
+            --pos-yellow: #ffd43b;
+            --pos-yellow-dark: #caa400;
+            --pos-black: #080808;
+            --pos-surface: #111111;
+            --pos-card: #181818;
+            --pos-soft: #222222;
+            --pos-border: rgba(255, 212, 59, .22);
+            --pos-text: #f7f7f7;
+            --pos-muted: #aaa;
+            --pos-success: #22c55e;
+            --pos-danger: #ef4444;
+            --pos-info: #38bdf8;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at top right, rgba(255, 212, 59, .08), transparent 28%),
+                var(--pos-black);
+            color: var(--pos-text);
+        }
+
+        .pos-page {
+            color: var(--pos-text);
+        }
+
+        .pos-hero {
+            position: relative;
+            overflow: hidden;
+            padding: 1.35rem 1.5rem;
+            margin: 0 1rem 1.25rem;
+            border: 1px solid var(--pos-border);
+            border-radius: 24px;
+            background:
+                radial-gradient(circle at 88% 18%, rgba(255, 212, 59, .20), transparent 24%),
+                linear-gradient(135deg, #070707 0%, #171717 58%, #2c2400 100%);
+            box-shadow: 0 18px 42px rgba(0, 0, 0, .36);
+        }
+
+        .pos-hero::after {
+            content: "";
+            position: absolute;
+            right: -75px;
+            bottom: -120px;
+            width: 265px;
+            height: 265px;
+            border-radius: 50%;
+            background: rgba(255, 212, 59, .10);
+            pointer-events: none;
+        }
+
+        .pos-hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .pos-title {
+            margin: 0;
+            color: var(--pos-yellow);
+            font-weight: 950;
+        }
+
+        .pos-subtitle {
+            margin: .35rem 0 0;
+            color: #d2d2d2;
+            font-size: .9rem;
+        }
+
+        .pos-user-badge {
+            border: 1px solid var(--pos-border);
+            background: rgba(255, 212, 59, .11);
+            color: var(--pos-yellow);
+            font-weight: 850;
+        }
+
+        .pos-main-card,
+        .payment-card {
+            overflow: hidden;
+            border: 1px solid #2d2d2d !important;
+            border-radius: 22px !important;
+            background: linear-gradient(180deg, #191919, #111);
+            color: var(--pos-text);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, .34) !important;
+        }
+
+        .pos-main-card .card-body,
+        .payment-card .card-body {
+            background: transparent !important;
+        }
+
+        .section-label {
+            color: var(--pos-yellow);
+            font-weight: 900;
+        }
+
+        .form-label {
+            color: #ddd;
+            font-weight: 800;
+        }
+
+        .form-control,
+        .form-select,
+        .input-group-text {
+            min-height: 46px;
+            border-color: #3a3a3a;
+            background: #131313;
+            color: #fff;
+            box-shadow: none;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--pos-yellow);
+            background: #171717;
+            color: #fff;
+            box-shadow: 0 0 0 .2rem rgba(255, 212, 59, .12);
+        }
+
+        .form-control::placeholder {
+            color: #777;
+        }
+
+        .form-select option {
+            background: #171717;
+            color: #fff;
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        .sale-type-box {
+            padding: .8rem 1rem;
+            border: 1px solid var(--pos-border);
+            border-radius: 16px;
+            background: rgba(255, 212, 59, .05);
+        }
+
+        .form-check-input {
+            border-color: #666;
+            background-color: #111;
+        }
+
+        .form-check-input:checked {
+            border-color: var(--pos-yellow);
+            background-color: var(--pos-yellow);
+        }
+
+        .barcode-box {
+            position: relative;
+        }
+
+        .barcode-box::before {
+            content: "\f6a5";
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            z-index: 2;
+            color: var(--pos-yellow);
+            font-family: "bootstrap-icons";
+            transform: translateY(-50%);
+        }
+
+        .barcode-box input {
+            padding-left: 2.6rem;
+        }
+
+        #productTable {
+            --bs-table-bg: transparent;
+            --bs-table-color: var(--pos-text);
+            --bs-table-border-color: #303030;
+            --bs-table-hover-bg: rgba(255, 212, 59, .05);
+            --bs-table-hover-color: #fff;
+            margin-bottom: 0;
+        }
+
+        #productTable thead th {
+            border-color: #303030;
+            background: #101010 !important;
+            color: var(--pos-yellow);
+            font-size: .76rem;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        #productTable td {
+            border-color: #303030;
+            color: #eee;
+            vertical-align: middle;
+        }
+
+        #productTable .form-control {
+            min-height: 38px;
+            max-width: 82px;
+            margin: auto;
+        }
+
+        .payment-card .card-header {
+            padding: 1rem 1.15rem;
+            border-bottom: 1px solid var(--pos-border) !important;
+            background:
+                linear-gradient(135deg, rgba(255, 212, 59, .12), rgba(255, 212, 59, .03)),
+                #111 !important;
+            color: var(--pos-yellow) !important;
+        }
+
+        .auto-print-box {
+            border: 1px solid var(--pos-border) !important;
+            background: #121212 !important;
+            color: #ddd;
+        }
+
+        .auto-print-box label {
+            color: #ddd !important;
+        }
+
+        .form-switch .form-check-input {
+            width: 2.6rem;
+            height: 1.35rem;
+        }
+
+        .form-switch .form-check-input:checked {
+            background-color: var(--pos-yellow);
+            border-color: var(--pos-yellow);
+        }
+
+        .total-box {
+            padding: 1rem;
+            border: 1px solid var(--pos-border) !important;
+            border-radius: 18px !important;
+            background: rgba(255, 212, 59, .07) !important;
+            color: var(--pos-text);
+        }
+
+        #totalAmount {
+            color: var(--pos-yellow) !important;
+            text-shadow: 0 5px 18px rgba(255, 212, 59, .12);
+        }
+
+        .quick-cash-grid .btn {
+            min-width: 62px;
+            min-height: 40px;
+            border: 1px solid #3b3b3b !important;
+            border-radius: 12px;
+            background: #171717 !important;
+            color: #ddd !important;
+            font-weight: 850;
+        }
+
+        .quick-cash-grid .btn:hover {
+            border-color: var(--pos-yellow) !important;
+            background: var(--pos-yellow) !important;
+            color: #111 !important;
+            transform: translateY(-1px);
+        }
+
+        .change-box {
+            border: 1px solid #2f2f2f !important;
+            border-radius: 18px !important;
+            background: #121212 !important;
+        }
+
+        #change {
+            color: var(--pos-yellow) !important;
+        }
+
+        .payment-actions .btn,
+        .secondary-actions .btn {
+            border-radius: 14px !important;
+            font-weight: 900;
+            transition: .2s ease;
+        }
+
+        .btn-pay-cash {
+            border: 1px solid var(--pos-success);
+            background: linear-gradient(135deg, #4ade80, var(--pos-success));
+            color: #07130b;
+        }
+
+        .btn-pay-credit {
+            border: 1px solid var(--pos-yellow);
+            background: rgba(255, 212, 59, .08);
+            color: var(--pos-yellow);
+        }
+
+        .btn-pay-qr {
+            border: 1px solid var(--pos-info);
+            background: linear-gradient(135deg, #7dd3fc, var(--pos-info));
+            color: #06141a;
+        }
+
+        .btn-pay-cash:hover,
+        .btn-pay-credit:hover,
+        .btn-pay-qr:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.05);
+        }
+
+        #qrBox {
+            border: 1px solid var(--pos-border) !important;
+            background: #101010 !important;
+            color: #fff;
+        }
+
+        #qrBox .bg-white,
+        #qrBox .bg-light {
+            background: #fff !important;
+            color: #111 !important;
+        }
+
+        #qrTotalAmount {
+            color: var(--pos-yellow) !important;
+        }
+
+        .modal-content {
+            border: 1px solid var(--pos-border) !important;
+            background: #151515;
+            color: var(--pos-text);
+        }
+
+        .modal-header,
+        .modal-footer {
+            border-color: #303030 !important;
+            background: #101010 !important;
+        }
+
+        .modal-title {
+            color: var(--pos-yellow);
+        }
+
+        .modal-body {
+            background: #151515 !important;
+        }
+
+        .modal-body .card {
+            border: 1px solid #303030 !important;
+            background: #111 !important;
+        }
+
+        .modal-body .text-secondary,
+        .modal-body .text-muted {
+            color: var(--pos-muted) !important;
+        }
+
+        @media (max-width: 991.98px) {
+            .payment-column {
+                margin-top: 1rem;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .pos-hero {
+                margin-inline: .75rem;
+                padding: 1.15rem;
+                border-radius: 19px;
+            }
+
+            .pos-hero .d-flex {
+                align-items: flex-start !important;
+                flex-direction: column;
+            }
+
+            .pos-main-card,
+            .payment-card {
+                border-radius: 18px !important;
+            }
+
+            .quick-cash-grid .btn {
+                flex: 1 0 calc(25% - .5rem);
+            }
+        }
+    </style>
+
+    <section class="pos-hero">
+        <div class="pos-hero-content d-flex align-items-center justify-content-between gap-3">
+            <div>
+                <h2 class="pos-title">
+                    <i class="bi bi-cart-check-fill me-2"></i>
+                    ระบบขายหน้าร้าน
+                </h2>
+                <p class="pos-subtitle">
+                    สแกนสินค้า รับชำระเงิน และจัดการบิลจากหน้าจอเดียว
+                </p>
+            </div>
+
+            <span class="badge rounded-pill px-3 py-2 pos-user-badge">
+                <i class="bi bi-person-badge-fill me-1"></i>
+                {{ Auth::user()->name ?? 'ผู้ใช้งาน' }}
+            </span>
+        </div>
+    </section>
+
     @if (session('success'))
-        <x-sweet-alert icon="success" title="Oh Yeah!" text="{{ session('success') }}" confirm-button-text="Ok" />
+        <x-sweet-alert icon="success" title="ดำเนินการสำเร็จ" text="{{ session('success') }}" confirm-button-text="ตกลง" />
     @endif
 
     @if (session('error'))
-        <x-sweet-alert icon="error" title="Oops..." text="{{ session('error') }}" confirm-button-text="Ok" />
+        <x-sweet-alert icon="error" title="เกิดข้อผิดพลาด" text="{{ session('error') }}" confirm-button-text="ตกลง" />
     @endif
 
-    <div class="container-fluid py-4 px-0">
+    <div class="container-fluid py-4 px-0 pos-page">
         <div class="row g-0 m-0">
             <!-- Product Table -->
             <div class="col-lg-8 col-12 px-3">
-                <div class="card shadow-sm h-100 rounded-0">
+                <div class="card pos-main-card h-100">
                     <div class="card-body">
-                        <h5 class="mb-3">ชื่อพนักงาน: {{ Auth::user()->name ?? 'Guest' }}</h5>
+                        <h5 class="mb-3">ชื่อพนักงาน: {{ Auth::user()->name ?? 'ผู้ใช้งาน' }}</h5>
                         <h6 class="mb-4">วันที่: {{ date('d/m/Y') }}</h6>
 
-                        <h4 class="mb-3">รายการสินค้า</h4>
-                        <div class="mb-3">
+                        <h4 class="mb-3 section-label"><i class="bi bi-box-seam-fill me-2"></i>รายการสินค้า</h4>
+                        <div class="mb-3 sale-type-box">
                             <label class="form-label">ประเภทการขาย</label>
                             <div>
                                 <div class="form-check form-check-inline">
@@ -34,7 +427,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3 barcode-box">
                             <label class="form-label">สแกน / พิมพ์บาร์โค้ด</label>
                             <input type="text" id="barcodeInput" class="form-control"
                                 placeholder="พิมพ์บาร์โค้ดแล้วกด Enter">
@@ -65,8 +458,8 @@
                 </div>
             </div>
 
-            <div class="col-lg-4 col-12 px-3">
-    <div class="card shadow-sm border-0 rounded-4 h-100 overflow-hidden">
+            <div class="col-lg-4 col-12 px-3 payment-column">
+    <div class="card payment-card h-100">
         <div class="card-header bg-dark text-white py-3 border-0">
             <h4 class="card-title mb-0 d-flex align-items-center justify-content-between" style="font-weight: 600;">
                 <span><i class="bi bi-wallet2 me-2"></i> ชำระเงิน</span>
@@ -75,7 +468,7 @@
         </div>
 
         <!-- 🖨️ สวิตช์เปิด-ปิด พิมพ์ใบเสร็จ -->
-<div class="d-flex align-items-center justify-content-between bg-white p-2 px-3 rounded-3 border mb-3 shadow-sm">
+<div class="d-flex align-items-center justify-content-between p-2 px-3 rounded-3 mb-3 auto-print-box">
     <label for="autoPrintSwitch" class="fw-bold text-secondary mb-0" style="cursor: pointer;">
         🖨️ พิมพ์ใบเสร็จอัตโนมัติ
     </label>
@@ -85,7 +478,7 @@
 </div>
 
         <div class="card-body p-4 bg-light/30">
-            <div class="bg-white p-3 rounded-3 shadow-xs mb-4 text-center border">
+            <div class="p-3 mb-4 text-center total-box">
                 <span class="text-muted small text-uppercase fw-bold tracking-wider">ยอดรวมทั้งหมดที่ต้องชำระ</span>
                 <h1 class="text-success my-2 fw-bolder" id="totalAmount" style="font-size: 2.5rem;">0 บาท</h1>
             </div>
@@ -101,7 +494,7 @@
 
             <div class="mb-4">
                 <label class="form-label small fw-bold text-muted mb-2">💵 ทางลัดเงินสด (บาท)</label>
-                <div class="d-flex flex-wrap gap-2">
+                <div class="d-flex flex-wrap gap-2 quick-cash-grid">
                     <button type="button" class="btn btn-sm btn-light border flex-grow-1" onclick="addCash(1)">+1</button>
                     <button type="button" class="btn btn-sm btn-light border flex-grow-1" onclick="addCash(2)">+2</button>
                     <button type="button" class="btn btn-sm btn-light border flex-grow-1" onclick="addCash(5)">+5</button>
@@ -115,7 +508,7 @@
                 </div>
             </div>
 
-            <div class="mb-4 bg-white p-3 rounded-3 border">
+            <div class="mb-4 p-3 change-box">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <label for="change" class="form-label mb-0 fw-bold text-secondary">เงินทอน</label>
                     <span class="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-1">THB</span>
@@ -126,14 +519,14 @@
 
             <hr class="my-4 opacity-10">
 
-            <div class="d-grid gap-2">
-                <button class="btn btn-success btn-lg py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 rounded-3" onclick="payCash()">
+            <div class="d-grid gap-2 payment-actions">
+                <button class="btn btn-pay-cash btn-lg py-3 d-flex align-items-center justify-content-center gap-2" onclick="payCash()">
                     <span>💵 ชำระด้วยเงินสด</span>
                 </button>
-                <button class="btn btn-outline-warning btn-lg py-2 fw-bold d-flex align-items-center justify-content-center gap-2 rounded-3 text-dark" onclick="openCreditModal()">
+                {{-- <button class="btn btn-pay-credit btn-lg py-2 d-flex align-items-center justify-content-center gap-2" onclick="openCreditModal()">
                     <span>💳 ขายเงินเชื่อ (ค้างชำระ)</span>
-                </button>
-                <button class="btn btn-primary btn-lg py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 rounded-3" onclick="payQRCode()">
+                </button> --}}
+                <button class="btn btn-pay-qr btn-lg py-3 d-flex align-items-center justify-content-center gap-2" onclick="payQRCode()">
                     <span>📱 ชำระด้วย QR Code</span>
                 </button>
                 
@@ -143,7 +536,7 @@
                 </button>
             </div>
 
-            <div class="d-flex mt-3 gap-2">
+            <div class="d-flex mt-3 gap-2 secondary-actions">
                 <button class="btn btn-light border text-secondary w-50 py-2 rounded-3 fw-bold" onclick="holdBill()">
                     📥 พักบิลนี้
                 </button>
@@ -164,9 +557,12 @@
                         </div>
                     </div>
 
-                    <h5 class="fw-bold mb-0 text-dark">Store</h5>
-                    <div class="text-muted small mb-3">
-    <i class="bi bi-person-circle"></i> prompt pay ID: {{ \DB::table('settings')->where('key', 'promptpay')->value('value') ?? '0843860015' }}
+                   <h5 class="fw-bold mb-0 text-white">Store</h5>
+
+<div class="text-white small mb-3">
+    <i class="bi bi-person-circle"></i>
+    prompt pay ID:
+    {{ \DB::table('settings')->where('key', 'promptpay')->value('value') ?? '0843860015' }}
 </div>
 
                     <div class="bg-white rounded-4 p-3 d-inline-block mx-auto shadow-sm border mb-3">
@@ -191,7 +587,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 const shopPromptPayID = @json(\DB::table('settings')->where('key', 'promptpay')->value('value') ?? '0843860015');
-    const sellerName = @json(Auth::user()->name ?? 'Guest');
+    const sellerName = @json(Auth::user()->name ?? 'ผู้ใช้งาน');
     const sellerId = @json(Auth::user()->id ?? '-');
     let products = [];
     let heldBills = [];
@@ -348,11 +744,18 @@ function toggleAutoPrint(enabled) {
 
     // แจ้งเตือนพื้นฐาน
     function showAlert(icon, title, text = '') {
-        Swal.fire({
+        return Swal.fire({
             icon: icon,
             title: title,
             text: text,
-            confirmButtonColor: '#198754'
+            confirmButtonText: 'ตกลง',
+            confirmButtonColor: '#198754',
+            allowOutsideClick: false,
+            allowEscapeKey: true,
+            allowEnterKey: false,
+            showConfirmButton: true,
+            timer: undefined,
+            timerProgressBar: false
         });
     }
 
@@ -447,15 +850,34 @@ function toggleAutoPrint(enabled) {
     }
 
     // ตัวจับสัญญาณ Barcode Reader
-    document.getElementById('barcodeInput')?.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
+    document.getElementById('barcodeInput')?.addEventListener(
+        'keydown',
+        function (event) {
+            if (event.key !== 'Enter') {
+                return;
+            }
+
+            /*
+             * หยุด Enter ของเครื่องสแกนไม่ให้ไหลไปกดปุ่ม "ตกลง"
+             * ของ SweetAlert ที่เพิ่งเปิดขึ้นมาใน event เดียวกัน
+             */
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+
             const barcode = this.value.trim();
-            if (barcode !== '') {
-                if (typeof addProductByBarcode === "function") addProductByBarcode(barcode);
-                this.value = '';
+
+            if (barcode === '') {
+                return;
+            }
+
+            this.value = '';
+
+            if (typeof addProductByBarcode === 'function') {
+                addProductByBarcode(barcode);
             }
         }
-    });
+    );
 
     document.addEventListener('DOMContentLoaded', () => {
         if (typeof renderProductList === "function") renderProductList();
@@ -527,14 +949,52 @@ function toggleAutoPrint(enabled) {
             const product = productCatalog.find(p => p.barcode === barcode);
 
             if (!product) {
-                alert(`ไม่พบสินค้าที่มีบาร์โค้ด: ${barcode}`);
-                document.getElementById('barcodeInput').focus();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ไม่พบสินค้าในระบบ',
+                    html: `
+                        <div class="text-center">
+                            <div class="mb-2">
+                                ไม่พบสินค้าที่ใช้บาร์โค้ด
+                            </div>
+                            <div class="fw-bold font-monospace">
+                                ${barcode}
+                            </div>
+                            <div class="small text-muted mt-2">
+                                กรุณาตรวจสอบบาร์โค้ด หรือลงทะเบียนสินค้าก่อนขาย
+                            </div>
+                        </div>
+                    `,
+                    confirmButtonText: 'ตกลง',
+                    confirmButtonColor: '#ffc107',
+                    allowOutsideClick: false,
+                    allowEscapeKey: true,
+                    allowEnterKey: false,
+                    showConfirmButton: true,
+                    timer: undefined,
+                    timerProgressBar: false
+                }).then(() => {
+                    const input =
+                        document.getElementById('barcodeInput');
+
+                    if (input) {
+                        input.value = '';
+                        input.focus();
+                    }
+                });
+
                 return;
             }
 
             if (!product.is_active || product.is_active == 0) {
-                alert(`สินค้า "${product.name}" ถูกปิดการขาย`);
-                document.getElementById('barcodeInput').focus();
+                showAlert(
+                    'warning',
+                    'สินค้าถูกปิดการขาย',
+                    `สินค้า "${product.name}" ยังไม่เปิดใช้งาน`
+                ).then(() => {
+                    document.getElementById('barcodeInput')?.focus();
+                });
+
                 return;
             }
 
@@ -683,7 +1143,7 @@ onchange="updateQty(${i}, this.value)">
     playSound();
 
     if (autoPrintEnabled) {
-        printReceipt(0, 0, 'QR Code PromptPay');
+        printReceipt(0, 0, 'คิวอาร์โค้ด / พร้อมเพย์');
     }
 
     clearCart();
@@ -799,11 +1259,17 @@ hr {
 
         function showAlert(icon, title, text = '') {
             return Swal.fire({
-                icon: icon, // 'success', 'error', 'warning', 'info', 'question'
+                icon: icon,
                 title: title,
                 text: text,
                 confirmButtonText: 'ตกลง',
-                confirmButtonColor: '#3085d6'
+                confirmButtonColor: '#3085d6',
+                allowOutsideClick: false,
+                allowEscapeKey: true,
+                allowEnterKey: false,
+                showConfirmButton: true,
+                timer: undefined,
+                timerProgressBar: false
             });
         }
 
@@ -836,7 +1302,7 @@ hr {
     })
                 .then(async res => {
                     const text = await res.text(); // รับเป็น text ชั่วคราว
-                    console.log('🔴 Raw Response:', text);
+                    console.log('🔴 ข้อมูลตอบกลับจากเซิร์ฟเวอร์:', text);
                     return JSON.parse(text); // ✅ return data ออกไป
                     try {
                         const data = JSON.parse(text);
@@ -846,7 +1312,11 @@ hr {
                             showAlert('error', 'เกิดข้อผิดพลาด', data.message || 'ไม่สามารถบันทึกการขายได้');
                         }
                     } catch (e) {
-                        showAlert('error', 'JSON Parse Error', text); // แสดง HTML ตอบกลับเลย
+                        showAlert(
+                            'error',
+                            'ข้อมูลตอบกลับไม่ถูกต้อง',
+                            'เซิร์ฟเวอร์ส่งข้อมูลกลับมาในรูปแบบที่ระบบอ่านไม่ได้ กรุณาลองใหม่อีกครั้ง'
+                        );
                     }
                 })
 
@@ -887,7 +1357,7 @@ hr {
                     }
                 })
                 .catch((err) => {
-                    console.error("submitSaleData Error", err);
+                    console.error("เกิดข้อผิดพลาดขณะบันทึกการขาย", err);
                     showAlert('error', 'ข้อผิดพลาด', 'การเชื่อมต่อกับเซิร์ฟเวอร์ล้มเหลว');
                 })
                 .finally(() => {
@@ -1134,7 +1604,7 @@ if (isActive == 0) {
             })
             .then(async response => {
                 const text = await response.text();
-                console.log('RAW:', text);
+                console.log('ข้อมูลตอบกลับ:', text);
                 return JSON.parse(text);
             })
             .then(data => {
@@ -1173,7 +1643,7 @@ if (isActive == 0) {
                 console.error(error);
                 showAlert(
                     'error',
-                    'Server Error',
+                    'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์',
                     'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบอินเทอร์เน็ต'
                 );
             });
@@ -1227,7 +1697,7 @@ function toggleAddCustomerForm(show = null) {
                 <h5 class="modal-title d-flex align-items-center gap-2 fw-bold" style="font-family: 'Kanit', sans-serif;">
                     <span class="fs-4"></span> ขายเงินเชื่อ (บันทึกยอดหนี้)
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button>
             </div>
 
             <div class="modal-body p-4 bg-light/50" style="font-family: 'Kanit', sans-serif;">

@@ -1,0 +1,85 @@
+<?php
+// นำ methods/scopes เหล่านี้ไปรวมใน App\Models\Product เดิม
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+public function productUnits(): HasMany
+{
+    return $this->hasMany(ProductUnit::class);
+}
+
+public function images(): HasMany
+{
+    return $this->hasMany(ProductImage::class);
+}
+
+/**
+ * stock expression:
+ * SUM((warehouse_stock + store_stock) * unit_quantity)
+ *
+ * Assumption:
+ * - product_units.product_id
+ * - stocks.product_unit_id
+ */
+public function scopeWithTotalPieces(Builder $query): Builder
+{
+    return $query->selectSub(
+        \DB::table('product_units')
+            ->leftJoin('stocks', 'stocks.product_unit_id', '=', 'product_units.id')
+            ->selectRaw(
+                'COALESCE(SUM((COALESCE(stocks.warehouse_stock, 0) + COALESCE(stocks.store_stock, 0)) * GREATEST(product_units.unit_quantity, 1)), 0)'
+            )
+            ->whereColumn('product_units.product_id', 'products.id'),
+        'total_pieces'
+    );
+}
+
+public function scopeOutOfStock(Builder $query): Builder
+{
+    return $query->whereRaw('(
+        SELECT COALESCE(SUM(
+            (COALESCE(stocks.warehouse_stock, 0) + COALESCE(stocks.store_stock, 0))
+            * GREATEST(product_units.unit_quantity, 1)
+        ), 0)
+        FROM product_units
+        LEFT JOIN stocks ON stocks.product_unit_id = product_units.id
+        WHERE product_units.product_id = products.id
+    ) <= 0');
+}
+
+public function scopeLowStock(Builder $query): Builder
+{
+    return $query
+        ->whereRaw('(
+            SELECT COALESCE(SUM(
+                (COALESCE(stocks.warehouse_stock, 0) + COALESCE(stocks.store_stock, 0))
+                * GREATEST(product_units.unit_quantity, 1)
+            ), 0)
+            FROM product_units
+            LEFT JOIN stocks ON stocks.product_unit_id = product_units.id
+            WHERE product_units.product_id = products.id
+        ) > 0')
+        ->whereRaw('(
+            SELECT COALESCE(SUM(
+                (COALESCE(stocks.warehouse_stock, 0) + COALESCE(stocks.store_stock, 0))
+                * GREATEST(product_units.unit_quantity, 1)
+            ), 0)
+            FROM product_units
+            LEFT JOIN stocks ON stocks.product_unit_id = product_units.id
+            WHERE product_units.product_id = products.id
+        ) <= COALESCE(products.min_stock, 10)');
+}
+
+public function scopeNormalStock(Builder $query): Builder
+{
+    return $query->whereRaw('(
+        SELECT COALESCE(SUM(
+            (COALESCE(stocks.warehouse_stock, 0) + COALESCE(stocks.store_stock, 0))
+            * GREATEST(product_units.unit_quantity, 1)
+        ), 0)
+        FROM product_units
+        LEFT JOIN stocks ON stocks.product_unit_id = product_units.id
+        WHERE product_units.product_id = products.id
+    ) > COALESCE(products.min_stock, 10)');
+}

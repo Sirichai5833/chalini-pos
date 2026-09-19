@@ -72,38 +72,79 @@ class OnlineController extends Controller
         ->with('success', 'ข้อมูลสมาชิกถูกอัปเดตเรียบร้อย');
 }
 
-    public function index(Request $request)
+   public function index(Request $request)
 {
-    $systemAlert = \App\Models\Setting::where('key', 'system_alert')->value('value');
-    
-    // 1. แคชหมวดหมู่ไว้ 1 ชั่วโมง (ลดการคิวรีฐานข้อมูลทุกครั้งที่รีเฟรชหน้า)
-    $categories = cache()->remember('categories', 60 * 60, function () {
-        return Category::all();
-    });
+    $settings = DB::table('settings')
+        ->pluck('value', 'key');
 
-    $query = Product::query()->with(['productUnits', 'images', 'productStocks.unit']);
+    $shopSettings = (object) [
+        'shop_name' => $settings->get('shop_name', 'POS'),
+        'phone' => $settings->get('phone'),
+        'promptpay' => $settings->get('promptpay'),
+        'open_time' => $settings->get('open_time', '09:00'),
+        'close_time' => $settings->get('close_time', '21:00'),
+        'opening_cash' => $settings->get('opening_cash', 0),
+        'shipping_fee' => (float) $settings->get('shipping_fee', 0),
+    ];
+
+    $systemAlert = $settings->get('system_alert');
+
+    $categories = cache()->remember(
+        'online_categories',
+        now()->addHour(),
+        function () {
+            return Category::query()
+                ->orderBy('name')
+                ->get();
+        }
+    );
+
+    $query = Product::query()
+        ->where('is_active', true)
+        ->where('is_online', true)
+        ->with([
+            'productUnits',
+            'images',
+            'productStocks.unit',
+        ]);
 
     if ($request->filled('category')) {
-        $query->where('category_id', $request->category);
+        $query->where(
+            'category_id',
+            $request->integer('category')
+        );
     }
 
     if ($request->filled('search')) {
-        $query->where('name', 'like', '%' . $request->search . '%');
+        $search = trim((string) $request->input('search'));
+
+        $query->where(function ($q) use ($search) {
+            $q->where('name', 'like', "%{$search}%")
+                ->orWhereHas('productUnits', function ($unitQuery) use ($search) {
+                    $unitQuery->where('barcode', 'like', "%{$search}%");
+                });
+        });
     }
 
-    $products = $query->simplePaginate(10);
+    $products = $query
+        ->orderBy('name')
+        ->simplePaginate(10)
+        ->withQueryString();
+
     $this->hydrateProductStockTotals($products);
 
-    $products->appends($request->all());
-
     $cart = session('cart', []);
-    $totalItems = collect($cart)->sum(fn($item) => $item['quantity']);
+
+    $totalItems = collect($cart)->sum(
+        fn ($item) => (int) ($item['quantity'] ?? 0)
+    );
 
     return view('online.pos', [
         'categories' => $categories,
         'products' => $products,
         'totalItems' => $totalItems,
         'systemAlert' => $systemAlert,
+        'shopSettings' => $shopSettings,
     ]);
 }
 
@@ -171,128 +212,210 @@ class OnlineController extends Controller
     }
 
 
+
+    /**
+     * รวมสต็อกหน้าร้านของสินค้าตัวเดียวกันจากทุกหน่วย
+     * โดยแปลงทุกหน่วยเป็นหน่วยฐานก่อน แล้วแปลงกลับเป็นหน่วยที่ลูกค้าเลือก
+     */
+    private function availableStockForUnit(int $productId, int $selectedUnitId): int
+    {
+        $units = ProductUnit::query()
+            ->where('product_id', $productId)
+            ->get(['id', 'unit_quantity'])
+            ->keyBy('id');
+
+        $selectedUnit = $units->get($selectedUnitId);
+
+        if (!$selectedUnit) {
+            return 0;
+        }
+
+        $selectedUnitQuantity = max(
+            1,
+            (int) ($selectedUnit->unit_quantity ?? 1)
+        );
+
+        $stocks = ProductStocks::query()
+            ->where('product_id', $productId)
+            ->get(['unit_id', 'store_stock']);
+
+        $totalBaseUnits = $stocks->sum(function ($stock) use ($units) {
+            $unit = $units->get($stock->unit_id);
+
+            $unitQuantity = max(
+                1,
+                (int) ($unit?->unit_quantity ?? 1)
+            );
+
+            return max(
+                0,
+                (int) ($stock->store_stock ?? 0)
+            ) * $unitQuantity;
+        });
+
+        return intdiv(
+            (int) $totalBaseUnits,
+            $selectedUnitQuantity
+        );
+    }
+
 // 1. อัปเดตจำนวนสินค้า (แก้ไขแล้ว)
     public function updateQuantity(Request $request, $id)
     {
         $cart = session()->get('cart', []);
         $this->assertCartOwnership($cart);
+
         $validated = $request->validate([
             'quantity' => 'required|integer|min:1',
         ]);
 
         if (!isset($cart[$id])) {
-            return response()->json(['success' => false, 'message' => 'ไม่พบสินค้าในตะกร้า'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'ไม่พบสินค้าในตะกร้า',
+            ], 404);
         }
 
         $item = $cart[$id];
         $requestedQty = (int) $validated['quantity'];
 
-        // ดึงสต็อกจากตาราง product_stocks ตาม product_id และ product_unit_id
-        $stock = ProductStocks::where('product_id', $item['product_id'])
-                    ->where('unit_id', $item['product_unit_id'])
-                    ->first();
+        // รวมสต็อกของสินค้าตัวเดียวกันจากทุกหน่วย
+        $currentStock = $this->availableStockForUnit(
+            (int) $item['product_id'],
+            (int) $item['product_unit_id']
+        );
 
-        $currentStock = $stock ? $stock->store_stock : 0;
-
-        // เช็คว่าจำนวนที่ขอเกินสต็อกที่มีหรือไม่
         if ($requestedQty > $currentStock) {
             return response()->json([
                 'success' => false,
-                'message' => "สินค้าในสต็อกมีเหลือเพียง {$currentStock} ชิ้น"
+                'message' =>
+                    "สินค้ารวมทุกหน่วยมีคงเหลือเทียบเท่า {$currentStock} {$item['unit_name']}",
+                'stock' => $currentStock,
             ], 400);
         }
 
-        // บันทึกจำนวนและสต็อกจากตัวเลขจริงลง Session
         $cart[$id]['quantity'] = $requestedQty;
         $cart[$id]['stock'] = $currentStock;
-        
+        $cart[$id]['available_stock'] = $currentStock;
+
         session()->put('cart', $cart);
 
-        // คำนวณยอดรวมใหม่
-        $itemTotal = $cart[$id]['price'] * $requestedQty;
+        $itemTotal =
+            (float) $cart[$id]['price'] * $requestedQty;
+
         $total = 0;
         $totalItems = 0;
 
         foreach ($cart as $cItem) {
-            $total += $cItem['price'] * $cItem['quantity'];
-            $totalItems += $cItem['quantity'];
+            $total +=
+                (float) $cItem['price']
+                * (int) $cItem['quantity'];
+
+            $totalItems += (int) $cItem['quantity'];
         }
 
         return response()->json([
             'success' => true,
             'quantity' => $requestedQty,
+            'stock' => $currentStock,
             'item_total' => number_format($itemTotal, 2),
             'total' => number_format($total, 2),
-            'total_items' => $totalItems
+            'total_items' => $totalItems,
         ]);
     }
 
     // 2. แสดงหน้าตะกร้าสินค้า (แก้ไขแล้ว)
-    public function cart()
+   public function cart()
+{
+    $cart = session()->get('cart', []);
+    $this->assertCartOwnership($cart);
+
+    $total = 0;
+    $outOfStockItems = [];
+
+    foreach ($cart as $key => &$item) {
+        // รวมสต็อกของสินค้าตัวเดียวกันจากทุกหน่วย
+        // แล้วแปลงเป็นจำนวนของหน่วยที่อยู่ในตะกร้า
+        $stockAmount = $this->availableStockForUnit(
+            (int) $item['product_id'],
+            (int) $item['product_unit_id']
+        );
+
+        $item['stock'] = $stockAmount;
+        $item['available_stock'] = $stockAmount;
+
+        $total +=
+            (float) $item['price']
+            * (int) $item['quantity'];
+
+        if ((int) $item['quantity'] > $stockAmount) {
+            $outOfStockItems[] = [
+                'name' =>
+                    $item['name']
+                    . " ({$item['unit_name']})",
+                'requested' => (int) $item['quantity'],
+                'available' => $stockAmount,
+            ];
+        }
+    }
+
+    unset($item);
+
+    session()->put('cart', $cart);
+
+    $shippingFee = $this->shippingFee();
+    $grandTotal = round($total + $shippingFee, 2);
+
+    return view('online.cart', compact(
+        'cart',
+        'total',
+        'shippingFee',
+        'grandTotal',
+        'outOfStockItems'
+    ));
+}
+
+    public function showCheckoutForm()
     {
+        $productUnit = ProductUnit::all();
+        $member = Auth::user();
+
         $cart = session()->get('cart', []);
         $this->assertCartOwnership($cart);
-        $total = 0;
-        $outOfStockItems = [];
 
-        foreach ($cart as $key => &$item) {
-            // ดึงสต็อกจากตาราง product_stocks ตามหน่วยของสินค้านั้นๆ
-            $stock = ProductStocks::where('product_id', $item['product_id'])
-                        ->where('unit_id', $item['product_unit_id'])
-                        ->first();
+        $total = collect($cart)->sum(function ($item) {
+            return (float) ($item['price'] ?? 0)
+                * (int) ($item['quantity'] ?? 0);
+        });
 
-            $stockAmount = $stock ? $stock->store_stock : 0;
+        $shippingFee = $this->shippingFee();
+        $grandTotal = round($total + $shippingFee, 2);
+        $smallestUnitId = null;
 
-            $item['stock'] = $stockAmount; // เก็บจำนวนสต็อกที่เป็นตัวเลขลง Session
-            $total += $item['price'] * $item['quantity'];
+        if (!empty($cart)) {
+            $firstItem = reset($cart);
+            $productId = $firstItem['product_id'];
 
-            // เช็คว่าสินค้าชิ้นไหนสั่งเกินสต็อก
-            if ($item['quantity'] > $stockAmount) {
-                $outOfStockItems[] = [
-                    'name' => $item['name'] . " ({$item['unit_name']})",
-                    'requested' => $item['quantity'],
-                    'available' => $stockAmount
-                ];
+            $smallestUnit = ProductUnit::query()
+                ->where('product_id', $productId)
+                ->orderBy('unit_quantity')
+                ->first();
+
+            if ($smallestUnit) {
+                $smallestUnitId = $smallestUnit->id;
             }
         }
 
-        session()->put('cart', $cart);
-
-        return view('online.cart', compact('cart', 'total', 'outOfStockItems'));
+        return view('online.checkout', compact(
+            'cart',
+            'member',
+            'total',
+            'shippingFee',
+            'grandTotal',
+            'smallestUnitId',
+            'productUnit'
+        ));
     }
-    public function showCheckoutForm()
-{
-    $productUnit = ProductUnit::all();
-    $member = Auth::user();
-
-    // ดึงข้อมูลสินค้าจาก session
-    $cart = session()->get('cart', []);
-    $this->assertCartOwnership($cart);
-    $total = 0;
-    $smallestUnitId = null;
-
-    foreach ($cart as $item) {
-        $total += $item['price'] * $item['quantity'];
-    }
-
-    if (!empty($cart)) {
-        $firstItem = reset($cart);
-        $productId = $firstItem['product_id'];
-
-        // หาหน่วยที่เล็กที่สุดของสินค้านี้
-        $smallestUnit = ProductUnit::where('product_id', $productId)
-            ->orderBy('unit_quantity', 'asc')
-            ->first();
-
-        if ($smallestUnit) {
-            $smallestUnitId = $smallestUnit->id;
-        }
-    }
-
-    // ✅ เพิ่ม 'cart' เข้าไปใน compact()
-    return view('online.checkout', compact('cart', 'member', 'total', 'smallestUnitId', 'productUnit'));
-}
-
 
 
 
@@ -369,9 +492,11 @@ class OnlineController extends Controller
                 }
 
                 $items = $this->checkoutItems($cartItems);
-                $totalAmount = round($items->sum('subtotal'), 2);
+                $itemsTotal = round($items->sum('subtotal'), 2);
+                $shippingFee = $this->shippingFee();
+                $totalAmount = round($itemsTotal + $shippingFee, 2);
 
-                if ($totalAmount <= 0) {
+                if ($itemsTotal <= 0) {
                     throw ValidationException::withMessages([
                         'cart' => 'Order total must be greater than zero.',
                     ]);
@@ -388,7 +513,7 @@ class OnlineController extends Controller
                     '',
                     $validated['order_token']
                 ));
-                $order = Order::create([
+                $orderData = [
                     'order_token' => $validated['order_token'],
                     'order_code' => 'ORD' . substr($tokenCode, 0, 16),
                     'user_id' => $member->id,
@@ -396,8 +521,19 @@ class OnlineController extends Controller
                     'status' => 'รอเจ้าหน้าที่รับคำสั่งซื้อ',
                     'tracking_number' => $validated['phone'],
                     'slip_path' => $slipPath,
+                    "shipping_fee" => $shippingFee,
+                    'items_total' => $itemsTotal,
                     'total_amount' => $totalAmount,
-                ]);
+                ];
+
+                if (\Illuminate\Support\Facades\Schema::hasColumn(
+                    'orders',
+                    'shipping_fee'
+                )) {
+                    $orderData['shipping_fee'] = $shippingFee;
+                }
+
+                $order = Order::create($orderData);
 
                 foreach ($items as $item) {
                     $unit = $item['unit'];
@@ -445,6 +581,103 @@ class OnlineController extends Controller
             $result['created']
                 ? 'สั่งซื้อสำเร็จ'
                 : 'คำสั่งซื้อนี้ถูกบันทึกแล้ว'
+        );
+    }
+
+    public function history(Request $request)
+    {
+        $search = trim((string) $request->input('search', ''));
+
+        $orders = Order::query()
+            ->with('user')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery
+                        ->where('id', 'like', "%{$search}%")
+                        ->orWhere('order_code', 'like', "%{$search}%")
+                        ->orWhere('tracking_number', 'like', "%{$search}%")
+                        ->orWhereHas('user', function ($userQuery) use ($search) {
+                            $userQuery
+                                ->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%")
+                                ->orWhere('phone', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->when(
+                $request->filled('status'),
+                fn ($query) => $query->where(
+                    'status',
+                    $request->input('status')
+                )
+            )
+            ->when(
+                $request->filled('payment_method'),
+                fn ($query) => $query->where(
+                    'payment_method',
+                    $request->input('payment_method')
+                )
+            )
+            ->when(
+                $request->filled('date_from'),
+                fn ($query) => $query->whereDate(
+                    'created_at',
+                    '>=',
+                    $request->input('date_from')
+                )
+            )
+            ->when(
+                $request->filled('date_to'),
+                fn ($query) => $query->whereDate(
+                    'created_at',
+                    '<=',
+                    $request->input('date_to')
+                )
+            )
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
+
+        return view(
+            'online.orders.history',
+            compact('orders')
+        );
+    }
+
+    /**
+     * แสดงรายละเอียดคำสั่งซื้อออนไลน์ 1 รายการ
+     *
+     * Controller ส่งตัวแปร $order เพียงตัวเดียว
+     * ดังนั้นหน้า Blade ต้องใช้ $order โดยตรง
+     * และวนเฉพาะ $order->items เท่านั้น
+     */
+    public function showOrder(Order $order)
+    {
+        $order->load([
+            'user',
+            'items.productUnit.product',
+        ]);
+
+        return view(
+            'sale.show-order',
+            compact('order')
+        );
+    }
+
+    /**
+     * ใช้กับ route ชื่อ online.orders.show
+     * และ View resources/views/online/orders/show.blade.php
+     */
+    public function show(Order $order)
+    {
+        $order->load([
+            'user',
+            'items.productUnit.product',
+        ]);
+
+        return view(
+            'online.orders.show',
+            compact('order')
         );
     }
 
@@ -523,6 +756,20 @@ class OnlineController extends Controller
             ];
         })->values();
     }
+
+    private function shippingFee(): float
+    {
+        $value = DB::table('settings')
+            ->where('key', 'shipping_fee')
+            ->value('value');
+
+        if (!is_numeric($value)) {
+            return 0.0;
+        }
+
+        return round(max(0, (float) $value), 2);
+    }
+
 
     public function generateQRCode(Request $request)
     {

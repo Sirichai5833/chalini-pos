@@ -1,4 +1,4 @@
-<div wire:poll.5s="pollCount">
+<div wire:poll.60s="pollCount">
     @if ($count > 0)
         <span class="badge bg-danger ms-2">{{ $count }}</span>
     @endif

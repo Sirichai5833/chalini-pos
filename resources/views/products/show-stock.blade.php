@@ -63,4 +63,10 @@
     </table>
 </div>
 
+<div class="mt-4">
+    {{ $products->withQueryString()->links() }}
+</div>
+
+</div>
+
 @endsection

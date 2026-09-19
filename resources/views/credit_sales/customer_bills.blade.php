@@ -10,7 +10,7 @@
 
 <div class="container py-4" style="font-family: 'Kanit', sans-serif;">
 
-```
+
 {{-- ปุ่มย้อนกลับ --}}
 <div class="mb-3">
     <a href="javascript:history.back()"
@@ -774,7 +774,7 @@
     </div>
 
 </div>
-```
+
 
 </div>
 

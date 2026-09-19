@@ -1,128 +1,533 @@
 @extends('layouts.layout')
 
 @section('content')
+
+@php
+    /*
+     * รายงานยอดขายต้องไม่รวมรายการที่ถูกยกเลิก
+     *
+     * หมายเหตุ:
+     * - ตารางและยอดรวมพื้นฐานกรองซ้ำใน View เพื่อความปลอดภัย
+     * - กำไร ต้นทุน กราฟ และสินค้าขายดี ต้องคำนวณจาก Controller
+     *   โดยส่งตัวแปรที่ลงท้ายด้วย Net มาให้หน้านี้
+     */
+    $cancelledStatuses = [
+        'cancelled',
+        'canceled',
+        'void',
+        'ยกเลิก',
+        'ถูกยกเลิก',
+    ];
+
+    $isCancelled = static function ($record) use ($cancelledStatuses): bool {
+        $status = mb_strtolower(
+            trim((string) ($record->status ?? ''))
+        );
+
+        return in_array($status, $cancelledStatuses, true)
+            || !empty($record->cancelled_at)
+            || !empty($record->canceled_at)
+            || (bool) ($record->is_cancelled ?? false);
+    };
+
+    $validSales = collect($sales ?? [])
+        ->reject($isCancelled)
+        ->values();
+
+    $validOnlineOrders = collect($onlineOrders ?? [])
+        ->reject($isCancelled)
+        ->values();
+
+    $cancelledSales = collect($sales ?? [])
+        ->filter($isCancelled)
+        ->values();
+
+    $cancelledOnlineOrders = collect($onlineOrders ?? [])
+        ->filter($isCancelled)
+        ->values();
+
+    $validOfflineSalesTotal = (float) $validSales->sum('total_price');
+    $validOnlineSalesTotal = (float) $validOnlineOrders->sum('total_amount');
+    $validTotalSales = $validOfflineSalesTotal + $validOnlineSalesTotal;
+
+    $cancelledOfflineTotal = (float) $cancelledSales->sum('total_price');
+    $cancelledOnlineTotal = (float) $cancelledOnlineOrders->sum('total_amount');
+    $cancelledTotal = $cancelledOfflineTotal + $cancelledOnlineTotal;
+
+    /*
+     * ตัวแปรเหล่านี้ต้องมาจาก Controller ที่กรองรายการยกเลิกแล้ว
+     * ไม่ fallback ไปใช้ค่ารวมเดิม เพราะอาจทำให้รายงานผิด
+     */
+    $netProfitDisplay = (float) ($netProfitNet ?? 0);
+    $totalCostDisplay = (float) ($totalCostNet ?? 0);
+    $chartLabelsDisplay = $chartLabelsNet ?? [];
+    $chartDataDisplay = $chartDataNet ?? [];
+    $topProductsDisplay = collect($topAllProductsNet ?? []);
+
+    $hasNetMetrics =
+        isset($netProfitNet)
+        && isset($totalCostNet)
+        && isset($chartLabelsNet)
+        && isset($chartDataNet)
+        && isset($topAllProductsNet);
+
+    $marginDisplay = $validTotalSales > 0
+        ? ($netProfitDisplay / $validTotalSales) * 100
+        : 0;
+@endphp
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
 @push('styles')
 <style>
     :root {
-        --primary-color: #4e73df;
-        --success-color: #1cc88a;
-        --info-color: #36b9cc;
-        --warning-color: #f6c23e;
-        --danger-color: #e74a3b;
-        --dark-color: #5a5c69;
-        --bg-color: #f8f9fc;
+        --dash-yellow: #ffd43b;
+        --dash-yellow-soft: rgba(255, 212, 59, .12);
+        --dash-black: #090909;
+        --dash-panel: #151515;
+        --dash-panel-soft: #1d1d1d;
+        --dash-border: rgba(255, 212, 59, .20);
+        --dash-text: #f7f7f7;
+        --dash-muted: #aaa;
+        --dash-success: #22c55e;
+        --dash-danger: #ef4444;
+        --dash-info: #38bdf8;
     }
 
     body {
         font-family: 'Prompt', sans-serif;
-        background-color: var(--bg-color);
-        color: var(--dark-color);
+        background:
+            radial-gradient(circle at top right, rgba(255, 212, 59, .08), transparent 26%),
+            var(--dash-black);
+        color: var(--dash-text);
     }
 
-    /* Cards Styling */
-    .card {
-        border: none;
-        border-radius: 1rem;
-        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
-        transition: transform 0.2s ease-in-out;
+    .sales-dashboard-page {
+        color: var(--dash-text);
     }
-    .card:hover {
-        transform: translateY(-3px);
+
+    .dashboard-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 1.6rem;
+        margin-bottom: 1.4rem;
+        border: 1px solid var(--dash-border);
+        border-radius: 24px;
+        background:
+            radial-gradient(circle at 88% 18%, rgba(255, 212, 59, .20), transparent 24%),
+            linear-gradient(135deg, #080808 0%, #171717 58%, #2b2300 100%);
+        box-shadow: 0 20px 46px rgba(0, 0, 0, .38);
     }
-    
-    /* Stat Icons */
-    .stat-icon {
-        width: 60px;
-        height: 60px;
+
+    .dashboard-hero::after {
+        content: "";
+        position: absolute;
+        right: -80px;
+        bottom: -130px;
+        width: 290px;
+        height: 290px;
         border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.8rem;
+        background: rgba(255, 212, 59, .10);
+        pointer-events: none;
     }
 
-    /* Scrollbar สำหรับตาราง */
+    .dashboard-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .dashboard-title {
+        margin: 0;
+        color: var(--dash-yellow);
+        font-weight: 950;
+    }
+
+    .dashboard-subtitle {
+        margin: .4rem 0 0;
+        color: #d3d3d3;
+        font-size: .9rem;
+    }
+
+    .dashboard-actions .btn {
+        min-height: 44px;
+        border-radius: 999px;
+        font-weight: 850;
+    }
+
+    .btn-export {
+        border: 1px solid rgba(34, 197, 94, .42);
+        background: rgba(34, 197, 94, .12);
+        color: #86efac;
+    }
+
+    .btn-export:hover {
+        border-color: var(--dash-success);
+        background: var(--dash-success);
+        color: #08130c;
+    }
+
+    .btn-print {
+        border: 1px solid var(--dash-yellow);
+        background: linear-gradient(135deg, #ffe66a, var(--dash-yellow));
+        color: #111;
+    }
+
+    .btn-print:hover {
+        border-color: #fff08c;
+        background: linear-gradient(135deg, #fff08c, #ffc800);
+        color: #000;
+    }
+
+    .card {
+        border: 1px solid #2d2d2d;
+        border-radius: 20px;
+        background: linear-gradient(180deg, #191919, #111);
+        color: var(--dash-text);
+        box-shadow: 0 16px 36px rgba(0, 0, 0, .30);
+        transition: .2s ease;
+    }
+
+    .card:hover {
+        border-color: rgba(255, 212, 59, .5);
+        transform: translateY(-3px);
+        box-shadow: 0 24px 48px rgba(0, 0, 0, .44);
+    }
+
+    .card-header {
+        border-bottom: 1px solid #2e2e2e !important;
+        background: linear-gradient(135deg, #202020, #141414) !important;
+    }
+
+    .card-header h6 {
+        color: var(--dash-yellow) !important;
+    }
+
+    .filter-card {
+        border-color: var(--dash-border);
+    }
+
+    .form-control,
+    .form-select {
+        min-height: 46px;
+        border: 1px solid #3d3d3d;
+        border-radius: 13px;
+        background: #111;
+        color: #fff !important;
+        box-shadow: none;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--dash-yellow);
+        background: #151515;
+        color: #fff;
+        box-shadow: 0 0 0 .2rem rgba(255, 212, 59, .12);
+    }
+
+    .form-select option {
+        background: #151515;
+        color: #fff;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+    }
+
+    .btn-filter {
+        min-height: 46px;
+        border: 1px solid var(--dash-yellow);
+        border-radius: 13px;
+        background: linear-gradient(135deg, #ffe66a, var(--dash-yellow));
+        color: #111;
+        font-weight: 900;
+    }
+
+    .btn-filter:hover {
+        background: linear-gradient(135deg, #fff08c, #ffc800);
+        color: #000;
+    }
+
+    .kpi-card {
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+    }
+
+    .kpi-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 4px;
+        background: var(--dash-yellow);
+    }
+
+    .kpi-label {
+        color: var(--dash-muted);
+        font-size: .72rem;
+        font-weight: 850;
+        letter-spacing: .4px;
+        text-transform: uppercase;
+    }
+
+    .kpi-value {
+        color: #fff;
+        font-size: 1.6rem;
+        font-weight: 950;
+    }
+
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        display: grid;
+        place-items: center;
+        border-radius: 17px;
+        background: var(--dash-yellow-soft);
+        color: var(--dash-yellow);
+        font-size: 1.6rem;
+    }
+
+    .text-muted {
+        color: var(--dash-muted) !important;
+    }
+
+    .text-dark {
+        color: #fff !important;
+    }
+
+    .text-primary,
+    .text-info {
+        color: var(--dash-yellow) !important;
+    }
+
     .custom-scrollbar {
-        max-height: 400px;
+        max-height: 410px;
         overflow-y: auto;
     }
+
     .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: #f1f1f1; 
-        border-radius: 10px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #c1c1c1; 
-        border-radius: 10px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8; 
+        width: 7px;
     }
 
-    /* Tables */
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #101010;
+        border-radius: 999px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #555;
+        border-radius: 999px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: var(--dash-yellow);
+    }
+
+    .table {
+        --bs-table-bg: transparent;
+        --bs-table-color: var(--dash-text);
+        --bs-table-border-color: #303030;
+        --bs-table-hover-bg: rgba(255, 212, 59, .045);
+        --bs-table-hover-color: #fff;
+        color: var(--dash-text);
+    }
+
     .table th {
-        font-weight: 600;
-        color: #858796;
-        text-transform: uppercase;
-        font-size: 0.75rem;
-        letter-spacing: 0.5px;
-        background-color: #f8f9fc;
         position: sticky;
         top: 0;
         z-index: 1;
+        border-color: #303030;
+        background: #101010 !important;
+        color: var(--dash-yellow) !important;
+        font-size: .72rem;
+        font-weight: 850;
+        letter-spacing: .35px;
+        text-transform: uppercase;
     }
+
     .table td {
+        border-color: #303030;
+        color: #e8e8e8;
         vertical-align: middle;
-        font-size: 0.9rem;
-        border-bottom: 1px solid #e3e6f0;
+        font-size: .88rem;
+    }
+
+    .rank-badge {
+        width: 30px;
+        height: 30px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 50%;
+        background: rgba(255, 212, 59, .14);
+        color: var(--dash-yellow);
+        font-weight: 900;
+    }
+
+    .section-card-title {
+        color: var(--dash-yellow);
+        font-weight: 900;
     }
 
     @media print {
-        body * { visibility: hidden; }
-        body { background-color: white; }
-        #printHeader, #printHeader * { visibility: visible; display: block !important; }
-        #reportSection, #reportSection * { visibility: visible; }
-        #reportSection { position: absolute; left: 0; top: 0; width: 100%; }
-        .no-print { display: none !important; }
-        .card { box-shadow: none !important; border: 1px solid #eaecf4 !important; transform: none !important; }
-        .custom-scrollbar { max-height: none; overflow-y: visible; }
-        
-        .kpi-row { display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; margin-bottom: 20px !important; }
-        .kpi-col { flex: 1 !important; width: 25% !important; max-width: 25% !important; padding: 0 !important; margin: 0 !important; }
-        .kpi-col .card-body { padding: 1rem !important; }
-        .kpi-col h3 { font-size: 1.25rem !important; margin-bottom: 5px !important; }
-        .kpi-col h6 { font-size: 0.65rem !important; }
-        .kpi-col .stat-icon { width: 40px !important; height: 40px !important; font-size: 1.2rem !important; }
-        .kpi-col .small { font-size: 0.7rem !important; }
+        body * {
+            visibility: hidden;
+        }
+
+        body {
+            background: #fff !important;
+        }
+
+        #printHeader,
+        #printHeader *,
+        #reportSection,
+        #reportSection * {
+            visibility: visible;
+        }
+
+        #reportSection {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+
+        .sales-dashboard-page,
+        .sales-dashboard-page .card,
+        .sales-dashboard-page .table,
+        .sales-dashboard-page .table td,
+        .sales-dashboard-page .text-dark,
+        .sales-dashboard-page .text-muted {
+            color: #000 !important;
+            background: #fff !important;
+        }
+
+        .sales-dashboard-page .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        .sales-dashboard-page .card-header,
+        .sales-dashboard-page .table th {
+            color: #000 !important;
+            background: #f2f2f2 !important;
+        }
+
+        .custom-scrollbar {
+            max-height: none;
+            overflow: visible;
+        }
+
+        .kpi-row {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            gap: 12px !important;
+        }
+
+        .kpi-col {
+            flex: 1 !important;
+            max-width: 25% !important;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .dashboard-hero {
+            padding: 1.2rem;
+            border-radius: 19px;
+        }
+
+        .dashboard-hero .d-flex {
+            align-items: flex-start !important;
+            flex-direction: column;
+        }
+
+        .dashboard-actions {
+            width: 100%;
+        }
+
+        .dashboard-actions .btn {
+            width: 100%;
+        }
     }
 </style>
 @endpush
 
+<div class="sales-dashboard-page">
 <div class="container-fluid px-xl-5 mt-4 mb-5">
     
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 no-print">
-        <div>
-            <h3 class="fw-bold mb-1" style="color: #4e73df;">
-                <i class="bi bi-pie-chart-fill me-2"></i>Dashboard ยอดขาย
-            </h3>
-            <p class="text-muted small mb-0">รายงานสรุปผลประกอบการประจำวันและแนวโน้มการขาย</p>
-        </div>
-        <div class="mt-3 mt-md-0 d-flex gap-2">
-            <button type="button" class="btn btn-success shadow-sm px-4 rounded-pill fw-bold" onclick="exportToExcel()">
-                <i class="bi bi-file-earmark-excel me-2"></i> ส่งออก Excel
-            </button>
-            <button type="button" class="btn btn-primary shadow-sm px-4 rounded-pill" onclick="window.print()">
-                <i class="bi bi-printer me-2"></i> พิมพ์รายงาน
-            </button>
-        </div>
-    </div>
+    <section class="dashboard-hero no-print">
+        <div class="dashboard-hero-content d-flex align-items-center justify-content-between gap-3">
+            <div>
+                <h3 class="dashboard-title">
+                    <i class="bi bi-pie-chart-fill me-2"></i>
+                    Dashboard ยอดขาย
+                </h3>
+                <p class="dashboard-subtitle">
+                    สรุปผลประกอบการ ยอดขาย กำไร ต้นทุน และแนวโน้มการขาย
+                </p>
 
-    <div class="card mb-4 no-print rounded-4">
+                <div class="mt-2 small text-warning">
+                    <i class="bi bi-info-circle me-1"></i>
+                    ยอดขายในรายงานนี้ไม่รวมรายการที่ถูกยกเลิก
+                </div>
+            </div>
+
+            <div class="dashboard-actions d-flex flex-wrap gap-2">
+                <button type="button"
+                    class="btn btn-export px-4"
+                    onclick="exportToExcel()">
+                    <i class="bi bi-file-earmark-excel me-2"></i>
+                    ส่งออก Excel
+                </button>
+
+                <button type="button"
+                    class="btn btn-print px-4"
+                    onclick="window.print()">
+                    <i class="bi bi-printer me-2"></i>
+                    พิมพ์รายงาน
+                </button>
+            </div>
+        </div>
+    </section>
+
+    @if (!$hasNetMetrics)
+        <div
+            class="alert alert-warning no-print rounded-4 mb-3"
+            role="alert"
+        >
+            <div class="fw-bold mb-1">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                ข้อมูลกำไร ต้นทุน กราฟ และสินค้าขายดียังไม่พร้อม
+            </div>
+
+            <div class="small">
+                Controller ต้องส่งตัวแปร
+                <code>$netProfitNet</code>,
+                <code>$totalCostNet</code>,
+                <code>$chartLabelsNet</code>,
+                <code>$chartDataNet</code>
+                และ <code>$topAllProductsNet</code>
+                ที่กรองรายการยกเลิกแล้ว
+            </div>
+        </div>
+    @endif
+
+    @if ($cancelledTotal > 0)
+        <div
+            class="alert alert-danger no-print rounded-4 mb-3"
+            role="alert"
+        >
+            <i class="bi bi-x-octagon-fill me-1"></i>
+            มีรายการยกเลิกมูลค่า
+            <strong>฿{{ number_format($cancelledTotal, 2) }}</strong>
+            และไม่นำมารวมในยอดขายของรายงานนี้
+        </div>
+    @endif
+
+    <div class="card filter-card mb-4 no-print rounded-4">
         <div class="card-body p-4">
             <form id="reportForm" class="row g-3 align-items-center" method="GET">
                 <div class="col-12 col-md-auto text-muted fw-bold">
@@ -136,7 +541,7 @@
                     <input type="date" class="form-control text-muted" id="endDate" name="end_date" value="{{ request('end_date', date('Y-m-d')) }}">
                 </div>
                 <div class="col-12 col-md-auto ms-auto">
-                    <button type="submit" class="btn btn-dark px-4 w-100 rounded-pill">
+                    <button type="submit" class="btn btn-filter px-4 w-100">
                         <i class="bi bi-search me-2"></i> ดูข้อมูล
                     </button>
                 </div>
@@ -157,32 +562,32 @@
 
         <div class="row g-4 mb-4 kpi-row">
             <div class="col-xl-3 col-md-6 kpi-col">
-                <div class="card h-100 border-start border-4 border-primary">
+                <div class="card kpi-card h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h6 class="text-xs fw-bold text-primary text-uppercase mb-1">ยอดขายรวมทั้งหมด</h6>
-                                <h3 class="fw-bold mb-0 text-dark">{{ number_format($totalSales, 2) }} ฿</h3>
+                                <h6 class="kpi-label mb-1">ยอดขายสุทธิทั้งหมด</h6>
+                                <h3 class="kpi-value mb-0">{{ number_format($validTotalSales, 2) }} ฿</h3>
                             </div>
                             <div class="stat-icon bg-primary bg-opacity-10 text-primary">
                                 <i class="bi bi-wallet2"></i>
                             </div>
                         </div>
                         <div class="mt-3 small">
-                            <span class="text-muted me-2"><i class="bi bi-shop"></i> หน้าร้าน: <b>{{ number_format($sales->sum('total_price'), 0) }} ฿</b></span>
-                            <span class="text-muted"><i class="bi bi-globe"></i> ออนไลน์: <b>{{ number_format($onlineSalesTotal ?? 0, 0) }} ฿</b></span>
+                            <span class="text-muted me-2"><i class="bi bi-shop"></i> หน้าร้าน: <b>{{ number_format($validOfflineSalesTotal, 0) }} ฿</b></span>
+                            <span class="text-muted"><i class="bi bi-globe"></i> ออนไลน์: <b>{{ number_format($validOnlineSalesTotal, 0) }} ฿</b></span>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="col-xl-3 col-md-6 kpi-col">
-                <div class="card h-100 border-start border-4 border-success">
+                <div class="card kpi-card h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h6 class="text-xs fw-bold text-success text-uppercase mb-1">กำไรสุทธิ</h6>
-                                <h3 class="fw-bold mb-0 text-dark">{{ number_format($netProfit, 2) }} ฿</h3>
+                                <h6 class="kpi-label mb-1">กำไรสุทธิ (ไม่รวมยกเลิก)</h6>
+                                <h3 class="kpi-value mb-0">{{ number_format($netProfitDisplay, 2) }} ฿</h3>
                             </div>
                             <div class="stat-icon bg-success bg-opacity-10 text-success">
                                 <i class="bi bi-cash-coin"></i>
@@ -196,12 +601,12 @@
             </div>
 
             <div class="col-xl-3 col-md-6 kpi-col">
-                <div class="card h-100 border-start border-4 border-danger">
+                <div class="card kpi-card h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h6 class="text-xs fw-bold text-danger text-uppercase mb-1">ต้นทุนรวม</h6>
-                                <h3 class="fw-bold mb-0 text-dark">{{ number_format($totalCost, 2) }} ฿</h3>
+                                <h6 class="kpi-label mb-1">ต้นทุนสุทธิ (ไม่รวมยกเลิก)</h6>
+                                <h3 class="kpi-value mb-0">{{ number_format($totalCostDisplay, 2) }} ฿</h3>
                             </div>
                             <div class="stat-icon bg-danger bg-opacity-10 text-danger">
                                 <i class="bi bi-box-seam"></i>
@@ -215,13 +620,13 @@
             </div>
 
             <div class="col-xl-3 col-md-6 kpi-col">
-                <div class="card h-100 border-start border-4 border-info">
+                <div class="card kpi-card h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h6 class="text-xs fw-bold text-info text-uppercase mb-1">อัตรากำไร (Margin)</h6>
-                                <h3 class="fw-bold mb-0 text-dark">
-                                    {{ number_format(($netProfit / max($totalSales, 1)) * 100, 2) }} <span class="fs-5">%</span>
+                                <h6 class="kpi-label mb-1">อัตรากำไร (Margin)</h6>
+                                <h3 class="kpi-value mb-0">
+                                    {{ number_format($marginDisplay, 2) }} <span class="fs-5">%</span>
                                 </h3>
                             </div>
                             <div class="stat-icon bg-info bg-opacity-10 text-info">
@@ -260,7 +665,7 @@
                         <div class="no-print">
                             <input type="hidden" id="filterStartDate" value="{{ request('start_date') }}">
                             <input type="hidden" id="filterEndDate" value="{{ request('end_date') }}">
-                            <select id="categorySelect" class="form-select form-select-sm shadow-none border-light bg-light rounded-pill px-3">
+                            <select id="categorySelect" class="form-select form-select-sm shadow-none border-light  rounded-pill px-3">
                                 <option value="">หมวดหมู่: ทั้งหมด</option>
                                 @foreach ($categories as $category)
                                     <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>
@@ -281,10 +686,10 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @forelse (collect($topAllProducts)->take(10) as $index => $product)
+                                    @forelse ($topProductsDisplay->take(10) as $index => $product)
                                     <tr>
                                         <td style="width: 30px;">
-                                            <span class="badge {{ $index < 3 ? 'bg-warning text-dark' : 'bg-secondary' }} rounded-circle p-2">
+                                            <span class="rank-badge">
                                                 {{ $index + 1 }}
                                             </span>
                                         </td>
@@ -334,7 +739,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @forelse ($sales as $sale)
+                                    @forelse ($validSales as $sale)
                                     <tr>
                                         <td class="text-muted small">
                                             <div>{{ \Carbon\Carbon::parse($sale->sale_date)->format('d/m/Y') }}</div>
@@ -374,7 +779,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @forelse ($onlineOrders as $order)
+                                    @forelse ($validOnlineOrders as $order)
                                     <tr>
                                         <td class="text-muted small">
                                             <div>{{ \Carbon\Carbon::parse($order->created_at)->format('d/m/Y') }}</div>
@@ -401,6 +806,8 @@
         </div>
     </div>
 </div>
+</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -421,12 +828,12 @@ function exportToExcel() {
         ["ตั้งแต่วันที่:", startDate, "ถึงวันที่:", endDate],
         [],
         ["หัวข้อ", "ยอดเงิน (บาท)", "หมายเหตุ"],
-        ["ยอดขายรวมทั้งหมด", {{ $totalSales }}, ""],
-        ["- ยอดขายหน้าร้าน", {{ $sales->sum('total_price') }}, ""],
-        ["- ยอดขายออนไลน์", {{ $onlineSalesTotal ?? 0 }}, ""],
-        ["กำไรสุทธิ", {{ $netProfit }}, "หักต้นทุนแล้ว"],
-        ["ต้นทุนรวม", {{ $totalCost }}, ""],
-        ["อัตรากำไร (Margin)", "{{ number_format(($netProfit / max($totalSales, 1)) * 100, 2) }}%", "สัดส่วนกำไรต่อยอดขาย"],
+        ["ยอดขายรวมทั้งหมด", {{ $validTotalSales }}, "ไม่รวมรายการยกเลิก"],
+        ["- ยอดขายหน้าร้าน", {{ $validOfflineSalesTotal }}, "ไม่รวมรายการยกเลิก"],
+        ["- ยอดขายออนไลน์", {{ $validOnlineSalesTotal }}, "ไม่รวมรายการยกเลิก"],
+        ["กำไรสุทธิ", {{ $netProfitDisplay }}, "ไม่รวมรายการยกเลิก"],
+        ["ต้นทุนรวม", {{ $totalCostDisplay }}, "ไม่รวมรายการยกเลิก"],
+        ["อัตรากำไร (Margin)", "{{ number_format($marginDisplay, 2) }}%", "สัดส่วนกำไรต่อยอดขาย"],
     ]);
     XLSX.utils.book_append_sheet(wb, ws_kpi, "สรุปภาพรวม (KPI)");
 
@@ -477,22 +884,22 @@ document.addEventListener('DOMContentLoaded', function () {
     // Chart.js Configuration
     const ctx = document.getElementById('salesChart').getContext('2d');
     const gradient = ctx.createLinearGradient(0, 0, 0, 350);
-    gradient.addColorStop(0, 'rgba(78, 115, 223, 0.9)'); 
-    gradient.addColorStop(1, 'rgba(78, 115, 223, 0.1)'); 
+    gradient.addColorStop(0, 'rgba(255, 193, 7, 0.92)'); 
+    gradient.addColorStop(1, 'rgba(255, 193, 7, 0.08)'); 
 
     Chart.defaults.font.family = "'Prompt', sans-serif";
-    Chart.defaults.color = '#858796';
+    Chart.defaults.color = '#bcbcbc';
 
     new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: {!! json_encode($chartLabels) !!},
+            labels: @json($chartLabelsDisplay),
             datasets: [{
                 label: 'ยอดขายรวม (บาท)',
-                data: {!! json_encode($chartData) !!},
+                data: @json($chartDataDisplay),
                 backgroundColor: gradient,
-                hoverBackgroundColor: '#2e59d9',
-                borderColor: '#4e73df',
+                hoverBackgroundColor: '#ffdc68',
+                borderColor: '#ffc107',
                 borderWidth: 0,
                 borderRadius: {
                     topLeft: 6,
@@ -510,11 +917,11 @@ document.addEventListener('DOMContentLoaded', function () {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    titleColor: '#5a5c69',
-                    bodyColor: '#5a5c69',
+                    backgroundColor: 'rgba(20, 20, 20, 0.96)',
+                    titleColor: '#ffc107',
+                    bodyColor: '#ffffff',
                     bodyFont: { weight: 'bold', size: 14 },
-                    borderColor: '#dddfeb',
+                    borderColor: '#444444',
                     borderWidth: 1,
                     padding: 15,
                     displayColors: false,
@@ -529,7 +936,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 y: {
                     beginAtZero: true,
                     grid: { 
-                        color: '#eaecf4', 
+                        color: '#333333', 
                         drawBorder: false,
                         borderDash: [2, 2] 
                     },

@@ -248,116 +248,170 @@ class OrderController extends Controller
 
 
     public function updateStatus(
-        Request $request,
-        $id,
-        SafeStockReversalService $stockReversal
-    ) {
-        $actor = $request->user();
+    Request $request,
+    int $id,
+    SafeStockReversalService $stockReversal
+) {
+    $actor = $request->user();
 
-        abort_unless(
-            $actor &&
+    abort_unless(
+        $actor &&
+        in_array(
+            $actor->role,
+            ['admin', 'manager', 'owner', 'staff'],
+            true
+        ),
+        403
+    );
+
+    $cancelStatuses = ['ยกเลิก', 'cancelled'];
+    $completedStatuses = ['เสร็จสิ้น', 'completed'];
+
+    $validated = $request->validate([
+        'status' => [
+            'required',
+            'string',
+            Rule::in($this->orderStatuses()),
+        ],
+
+        'proof_image' => [
+            'nullable',
+            'image',
+            'mimes:jpg,jpeg,png',
+            'max:2048',
+        ],
+
+        'cancel_reason' => [
+            Rule::requiredIf(
                 in_array(
-                    $actor->role,
-                    ['admin', 'manager', 'owner', 'staff'],
+                    $request->input('status'),
+                    $cancelStatuses,
                     true
-                ),
-            403
-        );
+                )
+            ),
+            'nullable',
+            'string',
+            'max:500',
+        ],
+    ], [
+        'status.required' => 'กรุณาเลือกสถานะคำสั่งซื้อ',
+        'status.in' => 'สถานะคำสั่งซื้อไม่ถูกต้อง',
 
-        $cancelStatuses = ['ยกเลิก', 'cancelled'];
-        $validated = $request->validate([
-            'status' => [
-                'required',
-                'string',
-                Rule::in($this->orderStatuses()),
-            ],
-            'proof_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'cancel_reason' => [
-                Rule::requiredIf(
-                    in_array($request->input('status'), $cancelStatuses, true)
-                ),
-                'nullable',
-                'string',
-                'max:500',
-            ],
-        ]);
+        'proof_image.image' => 'ไฟล์หลักฐานต้องเป็นรูปภาพ',
+        'proof_image.mimes' => 'รองรับเฉพาะไฟล์ JPG, JPEG และ PNG',
+        'proof_image.max' => 'รูปหลักฐานต้องมีขนาดไม่เกิน 2 MB',
 
-        DB::transaction(function () use (
-            $id,
-            $request,
-            $validated,
-            $cancelStatuses,
-            $stockReversal
+        'cancel_reason.required' => 'กรุณาระบุเหตุผลในการยกเลิก',
+        'cancel_reason.max' => 'เหตุผลในการยกเลิกต้องไม่เกิน 500 ตัวอักษร',
+    ]);
+
+    DB::transaction(function () use (
+        $id,
+        $request,
+        $validated,
+        $actor,
+        $cancelStatuses,
+        $completedStatuses,
+        $stockReversal
+    ) {
+        $order = Order::query()
+            ->lockForUpdate()
+            ->findOrFail($id);
+
+        /*
+        |--------------------------------------------------------------------------
+        | พนักงานอัปเดตได้เฉพาะออเดอร์ที่ตัวเองรับไว้
+        |--------------------------------------------------------------------------
+        */
+        if (
+            $actor->role === 'staff' &&
+            (int) $order->assigned_to !== (int) $actor->id
         ) {
-            $order = Order::query()
-                ->lockForUpdate()
-                ->findOrFail($id);
-            $actor = $request->user();
-
-            abort_unless(
-                $actor &&
-                    in_array(
-                        $actor->role,
-                        ['admin', 'manager', 'owner', 'staff'],
-                        true
-                    ),
-                403
+            abort(
+                403,
+                'คุณไม่มีสิทธิ์อัปเดตคำสั่งซื้อนี้'
             );
+        }
 
-            if (
-                $actor->role === 'staff' &&
-                (int) $order->assigned_to !== (int) $actor->id
-            ) {
-                abort(403);
-            }
+        $currentStatus = (string) $order->status;
+        $newStatus = (string) $validated['status'];
 
-            $this->ensureValidOrderTransition(
-                (string) $order->status,
-                $validated['status']
-            );
-
-            if (
-                in_array($validated['status'], ['เสร็จสิ้น', 'completed'], true) &&
-                !$request->hasFile('proof_image') &&
-                !$order->proof_image
-            ) {
-                throw ValidationException::withMessages([
-                    'proof_image' => 'กรุณาแนบรูปหลักฐาน!',
-                ]);
-            }
-
-            if (in_array($validated['status'], $cancelStatuses, true)) {
-                $stockReversal->reverseOrder(
-                    $order,
-                    $validated['cancel_reason']
-                );
-                $order->cancel_reason = $validated['cancel_reason'];
-            }
-
-            if ($request->hasFile('proof_image')) {
-                if (
-                    $order->proof_image &&
-                    Storage::disk('public')->exists($order->proof_image)
-                ) {
-                    Storage::disk('public')->delete($order->proof_image);
-                }
-
-                $order->proof_image = $request
-                    ->file('proof_image')
-                    ->store('proofs', 'public');
-            }
-
-            $order->status = $validated['status'];
-            $order->save();
-        });
-
-
-        return back()->with(
-            'success',
-            'อัปเดตสถานะสำเร็จ!'
+        /*
+        |--------------------------------------------------------------------------
+        | ตรวจสอบการเปลี่ยนสถานะทีละขั้น
+        |--------------------------------------------------------------------------
+        */
+        $this->ensureValidOrderTransition(
+            $currentStatus,
+            $newStatus
         );
 
-    }
+        /*
+        |--------------------------------------------------------------------------
+        | สถานะเสร็จสิ้นต้องมีรูปหลักฐาน
+        |--------------------------------------------------------------------------
+        */
+        if (
+            in_array($newStatus, $completedStatuses, true) &&
+            !$request->hasFile('proof_image') &&
+            empty($order->proof_image)
+        ) {
+            throw ValidationException::withMessages([
+                'proof_image' => 'กรุณาแนบรูปหลักฐานก่อนเปลี่ยนเป็นเสร็จสิ้น',
+            ]);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | ยกเลิกคำสั่งซื้อและคืนสต็อก
+        |--------------------------------------------------------------------------
+        */
+        if (in_array($newStatus, $cancelStatuses, true)) {
+            $stockReversal->reverseOrder(
+                $order,
+                $validated['cancel_reason']
+            );
+
+            $order->cancel_reason =
+                $validated['cancel_reason'];
+        } else {
+            $order->cancel_reason = null;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | บันทึกรูปหลักฐาน
+        |--------------------------------------------------------------------------
+        */
+        if ($request->hasFile('proof_image')) {
+            $oldProofImage = $order->proof_image;
+
+            $newProofImage = $request
+                ->file('proof_image')
+                ->store('proofs', 'public');
+
+            $order->proof_image = $newProofImage;
+
+            /*
+             * ลบรูปเดิมหลังจากเก็บรูปใหม่สำเร็จแล้ว
+             */
+            if (
+                $oldProofImage &&
+                Storage::disk('public')->exists($oldProofImage)
+            ) {
+                Storage::disk('public')->delete($oldProofImage);
+            }
+        }
+
+        $order->status = $newStatus;
+        $order->save();
+    });
+
+    return back()->with(
+        'success',
+        'อัปเดตสถานะสำเร็จ!'
+    );
+}
 
     private function orderStatuses(): array
     {
@@ -392,77 +446,228 @@ class OrderController extends Controller
         ];
     }
 
-    private function ensureValidOrderTransition(
-        string $currentStatus,
-        string $nextStatus
-    ): void {
-        $allowed = $this->orderTransitions()[$currentStatus] ?? [];
+   private function ensureValidOrderTransition(
+    string $currentStatus,
+    string $newStatus
+): void {
+    /*
+    |--------------------------------------------------------------------------
+    | ลำดับสถานะที่อนุญาต
+    |--------------------------------------------------------------------------
+    */
+    $statusFlow = [
+        'รอเจ้าหน้าที่รับคำสั่งซื้อ' => [
+            'กำลังจัดสินค้า',
+            'ยกเลิก',
+        ],
 
-        if (!in_array($nextStatus, $allowed, true)) {
-            throw ValidationException::withMessages([
-                'status' =>
-                    "Invalid order status transition: {$currentStatus} -> {$nextStatus}.",
-            ]);
-        }
+        'กำลังจัดสินค้า' => [
+            'กำลังจัดส่ง',
+            'ยกเลิก',
+        ],
+
+        'กำลังจัดส่ง' => [
+            'เสร็จสิ้น',
+            'ยกเลิก',
+        ],
+
+        /*
+         * รองรับชื่อภาษาอังกฤษ หากมีข้อมูลเดิมในฐานข้อมูล
+         */
+        'pending' => [
+            'preparing',
+            'cancelled',
+        ],
+
+        'preparing' => [
+            'shipping',
+            'cancelled',
+        ],
+
+        'shipping' => [
+            'completed',
+            'cancelled',
+        ],
+
+        /*
+         * สถานะสุดท้าย ไม่สามารถเปลี่ยนต่อได้
+         */
+        'เสร็จสิ้น' => [],
+        'ยกเลิก' => [],
+        'completed' => [],
+        'cancelled' => [],
+    ];
+
+    if ($currentStatus === $newStatus) {
+        throw ValidationException::withMessages([
+            'status' => 'สถานะใหม่ต้องไม่ซ้ำกับสถานะปัจจุบัน',
+        ]);
     }
 
+    if (!array_key_exists($currentStatus, $statusFlow)) {
+        throw ValidationException::withMessages([
+            'status' =>
+                "ไม่พบลำดับของสถานะปัจจุบัน: {$currentStatus}",
+        ]);
+    }
 
+    $allowedStatuses = $statusFlow[$currentStatus];
+
+    if (!in_array($newStatus, $allowedStatuses, true)) {
+        $nextStatusText = empty($allowedStatuses)
+            ? 'ไม่มีสถานะถัดไป'
+            : implode(' หรือ ', $allowedStatuses);
+
+        throw ValidationException::withMessages([
+            'status' =>
+                "ไม่สามารถเปลี่ยนจาก {$currentStatus} เป็น {$newStatus} ได้ "
+                . "สถานะที่อนุญาตคือ {$nextStatusText}",
+        ]);
+    }
+}
     public function orderHistory(Request $request)
     {
-        $startDate =
-            $request->start_date;
+        $search = trim((string) $request->input('search', ''));
+        $status = trim((string) $request->input('status', ''));
+        $paymentMethod = trim((string) $request->input('payment_method', ''));
 
-        $endDate =
-            $request->end_date;
+        // รองรับทั้งชื่อ field ใหม่ใน Blade และชื่อเดิมที่เคยใช้ใน Controller
+        $dateFrom = $request->input('date_from')
+            ?: $request->input('start_date');
 
+        $dateTo = $request->input('date_to')
+            ?: $request->input('end_date');
 
-        $query =
-            Order::with([
+        /*
+        |--------------------------------------------------------------------------
+        | ประวัติคำสั่งซื้อ
+        |--------------------------------------------------------------------------
+        | แสดงเฉพาะคำสั่งซื้อที่จบกระบวนการแล้ว
+        | ระบบปัจจุบันใช้ "เสร็จสิ้น" และ "ยกเลิก"
+        | พร้อมรองรับข้อมูลเก่าภาษาอังกฤษในฐานข้อมูล
+        */
+        $historyStatuses = [
+            'เสร็จสิ้น',
+            'ยกเลิก',
+            'completed',
+            'delivered',
+            'cancelled',
+        ];
+
+        $query = Order::query()
+            ->with([
+                'user',
                 'orderItems.product',
-                'user'
+                'orderItems.productUnit',
             ])
-                ->whereIn(
-                    'status',
-                    [
-                        'เสร็จสิ้น',
-                        'ยกเลิก'
-                    ]
-                );
+            ->whereIn('status', $historyStatuses);
 
-
-        if ($startDate && $endDate) {
-
-            $query->whereBetween(
-                'created_at',
-                [
-                    \Carbon\Carbon::parse(
-                        $startDate
-                    )->startOfDay(),
-
-                    \Carbon\Carbon::parse(
-                        $endDate
-                    )->endOfDay()
-                ]
-            );
-
+        /*
+        |--------------------------------------------------------------------------
+        | ค้นหา
+        |--------------------------------------------------------------------------
+        | ID / order_code / tracking_number / ชื่อ / อีเมล / เบอร์โทร
+        */
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
+                    ->orWhere('order_code', 'like', "%{$search}%")
+                    ->orWhere('tracking_number', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery
+                            ->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%");
+                    });
+            });
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | กรองสถานะ
+        |--------------------------------------------------------------------------
+        */
+        if ($status !== '') {
+            $statusMap = [
+                'สำเร็จ' => ['เสร็จสิ้น', 'completed', 'delivered'],
+                'เสร็จสิ้น' => ['เสร็จสิ้น', 'completed', 'delivered'],
+                'completed' => ['เสร็จสิ้น', 'completed', 'delivered'],
 
-        $orders =
-            $query
-                ->orderBy(
-                    'created_at',
-                    'desc'
-                )
-                ->paginate(10)
-                ->withQueryString();
+                'ยกเลิก' => ['ยกเลิก', 'cancelled'],
+                'cancelled' => ['ยกเลิก', 'cancelled'],
+            ];
 
+            $query->whereIn(
+                'status',
+                $statusMap[$status] ?? [$status]
+            );
+        }
 
-        return view(
-            'sale.order-history',
-            compact('orders')
-        );
+        /*
+        |--------------------------------------------------------------------------
+        | กรองวิธีชำระเงิน
+        |--------------------------------------------------------------------------
+        */
+        if ($paymentMethod !== '') {
+            $paymentMap = [
+                'qr' => [
+                    'โอนผ่านบัญชีธนาคาร',
+                    'qr',
+                    'qrcode',
+                    'promptpay',
+                    'พร้อมเพย์',
+                    'โอนเงิน',
+                ],
+                'โอนผ่านบัญชีธนาคาร' => [
+                    'โอนผ่านบัญชีธนาคาร',
+                    'qr',
+                    'qrcode',
+                    'promptpay',
+                    'พร้อมเพย์',
+                    'โอนเงิน',
+                ],
+                'cod' => [
+                    'เก็บเงินปลายทาง',
+                    'cod',
+                    'cash_on_delivery',
+                ],
+                'เก็บเงินปลายทาง' => [
+                    'เก็บเงินปลายทาง',
+                    'cod',
+                    'cash_on_delivery',
+                ],
+            ];
 
+            $query->whereIn(
+                'payment_method',
+                $paymentMap[$paymentMethod] ?? [$paymentMethod]
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | กรองวันที่
+        |--------------------------------------------------------------------------
+        */
+        if ($dateFrom) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        $orders = $query
+            ->latest('created_at')
+            ->paginate(10)
+            ->withQueryString();
+
+        /*
+        |--------------------------------------------------------------------------
+        | ใช้ Blade หน้าที่ผู้ใช้กำลังแก้จริง
+        |--------------------------------------------------------------------------
+        */
+        return view('online.orders.history', compact('orders'));
     }
 
 

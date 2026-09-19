@@ -1,4 +1,4 @@
-FROM php:8.2-cli
+FROM php:8.2-fpm
 
 # Install system packages
 RUN apt-get update && apt-get install -y \
@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y \
         exif \
         bcmath \
         gd \
-        zip
+        zip \
+        opcache
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -32,10 +33,13 @@ COPY . .
 
 RUN composer install --no-dev --optimize-autoloader
 
+COPY php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY php/www-performance.conf /usr/local/etc/php-fpm.d/zz-performance.conf
+
 RUN chmod -R 775 storage bootstrap/cache
 
 RUN php artisan storage:link || true
 
-EXPOSE 8080
+EXPOSE 9000
 
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8080}
+CMD ["php-fpm"]

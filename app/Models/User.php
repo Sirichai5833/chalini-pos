@@ -17,7 +17,7 @@ class User extends Authenticatable implements AuditableContract // 👈 เพ�
         'first_name',
         'last_name',
         'phone',
-        'name',
+        'address',
         'email',
         'password',
         'role',

@@ -1,153 +1,41 @@
 @extends('layouts.online')
 
 @section('content')
+
+@php
+    $shippingFee = max(0, (float) ($shippingFee ?? 0));
+    $grandTotal = round(
+        (float) ($grandTotal ?? ((float) $total + $shippingFee)),
+        2
+    );
+@endphp
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
 <style>
-    :root {
-        --primary-orange: #ff5722;
-        --soft-orange: #fff4f1;
-        --dark-orange: #e64a19;
-    }
-
-    body {
-        background-color: #f8f9fa;
-    }
-
-    .cart-container {
-        max-width: 900px;
-    }
-
-    /* สไตล์การ์ดสินค้า */
-    .product-card {
-        background: white;
-        border: none;
-        border-radius: 20px;
-        transition: transform 0.2s ease, shadow 0.2s ease;
-    }
-
-    .product-card:hover {
-        box-shadow: 0 10px 20px rgba(0,0,0,0.05) !important;
-    }
-
-    .product-img-container {
-        position: relative;
-        width: 100px;
-        height: 100px;
-    }
-
-    .cart-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 15px;
-    }
-
-    /* ปุ่มปรับจำนวนแบบใหม่ */
-    .qty-control {
-        background: var(--soft-orange);
-        border-radius: 50px;
-        padding: 5px;
-        display: inline-flex;
-        align-items: center;
-    }
-
-    .delete-mode {
-        color: #dc3545 !important;
-    }
-
-    .delete-mode:hover {
-        background: #dc3545 !important;
-        color: white !important;
-    }
-
-    .btn-qty {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        border: none;
-        background: white;
-        color: var(--primary-orange);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: 0.2s;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-
-    .btn-qty:hover:not(:disabled) {
-        background: var(--primary-orange);
-        color: white;
-    }
-
-    .btn-qty:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        background: #e0e0e0;
-        color: #888;
-        box-shadow: none;
-    }
-
-    .qty-input {
-        width: 45px;
-        border: none;
-        background: transparent;
-        text-align: center;
-        font-weight: bold;
-        font-size: 1.1rem;
-    }
-
-    /* ซ่อนลูกศร input number */
-    input::-webkit-outer-spin-button,
-    input::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
-
-    .btn-orange {
-        background: var(--primary-orange);
-        color: white;
-        border-radius: 12px;
-        padding: 12px 30px;
-        font-weight: 600;
-        border: none;
-        transition: 0.3s;
-    }
-
-    .btn-orange:hover {
-        background: var(--dark-orange);
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(255, 87, 34, 0.3);
-    }
-
-    .summary-card {
-        background: white;
-        border-radius: 20px;
-        border: 2px solid var(--soft-orange);
-    }
-
-    /* ปรับแต่งสำหรับ Mobile */
-    @media (max-width: 576px) {
-        .product-img-container {
-            width: 80px;
-            height: 80px;
-        }
-        .product-card {
-            padding: 15px !important;
-        }
-    }
+:root{--cart-yellow:#ffd43b;--cart-yellow-dark:#d8ad00;--cart-black:#090909;--cart-surface:#121212;--cart-card:#191919;--cart-soft:#222;--cart-border:rgba(255,212,59,.22);--cart-text:#f7f7f7;--cart-muted:#a7a7a7;--cart-danger:#ef4444}
+body{background:radial-gradient(circle at top right,rgba(255,212,59,.08),transparent 28%),var(--cart-black);color:var(--cart-text)}
+.cart-container{max-width:950px}.cart-header{position:relative;overflow:hidden;padding:1.4rem 1.5rem;margin-bottom:1.5rem;border:1px solid var(--cart-border);border-radius:22px;background:radial-gradient(circle at 88% 20%,rgba(255,212,59,.18),transparent 24%),linear-gradient(135deg,#090909 0%,#171717 60%,#2a2200 100%);box-shadow:0 18px 42px rgba(0,0,0,.35)}
+.cart-header::after{content:"";position:absolute;right:-55px;bottom:-95px;width:220px;height:220px;border-radius:50%;background:rgba(255,212,59,.1)}.cart-header-inner{position:relative;z-index:1}.cart-title{margin:0;color:var(--cart-yellow);font-weight:900}.cart-subtitle{margin:.35rem 0 0;color:#c8c8c8;font-size:.86rem}
+#cart-item-types{border:1px solid var(--cart-border)!important;background:rgba(255,212,59,.1)!important;color:var(--cart-yellow)!important;font-weight:800}
+.product-card{overflow:hidden;border:1px solid #2c2c2c!important;border-radius:20px;background:linear-gradient(180deg,#1b1b1b,#121212);color:var(--cart-text);box-shadow:0 14px 30px rgba(0,0,0,.32)!important;transition:.2s}.product-card:hover{border-color:rgba(255,212,59,.55)!important;transform:translateY(-3px);box-shadow:0 22px 44px rgba(0,0,0,.45)!important}
+.product-img-container{position:relative;width:100px;height:100px;overflow:hidden;border:1px solid #333;border-radius:16px;background:#111}.cart-img{width:100%;height:100%;object-fit:cover;transition:.25s}.product-card:hover .cart-img{transform:scale(1.04)}.product-name{color:#fff!important}.text-muted,.text-secondary{color:var(--cart-muted)!important}.text-orange{color:var(--cart-yellow)!important}
+.qty-control{display:inline-flex;align-items:center;padding:5px;border:1px solid var(--cart-border);border-radius:50px;background:#111}.btn-qty{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid #333;border-radius:50%;background:#1d1d1d;color:var(--cart-yellow);box-shadow:0 3px 8px rgba(0,0,0,.28);transition:.2s}.btn-qty:hover:not(:disabled){border-color:var(--cart-yellow);background:var(--cart-yellow);color:#111;transform:translateY(-1px)}.btn-qty:disabled{opacity:.35;cursor:not-allowed;background:#292929;color:#777;box-shadow:none}.delete-mode{color:#ff6b6b!important}.delete-mode:hover{border-color:var(--cart-danger)!important;background:var(--cart-danger)!important;color:#fff!important}.qty-input{width:46px;border:none;background:transparent;color:#fff;text-align:center;font-size:1.05rem;font-weight:850;outline:none}input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.remove-item{color:#ff6b6b!important;transition:.2s}.remove-item:hover{color:#fff!important;transform:scale(1.08)}.btn-orange{border:1px solid var(--cart-yellow);border-radius:13px;background:linear-gradient(135deg,#ffe56b,var(--cart-yellow));color:#111;padding:12px 30px;font-weight:850;transition:.2s;box-shadow:0 8px 20px rgba(255,212,59,.15)}.btn-orange:hover{border-color:#ffea83;background:linear-gradient(135deg,#fff08f,#ffc800);color:#000;transform:translateY(-2px);box-shadow:0 12px 24px rgba(255,212,59,.22)}
+.summary-card{border:1px solid var(--cart-border)!important;border-radius:22px;background:radial-gradient(circle at right center,rgba(255,212,59,.1),transparent 30%),linear-gradient(180deg,#181818,#111);color:var(--cart-text);box-shadow:0 18px 40px rgba(0,0,0,.34)!important}.summary-card #cart-total{color:var(--cart-yellow)!important;text-shadow:0 4px 18px rgba(255,212,59,.12)}.alert-danger{border:1px solid rgba(239,68,68,.3)!important;background:rgba(239,68,68,.11)!important;color:#ffb4b4!important}.alert-warning{border:1px solid rgba(255,212,59,.3)!important;background:#211c07!important;color:#ffe992!important}.alert-warning .text-dark,.alert-warning strong{color:var(--cart-yellow)!important}
+.empty-cart{padding:3.5rem 1rem;border:1px dashed var(--cart-border);border-radius:22px;background:rgba(18,18,18,.72);text-align:center}.empty-cart-icon{width:82px;height:82px;display:grid;place-items:center;margin:0 auto 1rem;border-radius:24px;background:rgba(255,212,59,.08);color:var(--cart-yellow);font-size:2.2rem}
+@media(max-width:576px){.cart-container{padding-top:1rem!important}.cart-header{padding:1.15rem;border-radius:18px}.product-img-container{width:82px;height:82px}.product-card{padding:14px!important}.qty-control{padding:4px}.btn-qty{width:32px;height:32px}}
 </style>
 
 <div class="container py-5 cart-container">
-    <div class="d-flex align-items-center justify-content-between mb-4">
-        <h2 class="fw-bold mb-0">
-            <span class="text-orange"><i class="bi bi-bag-heart-fill me-2"></i>ตะกร้าของฉัน</span>
-        </h2>
-        <span class="badge bg-white text-dark border rounded-pill px-3 py-2 shadow-sm" id="cart-item-types">
-            {{ count($cart) }} รายการ
-        </span>
-    </div>
+    <section class="cart-header">
+        <div class="cart-header-inner d-flex align-items-center justify-content-between gap-3">
+            <div>
+                <h2 class="cart-title"><i class="bi bi-bag-heart-fill me-2"></i>ตะกร้าของฉัน</h2>
+                <p class="cart-subtitle">ตรวจสอบสินค้าและจำนวนก่อนดำเนินการชำระเงิน</p>
+            </div>
+            <span class="badge rounded-pill px-3 py-2" id="cart-item-types">{{ count($cart) }} รายการ</span>
+        </div>
+    </section>
 
     @if(session('error'))
         <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4">
@@ -180,7 +68,7 @@
 
                     {{-- รายละเอียด --}}
                     <div class="col">
-                        <h6 class="fw-bold mb-1 text-dark text-truncate" style="max-width: 200px;">{{ $item['name'] }}</h6>
+                        <h6 class="fw-bold mb-1 product-name text-truncate" style="max-width: 200px;">{{ $item['name'] }}</h6>
                         <p class="text-muted small mb-1">
                             <i class="bi bi-tag-fill me-1"></i> {{ $item['unit_name'] ?? 'ไม่มีระบุหน่วย' }}
                         </p>
@@ -189,7 +77,7 @@
                         @if($stock !== null)
                             <small class="{{ $isOverStock ? 'text-danger fw-bold' : 'text-muted' }} d-block" style="font-size: 0.8rem;" id="stock-info-{{ $id }}">
                                 <i class="bi {{ $isOverStock ? 'bi-exclamation-triangle-fill text-danger' : 'bi-box-seam' }} me-1"></i>
-                                คงเหลือ: {{ $stock }} ชิ้น 
+                                คงเหลือรวมทุกหน่วย: {{ $stock }} {{ $item['unit_name'] ?? 'หน่วย' }} 
                                 @if($isOverStock)
                                     (เลือกเกินสต็อก)
                                 @endif
@@ -254,10 +142,11 @@
                 </div>
             </div>
         @empty
-            <div class="text-center py-5">
-                <i class="bi bi-cart-x text-light-emphasis" style="font-size: 5rem;"></i>
-                <h4 class="mt-3 text-muted">ตะกร้าว่างเปล่า</h4>
-                <a href="{{ url('/') }}" class="btn btn-orange mt-3 px-5 rounded-pill">ไปเลือกซื้อสินค้า</a>
+            <div class="empty-cart">
+                <div class="empty-cart-icon"><i class="bi bi-cart-x"></i></div>
+                <h4 class="text-white fw-bold">ตะกร้าว่างเปล่า</h4>
+                <p class="text-muted mb-0">ยังไม่มีสินค้าอยู่ในตะกร้าของคุณ</p>
+                <a href="{{ url('/') }}" class="btn btn-orange mt-3 px-5 rounded-pill"><i class="bi bi-shop me-1"></i> ไปเลือกซื้อสินค้า</a>
             </div>
         @endforelse
     </div>
@@ -275,22 +164,64 @@
             </div>
         @endif
 
-        <div class="card summary-card shadow-sm p-4" id="summary-section">
-            <div class="row align-items-center">
-                <div class="col-md-6 mb-3 mb-md-0">
-                    <p class="text-muted mb-1">ยอดรวมสุทธิ</p>
-                    <h2 class="fw-bold text-orange mb-0" id="cart-total">
-                        ฿{{ number_format($total, 2) }}
-                    </h2>
+        <div
+            class="card summary-card shadow-sm p-4"
+            id="summary-section"
+            data-shipping-fee="{{ number_format($shippingFee, 2, '.', '') }}"
+        >
+            <div class="row align-items-center g-4">
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">ยอดรวมสินค้า</span>
+                        <strong id="cart-subtotal">
+                            ฿{{ number_format($total, 2) }}
+                        </strong>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted">
+                            <i class="bi bi-truck me-1"></i>
+                            ค่าจัดส่ง
+                        </span>
+
+                        <strong id="shipping-fee">
+                            @if ($shippingFee > 0)
+                                ฿{{ number_format($shippingFee, 2) }}
+                            @else
+                                ฟรี
+                            @endif
+                        </strong>
+                    </div>
+
+                    <hr class="border-secondary">
+
+                    <div class="d-flex justify-content-between align-items-end">
+                        <span class="fw-bold">ยอดชำระทั้งหมด</span>
+
+                        <h2 class="fw-bold text-orange mb-0" id="cart-total">
+                            ฿{{ number_format($grandTotal, 2) }}
+                        </h2>
+                    </div>
                 </div>
+
                 <div class="col-md-6 text-md-end">
                     @if (empty($outOfStockItems) && $total > 0)
-                        <a href="{{ route('online.checkout') }}" id="checkout-btn" class="btn btn-orange btn-lg w-100 w-md-auto shadow">
-                            <i class="bi bi-wallet2 me-2"></i> ชำระเงินตอนนี้
+                        <a
+                            href="{{ route('online.checkout') }}"
+                            id="checkout-btn"
+                            class="btn btn-orange btn-lg w-100 w-md-auto shadow"
+                        >
+                            <i class="bi bi-wallet2 me-2"></i>
+                            ชำระเงินตอนนี้
                         </a>
                     @else
-                        <button class="btn btn-secondary btn-lg w-100 w-md-auto" disabled>
-                            {{ !empty($outOfStockItems) ? 'สต็อกสินค้าไม่พอ' : 'ตะกร้าว่างเปล่า' }}
+                        <button
+                            class="btn btn-secondary btn-lg w-100 w-md-auto"
+                            disabled
+                        >
+                            {{ !empty($outOfStockItems)
+                                ? 'สต็อกสินค้าไม่พอ'
+                                : 'ตะกร้าว่างเปล่า' }}
                         </button>
                     @endif
                 </div>
@@ -342,9 +273,20 @@
             totalQuantity += qty;
         });
 
+        const summarySection = document.getElementById('summary-section');
+        const shippingFee = parseFloat(
+            summarySection?.dataset.shippingFee || '0'
+        ) || 0;
+
+        const cartSubtotal = document.getElementById('cart-subtotal');
+        if (cartSubtotal) {
+            cartSubtotal.innerHTML = `฿${newCartTotal.toFixed(2)}`;
+        }
+
         const cartTotal = document.getElementById('cart-total');
         if (cartTotal) {
-            cartTotal.innerHTML = `฿${newCartTotal.toFixed(2)}`;
+            cartTotal.innerHTML =
+                `฿${(newCartTotal + shippingFee).toFixed(2)}`;
         }
 
         document.querySelectorAll('.cart-total-items').forEach(element => {
@@ -387,7 +329,41 @@
             }
         }
 
-        const newQuantity = action === 'increase' ? currentQuantity + 1 : currentQuantity - 1;
+        let newQuantity;
+
+        if (action === 'increase') {
+            newQuantity = currentQuantity + 1;
+        } else {
+            /*
+            |--------------------------------------------------------------------------
+            | แก้กรณีจำนวนในตะกร้าเกินสต็อก
+            |--------------------------------------------------------------------------
+            | เดิมลดทีละ 1 แล้ว Backend ปฏิเสธ เพราะจำนวนใหม่ยังเกินสต็อก
+            | จึงลดลงมาเท่ากับสต็อกทันที เพื่อให้บันทึกได้
+            */
+            if (
+                maxStock !== null &&
+                !isNaN(maxStock) &&
+                currentQuantity > maxStock
+            ) {
+                if (maxStock <= 0) {
+                    const removeButton = document.querySelector(
+                        `.remove-item[data-id="${id}"]`
+                    );
+
+                    if (removeButton) {
+                        removeButton.click();
+                    }
+
+                    return;
+                }
+
+                newQuantity = maxStock;
+            } else {
+                newQuantity = currentQuantity - 1;
+            }
+        }
+
         if (newQuantity < 1) return;
 
         // อัปเดตค่าใน Queue และ Input หน้าเว็บ
@@ -494,8 +470,30 @@
                     el.innerHTML = `฿${data.item_total}`;
                 });
 
+                const subtotal = parseFloat(
+                    String(data.total).replace(/,/g, '')
+                ) || 0;
+
+                const summarySection =
+                    document.getElementById('summary-section');
+
+                const shippingFee = parseFloat(
+                    summarySection?.dataset.shippingFee || '0'
+                ) || 0;
+
+                const cartSubtotal =
+                    document.getElementById('cart-subtotal');
+
+                if (cartSubtotal) {
+                    cartSubtotal.innerHTML = `฿${subtotal.toFixed(2)}`;
+                }
+
                 const cartTotal = document.getElementById('cart-total');
-                if (cartTotal) cartTotal.innerHTML = `฿${data.total}`;
+
+                if (cartTotal) {
+                    cartTotal.innerHTML =
+                        `฿${(subtotal + shippingFee).toFixed(2)}`;
+                }
 
                 const maxStock = quantityInput.dataset.stock ? parseInt(quantityInput.dataset.stock) : null;
                 updateButtonsState(id, data.quantity, maxStock);
@@ -505,6 +503,22 @@
                 document.querySelectorAll('.cart-total-items').forEach(element => {
                     element.textContent = data.total_items;
                 });
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | รีเฟรชสถานะชำระเงินเมื่อแก้จำนวนสินค้าที่เคยเกินสต็อก
+            |--------------------------------------------------------------------------
+            | ปุ่มชำระเงินถูกสร้างจาก Blade ฝั่งเซิร์ฟเวอร์ ถ้าตอนเปิดหน้า
+            | มีสินค้าเกินสต็อก ปุ่มจะเป็น disabled และไม่มี #checkout-btn
+            | เมื่อแก้จำนวนสำเร็จจึงต้องโหลดหน้าใหม่เพื่อคำนวณสถานะอีกครั้ง
+            */
+            const hasStockWarning = document.querySelector('.alert-warning');
+            const checkoutButton = document.getElementById('checkout-btn');
+
+            if (hasStockWarning || !checkoutButton) {
+                window.location.reload();
+                return;
             }
 
         } catch (error) {
@@ -544,17 +558,7 @@
 
         const id = button.dataset.id;
 
-        Swal.fire({
-            title: 'ลบสินค้านี้?',
-            text: 'สินค้าจะถูกลบออกจากตะกร้า',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ff5722',
-            confirmButtonText: 'ลบสินค้า',
-            cancelButtonText: 'ยกเลิก'
-        }).then(function (result) {
-            if (!result.isConfirmed) return;
-
+        const confirmRemove = () => {
             fetch(`/online/cart/remove/${id}`, {
                 method: 'DELETE',
                 headers: {
@@ -562,9 +566,19 @@
                     'Accept': 'application/json'
                 }
             })
-            .then(response => response.json())
+            .then(async response => {
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'ไม่สามารถลบสินค้าได้');
+                }
+
+                return data;
+            })
             .then(function (data) {
-                if (!data.success) return;
+                if (!data.success) {
+                    throw new Error(data.message || 'ไม่สามารถลบสินค้าได้');
+                }
 
                 const card = document.getElementById(`cart-card-${id}`);
                 if (card) card.remove();
@@ -575,31 +589,89 @@
                     element.textContent = data.total_items;
                 });
 
+                const subtotal = parseFloat(
+                    String(data.total).replace(/,/g, '')
+                ) || 0;
+
+                const summarySection =
+                    document.getElementById('summary-section');
+
+                const shippingFee = parseFloat(
+                    summarySection?.dataset.shippingFee || '0'
+                ) || 0;
+
+                const cartSubtotal =
+                    document.getElementById('cart-subtotal');
+
+                if (cartSubtotal) {
+                    cartSubtotal.innerHTML = `฿${subtotal.toFixed(2)}`;
+                }
+
                 const cartTotal = document.getElementById('cart-total');
+
                 if (cartTotal) {
-                    cartTotal.innerHTML = `฿${data.total}`;
+                    cartTotal.innerHTML =
+                        `฿${(subtotal + shippingFee).toFixed(2)}`;
                 }
 
-                const remainingCards = document.querySelectorAll('.product-card');
-                if (remainingCards.length === 0) {
-                    location.reload();
+                /*
+                |--------------------------------------------------------------------------
+                | โหลดหน้าใหม่หลังลบสินค้า
+                |--------------------------------------------------------------------------
+                | เพื่อให้ Laravel คำนวณ $outOfStockItems และสร้างปุ่มชำระเงินใหม่
+                | ป้องกันกรณีลบสินค้าที่เกินสต็อกแล้วปุ่มยังคง disabled
+                */
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'ลบสินค้าแล้ว',
+                        showConfirmButton: false,
+                        timer: 700
+                    }).then(() => {
+                        window.location.reload();
+                    });
                 } else {
-                    const itemTypesBadge = document.getElementById('cart-item-types');
-                    if (itemTypesBadge) {
-                        itemTypesBadge.textContent = `${remainingCards.length} รายการ`;
-                    }
+                    window.location.reload();
                 }
-
-                Swal.fire({
-                    icon: 'success',
-                    title: 'ลบสินค้าแล้ว',
-                    showConfirmButton: false,
-                    timer: 1000
-                });
             })
             .catch(function (error) {
-                console.error(error);
+                console.error('Remove cart item error:', error);
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'ลบสินค้าไม่สำเร็จ',
+                        text: error.message
+                    });
+                } else {
+                    alert(error.message);
+                }
             });
+        };
+
+        if (typeof Swal === 'undefined') {
+            if (confirm('ต้องการลบสินค้านี้ออกจากตะกร้าหรือไม่?')) {
+                confirmRemove();
+            }
+
+            return;
+        }
+
+        Swal.fire({
+            title: 'ลบสินค้านี้?',
+            text: 'สินค้าจะถูกลบออกจากตะกร้า',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ffd43b',
+            cancelButtonColor: '#333333',
+            confirmButtonText: 'ลบสินค้า',
+            cancelButtonText: 'ยกเลิก',
+            background: '#171717',
+            color: '#f7f7f7',
+            iconColor: '#ffd43b'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            confirmRemove();
         });
     });
 </script>

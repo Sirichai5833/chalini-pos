@@ -6,60 +6,325 @@
 
 @section('content')
 
+@php
+    $shippingFee = max(0, (float) ($shippingFee ?? 0));
+
+    $grandTotal = round(
+        (float) ($grandTotal ?? ((float) $total + $shippingFee)),
+        2
+    );
+
+    $promptpayNumber = $shopSettings->promptpay
+        ?? \App\Models\Setting::get(
+            'promptpay',
+            env('PROMPTPAY_ID')
+        );
+
+    $shopPhone = $shopSettings->phone
+        ?? \App\Models\Setting::get('phone', '-');
+@endphp
+
     <style>
-        .btn-orange {
-            background-color: #ff5722;
-            color: white;
+    :root {
+        --checkout-yellow: #ffd43b;
+        --checkout-yellow-dark: #c99f00;
+        --checkout-black: #090909;
+        --checkout-surface: #121212;
+        --checkout-card: #181818;
+        --checkout-soft: #222222;
+        --checkout-border: rgba(255, 212, 59, .22);
+        --checkout-text: #f7f7f7;
+        --checkout-muted: #a8a8a8;
+        --checkout-danger: #ef4444;
+    }
+
+    body {
+        background:
+            radial-gradient(circle at top right, rgba(255, 212, 59, .08), transparent 28%),
+            var(--checkout-black);
+        color: var(--checkout-text);
+    }
+
+    .checkout-page {
+        max-width: 980px;
+    }
+
+    .checkout-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+        border: 1px solid var(--checkout-border);
+        border-radius: 24px;
+        background:
+            radial-gradient(circle at 88% 18%, rgba(255, 212, 59, .20), transparent 24%),
+            linear-gradient(135deg, #080808 0%, #171717 58%, #2d2500 100%);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, .34);
+    }
+
+    .checkout-hero::after {
+        content: "";
+        position: absolute;
+        right: -70px;
+        bottom: -115px;
+        width: 250px;
+        height: 250px;
+        border-radius: 50%;
+        background: rgba(255, 212, 59, .10);
+        pointer-events: none;
+    }
+
+    .checkout-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .checkout-title {
+        margin: 0;
+        color: var(--checkout-yellow);
+        font-weight: 900;
+        letter-spacing: .2px;
+    }
+
+    .checkout-subtitle {
+        margin: .35rem 0 0;
+        color: #d2d2d2;
+        font-size: .9rem;
+    }
+
+    .checkout-alert {
+        border: 1px solid rgba(255, 212, 59, .30);
+        border-radius: 18px;
+        background: #211c07;
+        color: #ffe992;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, .22);
+    }
+
+    .checkout-card {
+        padding: 1.4rem;
+        border: 1px solid var(--checkout-border);
+        border-radius: 24px;
+        background:
+            radial-gradient(circle at right top, rgba(255, 212, 59, .07), transparent 26%),
+            linear-gradient(180deg, #191919, #111111);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, .34);
+    }
+
+    .checkout-section {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid #2d2d2d;
+        border-radius: 18px;
+        background: rgba(12, 12, 12, .72);
+    }
+
+    .checkout-section-title {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        margin-bottom: 1rem;
+        color: var(--checkout-yellow);
+        font-size: 1rem;
+        font-weight: 850;
+    }
+
+    .form-label {
+        margin-bottom: .45rem;
+        color: #dedede;
+        font-weight: 750;
+    }
+
+    .form-control,
+    .form-select {
+        min-height: 48px;
+        border: 1px solid #383838;
+        border-radius: 14px;
+        background: #141414;
+        color: #fff;
+        box-shadow: none;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--checkout-yellow);
+        background: #171717;
+        color: #fff;
+        box-shadow: 0 0 0 .2rem rgba(255, 212, 59, .12);
+    }
+
+    .form-control[readonly] {
+        background: #101010;
+        color: #cfcfcf;
+    }
+
+    .form-select option {
+        background: #171717;
+        color: #fff;
+    }
+
+    .total-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.1rem;
+        margin-bottom: 1rem;
+        border: 1px solid var(--checkout-border);
+        border-radius: 18px;
+        background: linear-gradient(135deg, rgba(255, 212, 59, .10), rgba(255, 212, 59, .03));
+    }
+
+    .total-label {
+        margin: 0;
+        color: var(--checkout-muted);
+        font-size: .9rem;
+    }
+
+    .total-amount {
+        margin: 0;
+        color: var(--checkout-yellow);
+        font-size: 1.8rem;
+        font-weight: 950;
+        text-shadow: 0 4px 16px rgba(255, 212, 59, .12);
+    }
+
+    .checkout-total-breakdown {
+        width: 100%;
+    }
+
+    .checkout-total-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .55rem;
+        color: #d7d7d7;
+    }
+
+    .checkout-total-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .checkout-total-divider {
+        margin: .8rem 0;
+        border-color: rgba(255, 255, 255, .16);
+    }
+
+    .checkout-total-row.grand-total {
+        align-items: flex-end;
+        color: #fff;
+        font-weight: 850;
+    }
+
+    .payment-box {
+        padding: 1rem;
+        border: 1px dashed rgba(255, 212, 59, .34);
+        border-radius: 18px;
+        background: rgba(255, 212, 59, .05);
+    }
+
+    .qr-panel {
+        padding: 1.25rem;
+        border: 1px solid var(--checkout-border);
+        border-radius: 20px;
+        background: #0f0f0f;
+    }
+
+    .qr-code {
+        width: min(220px, 100%);
+        height: auto;
+        aspect-ratio: 1 / 1;
+        display: block;
+        margin: 1rem auto 0;
+        padding: .65rem;
+        border-radius: 18px;
+        background: #fff;
+        object-fit: contain;
+    }
+
+    .btn-orange {
+        min-height: 50px;
+        border: 1px solid var(--checkout-yellow);
+        border-radius: 14px;
+        background: linear-gradient(135deg, #ffe56b, var(--checkout-yellow));
+        color: #111;
+        font-weight: 900;
+        box-shadow: 0 9px 22px rgba(255, 212, 59, .17);
+        transition: .2s ease;
+    }
+
+    .btn-orange:hover:not(:disabled) {
+        border-color: #fff08f;
+        background: linear-gradient(135deg, #fff08f, #ffc800);
+        color: #000;
+        transform: translateY(-2px);
+        box-shadow: 0 13px 26px rgba(255, 212, 59, .23);
+    }
+
+    .btn-orange:disabled {
+        opacity: .65;
+        cursor: wait;
+    }
+
+    .alert-danger {
+        border: 1px solid rgba(239, 68, 68, .30);
+        border-radius: 16px;
+        background: rgba(239, 68, 68, .10);
+        color: #ffb8b8;
+    }
+
+    @media (max-width: 576px) {
+        .checkout-page {
+            padding-top: 1rem !important;
         }
 
-        .btn-orange:hover {
-            background-color: #e64a19;
-            color: white;
+        .checkout-hero,
+        .checkout-card {
+            border-radius: 19px;
         }
 
-        .form-label {
-            font-weight: 500;
-            color: #444;
-        }
-
-        .section-title {
-            color: #ff5722;
+        .checkout-hero {
+            padding: 1.2rem;
         }
 
         .checkout-card {
-            background-color: #fff9f5;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 0 12px rgba(0, 0, 0, 0.05);
+            padding: 1rem;
         }
 
-        select.form-select,
-        input.form-control {
-            border-radius: 8px;
+        .total-panel {
+            align-items: flex-start;
+            flex-direction: column;
         }
 
-        .qr-code {
-            width: 200px;
-            height: 200px;
-            margin-bottom: 20px;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
+        .total-amount {
+            font-size: 1.55rem;
         }
-    </style>
+
+        .btn-orange {
+            width: 100%;
+        }
+    }
+</style>
 
 
-    <div class="container py-4">
+    <div class="container py-4 checkout-page">
 
         {{-- หัวข้อ --}}
-        <h2 class="mb-4 section-title">
-            <i class="bi bi-credit-card-2-front-fill me-2"></i>
-            ชำระเงิน
-        </h2>
+        <section class="checkout-hero">
+            <div class="checkout-hero-content">
+                <h2 class="checkout-title">
+                    <i class="bi bi-credit-card-2-front-fill me-2"></i>
+                    ชำระเงิน
+                </h2>
+                <p class="checkout-subtitle">
+                    ตรวจสอบข้อมูล เลือกวิธีชำระเงิน และยืนยันคำสั่งซื้อ
+                </p>
+            </div>
+        </section>
 
 
         {{-- แจ้งเตือน --}}
-        <div class="alert alert-warning d-flex align-items-center shadow-sm" role="alert">
+        <div class="alert checkout-alert d-flex align-items-start shadow-sm" role="alert">
 
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
 
@@ -69,7 +334,7 @@
                 <u>
                     จะไม่สามารถยกเลิกเองได้
                     หากต้องการยกเลิกกรุณาติดต่อที่เบอร์
-                    084-386-0015
+                    {{ $shopPhone }}
                 </u>
             </div>
 
@@ -102,19 +367,21 @@
 
 
             {{-- FORM --}}
-            <form action="{{ route('online.checkout') }}"
+            <form
+                  id="checkoutForm"
+                  action="{{ route('online.checkout.store') }}"
                   method="POST"
-                  enctype="multipart/form-data">
+                  enctype="multipart/form-data"
+            >
 
                 @csrf
 
 
-                {{-- Product Unit --}}
-                <input type="hidden"
-                       name="product_unit_id"
-                       value="{{ $product_unit_id->product_id ?? '0' }}">
-
-
+                <section class="checkout-section">
+                    <div class="checkout-section-title">
+                        <i class="bi bi-person-badge-fill"></i>
+                        ข้อมูลผู้สั่งซื้อ
+                    </div>
 
                 {{-- ชื่อ และ เบอร์โทร --}}
                 <div class="row mb-3">
@@ -169,28 +436,54 @@
                            readonly>
 
                 </div>
+                </section>
+                {{-- สรุปยอดชำระ --}}
+                <div class="total-panel">
+                    <div class="checkout-total-breakdown">
+                        <div class="checkout-total-row">
+                            <span class="total-label">ยอดรวมสินค้า</span>
+                            <strong>
+                                ฿{{ number_format($total, 2) }}
+                            </strong>
+                        </div>
+
+                        <div class="checkout-total-row">
+                            <span class="total-label">
+                                <i class="bi bi-truck me-1"></i>
+                                ค่าจัดส่ง
+                            </span>
+
+                            <strong>
+                                @if ($shippingFee > 0)
+                                    ฿{{ number_format($shippingFee, 2) }}
+                                @else
+                                    ฟรี
+                                @endif
+                            </strong>
+                        </div>
+
+                        <hr class="checkout-total-divider">
+
+                        <div class="checkout-total-row grand-total">
+                            <span>ยอดชำระทั้งหมด</span>
+
+                            <p class="total-amount">
+                                ฿{{ number_format($grandTotal, 2) }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
 
 
-                {{-- ยอดรวม --}}
-                <h5 class="mb-3">
-
-                    ยอดรวมทั้งหมด:
-
-                    <strong class="text-orange">
-
-                        {{ number_format($total, 2) }}
-
-                    </strong>
-
-                    บาท
-
-                </h5>
-
-
+                <section class="checkout-section">
+                    <div class="checkout-section-title">
+                        <i class="bi bi-wallet2"></i>
+                        วิธีการชำระเงิน
+                    </div>
 
                 {{-- วิธีชำระเงิน --}}
-                <div class="mb-3">
+                <div class="mb-3 payment-box">
 
                     <label class="form-label">
                         วิธีการชำระเงิน
@@ -201,7 +494,7 @@
                             name="payment_method"
                             id="payment_method"
                             required
-                            onchange="showQRCode(this.value, {{ $total }})">
+                            onchange="showQRCode(this.value, {{ $grandTotal }})">
 
 
                         <option value=""
@@ -259,7 +552,7 @@
 
 
                 {{-- QR CODE --}}
-                <div class="text-center my-4"
+                <div class="text-center my-4 qr-panel"
                      id="qr-container"
                      style="display: none;">
 
@@ -279,7 +572,7 @@
                             เบอร์
                         </strong>
 
-                        {{ $shopSettings->promptpay ?? env('PROMPTPAY_ID') }}
+                        {{ $promptpayNumber }}
 
                     </p>
 
@@ -293,6 +586,8 @@
                 </div>
 
 
+
+                </section>
 
                 {{-- รายการสินค้า --}}
                 @foreach ($cart as $id => $item)
@@ -315,10 +610,19 @@
 
 
 
-                {{-- ยอดรวม --}}
+                {{-- ยอดรวมสำหรับอ้างอิงหน้าเว็บเท่านั้น
+                     Backend จะคำนวณใหม่จากฐานข้อมูล --}}
+                <input type="hidden"
+                       name="subtotal"
+                       value="{{ number_format($total, 2, '.', '') }}">
+
+                <input type="hidden"
+                       name="shipping_fee"
+                       value="{{ number_format($shippingFee, 2, '.', '') }}">
+
                 <input type="hidden"
                        name="total_amount"
-                       value="{{ $total }}">
+                       value="{{ number_format($grandTotal, 2, '.', '') }}">
 
 
 
@@ -332,7 +636,7 @@
                 {{-- ปุ่มยืนยัน --}}
                 <button type="submit"
                         id="submitBtn"
-                        class="btn btn-orange px-4 py-2">
+                        class="btn btn-orange px-4 py-2 w-100">
 
                     <i class="bi bi-check-circle me-1"></i>
 
@@ -398,8 +702,7 @@
 
                 // สร้าง QR Code
                 qrCodeImg.src =
-                    qrCodeImg.src =
-    `/online/generate-qr?amount=${total}`;
+                    `/online/generate-qr?amount=${encodeURIComponent(total)}`;
 
 
             }
@@ -450,21 +753,23 @@
         |--------------------------------------------------------------------------
         */
 
-        document.querySelector('form').addEventListener('submit', function() {
+        const checkoutForm = document.getElementById('checkoutForm');
 
+        if (checkoutForm) {
+            checkoutForm.addEventListener('submit', function () {
+                const btn = document.getElementById('submitBtn');
 
-            const btn =
-                document.getElementById('submitBtn');
+                if (!btn || btn.disabled) {
+                    return;
+                }
 
-
-            btn.disabled = true;
-
-
-            btn.innerHTML =
-                '⏳ กำลังดำเนินการ...';
-
-
-        });
+                btn.disabled = true;
+                btn.innerHTML = `
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    กำลังดำเนินการ...
+                `;
+            });
+        }
 
     </script>
 

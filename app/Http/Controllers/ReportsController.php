@@ -12,176 +12,386 @@ class ReportsController extends Controller
 {
     public function index(Request $request)
     {
-        $startDate = $request->input('start_date');
-        $endDate   = $request->input('end_date');
+        /*
+        |--------------------------------------------------------------------------
+        | 1. รับช่วงวันที่
+        |--------------------------------------------------------------------------
+        */
 
-        // =========================
-        // 1) SALE (หน้าร้าน)
-        // =========================
-        $query = Sale::with('staff')->orderBy('sale_date', 'desc');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        $categoryId = $request->input('category_id');
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. รายการขายหน้าร้าน
+        |--------------------------------------------------------------------------
+        */
+
+        $salesQuery = Sale::with('staff')
+            ->orderByDesc('sale_date');
 
         if ($startDate && $endDate) {
-            $query->whereBetween('sale_date', [
+            $salesQuery->whereBetween('sale_date', [
                 Carbon::parse($startDate)->startOfDay(),
-                Carbon::parse($endDate)->endOfDay()
+                Carbon::parse($endDate)->endOfDay(),
             ]);
         }
 
-        $sales = $query->get();
+        /*
+         * เก็บรายการทั้งหมดไว้ก่อน เพื่อให้ View สามารถแสดง
+         * ยอดรายการยกเลิกได้
+         */
+        $allSales = $salesQuery->get();
 
-        // =========================
-        // 2) ORDER (ออนไลน์)
-        // =========================
-        $onlineOrdersQuery = Order::where('status', 'เสร็จสิ้น');
+        /*
+        |--------------------------------------------------------------------------
+        | 3. กรองรายการขายหน้าร้านที่ถูกยกเลิก
+        |--------------------------------------------------------------------------
+        */
+
+        $cancelledStatuses = [
+            'cancelled',
+            'canceled',
+            'void',
+            'ยกเลิก',
+            'ถูกยกเลิก',
+        ];
+
+        $isCancelled = static function ($record) use ($cancelledStatuses): bool {
+            $status = mb_strtolower(
+                trim((string) ($record->status ?? ''))
+            );
+
+            return in_array($status, $cancelledStatuses, true)
+                || !empty($record->cancelled_at)
+                || !empty($record->canceled_at)
+                || (bool) ($record->is_cancelled ?? false);
+        };
+
+        /*
+         * $validSales ใช้คำนวณรายงานทั้งหมด
+         * โดยไม่รวมรายการยกเลิก
+         */
+        $validSales = $allSales
+            ->reject($isCancelled)
+            ->values();
+
+        /*
+         * ส่งรายการทั้งหมดให้ View เพื่อให้ View ตรวจแยก
+         * รายการปกติและรายการยกเลิกได้
+         */
+        $sales = $allSales;
+
+        /*
+        |--------------------------------------------------------------------------
+        | 4. รายการสั่งซื้อออนไลน์
+        |--------------------------------------------------------------------------
+        */
+
+        $onlineOrdersQuery = Order::with('user')
+            ->where('status', 'เสร็จสิ้น')
+            ->orderByDesc('created_at');
 
         if ($startDate && $endDate) {
             $onlineOrdersQuery->whereBetween('created_at', [
                 Carbon::parse($startDate)->startOfDay(),
-                Carbon::parse($endDate)->endOfDay()
+                Carbon::parse($endDate)->endOfDay(),
             ]);
         }
 
+        /*
+         * เนื่องจากเลือกเฉพาะสถานะ "เสร็จสิ้น"
+         * จึงไม่รวมออเดอร์ที่ถูกยกเลิกอยู่แล้ว
+         */
         $onlineOrders = $onlineOrdersQuery->get();
 
-        // =========================
-        // 3) CHART
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | 5. ยอดขายสุทธิ
+        |--------------------------------------------------------------------------
+        */
+
+        $offlineSalesTotalNet = (float) $validSales->sum('total_price');
+        $onlineSalesTotalNet = (float) $onlineOrders->sum('total_amount');
+
+        $totalSalesNet = $offlineSalesTotalNet + $onlineSalesTotalNet;
+
+        /*
+         * เก็บชื่อตัวแปรเดิมไว้ เผื่อส่วนอื่นของระบบยังใช้งานอยู่
+         */
+        $totalSales = $totalSalesNet;
+        $onlineSalesTotal = $onlineSalesTotalNet;
+
+        /*
+        |--------------------------------------------------------------------------
+        | 6. ข้อมูลกราฟยอดขาย
+        |--------------------------------------------------------------------------
+        */
+
         $allSalesForChart = collect();
 
-        foreach ($sales as $sale) {
+        foreach ($validSales as $sale) {
             $allSalesForChart->push([
                 'datetime' => $sale->sale_date,
-                'total' => $sale->total_price,
+                'total' => (float) $sale->total_price,
             ]);
         }
 
         foreach ($onlineOrders as $order) {
             $allSalesForChart->push([
                 'datetime' => $order->created_at,
-                'total' => $order->total_amount,
+                'total' => (float) $order->total_amount,
             ]);
         }
 
-        $groupedChartData = $allSalesForChart->groupBy(function ($item) use ($startDate, $endDate) {
+        $groupedChartData = $allSalesForChart
+            ->groupBy(function ($item) use ($startDate, $endDate) {
+                $date = Carbon::parse($item['datetime']);
 
-            if (!$startDate || !$endDate) {
-                return Carbon::parse($item['datetime'])->format('d M');
-            }
+                if (!$startDate || !$endDate) {
+                    return $date->format('d M');
+                }
 
-            $diff = Carbon::parse($startDate)->diffInDays(Carbon::parse($endDate));
+                $diffInDays = Carbon::parse($startDate)
+                    ->diffInDays(Carbon::parse($endDate));
 
-            if ($diff <= 1) {
-                return Carbon::parse($item['datetime'])->format('H:00');
-            } elseif ($diff <= 31) {
-                return Carbon::parse($item['datetime'])->format('d M');
-            } else {
-                return Carbon::parse($item['datetime'])->format('M Y');
-            }
-        });
+                if ($diffInDays <= 1) {
+                    return $date->format('H:00');
+                }
 
-        $chartLabels = $groupedChartData->keys();
-        $chartData = $groupedChartData->map(fn($items) => collect($items)->sum('total'))->values();
+                if ($diffInDays <= 31) {
+                    return $date->format('d M');
+                }
 
-        // =========================
-        // 4) TOTAL SALES
-        // =========================
-        $totalSales = $sales->sum('total_price') + $onlineOrders->sum('total_amount');
-        $onlineSalesTotal = $onlineOrders->sum('total_amount');
-        
-        // =========================
-        // 5) CATEGORY
-        // =========================
-        $categoryId = $request->input('category_id');
+                return $date->format('M Y');
+            });
 
-        // =========================
-        // 6) TOP PRODUCTS (หน้าร้าน)
-        // =========================
+        /*
+         * ตัวแปรชื่อ Net ที่ View ต้องการ
+         */
+        $chartLabelsNet = $groupedChartData
+            ->keys()
+            ->values()
+            ->all();
+
+        $chartDataNet = $groupedChartData
+            ->map(function ($items) {
+                return (float) collect($items)->sum('total');
+            })
+            ->values()
+            ->all();
+
+        /*
+         * เก็บชื่อตัวแปรเดิมไว้ เผื่อมีโค้ดส่วนอื่นเรียกใช้
+         */
+        $chartLabels = collect($chartLabelsNet);
+        $chartData = collect($chartDataNet);
+
+        /*
+        |--------------------------------------------------------------------------
+        | 7. สินค้าขายดีหน้าร้าน
+        |--------------------------------------------------------------------------
+        */
+
+        $validSaleIds = $validSales
+            ->pluck('id')
+            ->filter()
+            ->values();
+
         $topProducts = DB::table('sale_items')
-            ->join('product_units', 'sale_items.product_unit_id', '=', 'product_units.id')
-            ->join('products', 'product_units.product_id', '=', 'products.id')
-            ->when($categoryId, fn($q) => $q->where('products.category_id', $categoryId))
+            ->join(
+                'product_units',
+                'sale_items.product_unit_id',
+                '=',
+                'product_units.id'
+            )
+            ->join(
+                'products',
+                'product_units.product_id',
+                '=',
+                'products.id'
+            )
+            ->when(
+                $categoryId,
+                fn ($query) => $query->where(
+                    'products.category_id',
+                    $categoryId
+                )
+            )
+            ->whereIn('sale_items.sale_id', $validSaleIds)
             ->select(
                 'products.name',
-                DB::raw('SUM(sale_items.quantity) as total_quantity'),
-                DB::raw('SUM(sale_items.quantity * sale_items.price) as total_sales')
+                DB::raw(
+                    'SUM(sale_items.quantity) AS total_quantity'
+                ),
+                DB::raw(
+                    'SUM(sale_items.quantity * sale_items.price) AS total_sales'
+                )
             )
-            ->whereIn('sale_items.sale_id', $sales->pluck('id'))
             ->groupBy('products.name')
             ->orderByDesc('total_quantity')
             ->get();
 
-        // =========================
-        // 7) TOP PRODUCTS (ออนไลน์)
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | 8. สินค้าขายดีออนไลน์
+        |--------------------------------------------------------------------------
+        */
+
+        $validOnlineOrderIds = $onlineOrders
+            ->pluck('id')
+            ->filter()
+            ->values();
+
         $topOnlineProducts = DB::table('order_items')
-            ->join('product_units', 'order_items.product_unit_id', '=', 'product_units.id')
-            ->join('products', 'product_units.product_id', '=', 'products.id')
-            ->when($categoryId, fn($q) => $q->where('products.category_id', $categoryId))
+            ->join(
+                'product_units',
+                'order_items.product_unit_id',
+                '=',
+                'product_units.id'
+            )
+            ->join(
+                'products',
+                'product_units.product_id',
+                '=',
+                'products.id'
+            )
+            ->when(
+                $categoryId,
+                fn ($query) => $query->where(
+                    'products.category_id',
+                    $categoryId
+                )
+            )
+            ->whereIn('order_items.order_id', $validOnlineOrderIds)
             ->select(
                 'products.name',
-                DB::raw('SUM(order_items.quantity) as total_quantity'),
-                DB::raw('SUM(order_items.quantity * order_items.price) as total_sales')
+                DB::raw(
+                    'SUM(order_items.quantity) AS total_quantity'
+                ),
+                DB::raw(
+                    'SUM(order_items.quantity * order_items.price) AS total_sales'
+                )
             )
-            ->whereIn('order_items.order_id', $onlineOrders->pluck('id'))
             ->groupBy('products.name')
             ->orderByDesc('total_quantity')
             ->get();
 
-        // =========================
-        // 8) รวม TOP PRODUCTS
-        // =========================
-        $topAllProducts = collect()
+        /*
+        |--------------------------------------------------------------------------
+        | 9. รวมสินค้าขายดีหน้าร้านและออนไลน์
+        |--------------------------------------------------------------------------
+        */
+
+        $topAllProductsNet = collect()
             ->merge($topProducts)
             ->merge($topOnlineProducts)
             ->groupBy('name')
             ->map(function ($items, $name) {
                 return [
                     'name' => $name,
-                    'total_quantity' => $items->sum('total_quantity'),
-                    'total_sales' => $items->sum('total_sales'),
+
+                    'total_quantity' => (float) $items->sum(
+                        'total_quantity'
+                    ),
+
+                    'total_sales' => (float) $items->sum(
+                        'total_sales'
+                    ),
                 ];
             })
             ->values()
             ->sortByDesc('total_quantity')
-            ->take(10);
+            ->take(10)
+            ->values();
 
-        // ======================================================
-        // 🔥 9) COST + PROFIT (แก้ไขใหม่: ดึงต้นทุนที่ล็อกไว้มาคำนวณ)
-        // ======================================================
-        // คำนวณต้นทุนรวมจากประวัติการขายหน้าร้าน
-        $offlineCost = DB::table('sale_items')
-            ->whereIn('sale_id', $sales->pluck('id'))
-            ->sum(DB::raw('quantity * cost'));
+        /*
+         * เก็บชื่อตัวแปรเดิมไว้
+         */
+        $topAllProducts = $topAllProductsNet;
 
-        // คำนวณต้นทุนรวมจากประวัติออเดอร์ออนไลน์
-        $onlineCost = DB::table('order_items')
-            ->whereIn('order_id', $onlineOrders->pluck('id'))
-            ->sum(DB::raw('quantity * cost'));
+        /*
+        |--------------------------------------------------------------------------
+        | 10. ต้นทุนหน้าร้าน
+        |--------------------------------------------------------------------------
+        */
 
-        // รวมต้นทุนทั้งหมด
-        $totalCost = $offlineCost + $onlineCost;
+        $offlineCostNet = (float) DB::table('sale_items')
+            ->whereIn('sale_id', $validSaleIds)
+            ->selectRaw(
+                'COALESCE(SUM(quantity * cost), 0) AS total_cost'
+            )
+            ->value('total_cost');
 
-        // คำนวณกำไรสุทธิ
-        $netProfit = $totalSales - $totalCost;
+        /*
+        |--------------------------------------------------------------------------
+        | 11. ต้นทุนออนไลน์
+        |--------------------------------------------------------------------------
+        */
 
-        $categories = DB::table('categories')->get();
-        
-        // =========================
+        $onlineCostNet = (float) DB::table('order_items')
+            ->whereIn('order_id', $validOnlineOrderIds)
+            ->selectRaw(
+                'COALESCE(SUM(quantity * cost), 0) AS total_cost'
+            )
+            ->value('total_cost');
+
+        /*
+        |--------------------------------------------------------------------------
+        | 12. ต้นทุนและกำไรสุทธิ
+        |--------------------------------------------------------------------------
+        */
+
+        $totalCostNet = $offlineCostNet + $onlineCostNet;
+        $netProfitNet = $totalSalesNet - $totalCostNet;
+
+        /*
+         * เก็บชื่อตัวแปรเดิมไว้
+         */
+        $totalCost = $totalCostNet;
+        $netProfit = $netProfitNet;
+
+        /*
+        |--------------------------------------------------------------------------
+        | 13. หมวดหมู่สินค้า
+        |--------------------------------------------------------------------------
+        */
+
+        $categories = DB::table('categories')
+            ->orderBy('name')
+            ->get();
+
+        /*
+        |--------------------------------------------------------------------------
+        | 14. ส่งข้อมูลไปยัง View
+        |--------------------------------------------------------------------------
+        */
+
         return view('reports.daily', compact(
             'sales',
+            'onlineOrders',
+            'categories',
+            'startDate',
+            'endDate',
+
+            // ตัวแปรเดิม
             'totalSales',
             'onlineSalesTotal',
             'chartLabels',
             'chartData',
             'totalCost',
             'netProfit',
-            'onlineOrders',
             'topProducts',
             'topOnlineProducts',
             'topAllProducts',
-            'startDate',
-            'endDate',
-            'categories' 
+
+            // ตัวแปรใหม่ที่ View ต้องการ
+            'netProfitNet',
+            'totalCostNet',
+            'chartLabelsNet',
+            'chartDataNet',
+            'topAllProductsNet'
         ));
     }
 }

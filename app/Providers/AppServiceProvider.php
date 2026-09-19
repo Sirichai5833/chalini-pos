@@ -25,9 +25,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
 
-     $shopName = Schema::hasTable('settings')
-        ? DB::table('settings')->where('key', 'shop_name')->value('value')
-        : null;
+     $shopName = null;
+
+     if (!app()->runningInConsole()) {
+         $shopName = cache()->remember('shop_name', 60 * 60, function () {
+             return Schema::hasTable('settings')
+                 ? DB::table('settings')->where('key', 'shop_name')->value('value')
+                 : null;
+         });
+     }
 
      $shopName ??= 'ชาลินี';
 

@@ -25,20 +25,20 @@
     $sensitiveFields = ['cost', 'cost_price', 'supplier_id', 'margin'];
 @endphp
 
-<div class="container-fluid py-3" style="max-width: 1400px;">
+<div class="container-fluid py-4 product-history-page">
 
     <!-- ส่วนหัวหน้าจอ -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h3 class="fw-bold text-dark mb-0 fs-4">
-                <i class="bi bi-clock-history text-primary me-2 fs-5"></i>ประวัติการเปลี่ยนแปลงสินค้า
+    <section class="history-hero">
+        <div class="history-hero-content">
+            <h3 class="history-title">
+                <i class="bi bi-clock-history me-2"></i>
+                ประวัติการเปลี่ยนแปลงสินค้า
             </h3>
-            <p class="text-muted text-xs mb-0">ตรวจสอบรายการ Activity Log ย้อนหลังทั้งหมด</p>
         </div>
-    </div>
+    </section>
 
     <!-- ส่วนค้นหา -->
-    <div class="card border-0 shadow-sm mb-3">
+    <div class="card history-card mb-3">
         <div class="card-body p-3">
             <form method="GET">
                 <div class="row g-2 align-items-end">
@@ -62,10 +62,10 @@
                     </div>
                     <div class="col-md-3">
                         <div class="d-flex gap-2">
-                            <button class="btn btn-primary btn-sm w-100 fw-bold">
+                            <button class="btn btn-search-history w-100">
                                 <i class="bi bi-search me-1"></i> ค้นหา
                             </button>
-                            <a href="{{ route('product.products.allHistory') }}" class="btn btn-light border btn-sm w-100 text-secondary">
+                            <a href="{{ route('product.products.allHistory') }}" class="btn btn-reset-history w-100">
                                 <i class="bi bi-arrow-counterclockwise me-1"></i> รีเซ็ต
                             </a>
                         </div>
@@ -76,10 +76,10 @@
     </div>
 
     <!-- ตารางแบบ Compact -->
-    <div class="card border-0 shadow-sm">
+    <div class="card history-card">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover table-compact align-middle mb-0">
+                <table class="table history-table table-hover table-compact align-middle mb-0">
                     <thead class="table-light">
                         <tr>
                             <th class="ps-3 py-2 text-secondary text-uppercase text-xs fw-bold" style="width: 20%">สินค้า / หน่วยสินค้า</th>
@@ -90,7 +90,7 @@
                         </tr>
                     </thead>
                     <tbody class="border-top-0">
-                        @forelse ($activities as $activity)
+                        @forelse ($activities->whereIn('event', ['created', 'updated']) as $activity)
                             @php
                                 // กำหนดการแสดงชื่อสินค้า (กรณีเป็น Log ของ ProductUnit ให้วิ่งไปหา Product หลัก)
                                 $displayName = 'ไม่พบข้อมูลสินค้า';
@@ -111,33 +111,29 @@
                             @endphp
                             <tr>
                                 <td class="ps-3">
-                                    <span class="fw-bold text-dark d-block text-truncate text-sm" style="max-width: 200px;" title="{{ $displayName }}">
+                                    <span class="subject-name d-block text-truncate text-sm" style="max-width: 200px;" title="{{ $displayName }}">
                                         {{ $displayName }}
                                     </span>
-                                    <span class="text-muted text-xs d-block">{{ $displaySubDetail }}</span>
+                                    <span class="subject-subtitle text-xs d-block">{{ $displaySubDetail }}</span>
                                 </td>
                                 <td>
                                     <div class="d-flex flex-column lh-sm">
-                                        <span class="fw-semibold text-dark text-sm">{{ $activity->created_at->format('d/m/Y') }}</span>
-                                        <span class="text-muted text-xs">{{ $activity->created_at->format('H:i:s') }} น.</span>
+                                        <span class="date-main text-sm">{{ $activity->created_at->format('d/m/Y') }}</span>
+                                        <span class="date-time text-xs">{{ $activity->created_at->format('H:i:s') }} น.</span>
                                     </div>
                                 </td>
                                 <td>
                                     @if ($activity->event == 'created')
-                                        <span class="badge-mini bg-success-light text-success border border-success">
+                                        <span class="badge-mini event-created">
                                             <i class="bi bi-plus-lg me-0.5"></i> เพิ่ม
                                         </span>
                                     @elseif($activity->event == 'updated')
-                                        <span class="badge-mini bg-warning-light text-warning border border-warning">
+                                        <span class="badge-mini event-updated">
                                             <i class="bi bi-pencil me-0.5"></i> แก้ไข
                                         </span>
                                     @elseif($activity->event == 'deleted')
-                                        <span class="badge-mini bg-danger-light text-danger border border-danger">
+                                        <span class="badge-mini event-deleted">
                                             <i class="bi bi-trash me-0.5"></i> ลบ
-                                        </span>
-                                    @elseif($activity->event == 'stock_added')
-                                        <span class="badge-mini bg-info-light text-info border border-info">
-                                            <i class="bi bi-box-seam me-0.5"></i> สต็อก
                                         </span>
                                     @else
                                         <span class="badge-mini bg-secondary text-white">{{ $activity->event }}</span>
@@ -145,14 +141,14 @@
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px;">
+                                        <div class="user-avatar me-2">
                                             <i class="bi bi-person text-secondary text-xs"></i>
                                         </div>
-                                        <span class="text-dark fw-medium text-sm">{{ $activity->causer?->name ?? 'System' }}</span>
+                                        <span class="text-white fw-medium text-sm">{{ $activity->causer?->name ?? 'System' }}</span>
                                     </div>
                                 </td>
                                 <td class="py-2">
-                                    <div class="bg-light rounded p-2 border border-light-subtle">
+                                    <div class="change-box">
                                         <ul class="list-unstyled mb-0">
                                             @php $hasVisibleAttributes = false; @endphp
                                             
@@ -188,7 +184,7 @@
                                                 
                                                 <li class="mb-1 last:mb-0 pb-1 border-bottom border-light-subtle last:border-0 text-xs">
                                                     <div class="d-flex align-items-start gap-2">
-                                                        <strong class="text-secondary text-uppercase text-xs" style="min-width: 100px; max-width: 100px; display: inline-block;">
+                                                        <strong class="change-field text-uppercase text-xs" style="min-width: 100px; max-width: 100px; display: inline-block;">
                                                             {{ $fieldTranslations[$key] ?? str_replace('_', ' ', ucfirst($key)) }}:
                                                         </strong>
 
@@ -228,12 +224,12 @@
                                                             <!-- ตัวหนังสือแบบกระชับทั่วไป -->
                                                             <div class="d-flex flex-wrap align-items-center gap-1.5 text-break">
                                                                 @if ($old !== $value && !is_null($old))
-                                                                    <span class="text-danger text-decoration-line-through bg-danger-light px-1.5 py-0.5 rounded text-xs">
+                                                                    <span class="old-value text-decoration-line-through px-2 py-1 text-xs">
                                                                         {{ $displayOld }}
                                                                     </span>
                                                                     <i class="bi bi-arrow-right text-muted text-xs" style="font-size: 0.7rem;"></i>
                                                                 @endif
-                                                                <span class="text-success fw-bold bg-success-light px-1.5 py-0.5 rounded text-xs">
+                                                                <span class="new-value fw-bold px-2 py-1 text-xs">
                                                                     {{ $displayNew }}
                                                                 </span>
                                                             </div>
@@ -253,7 +249,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center py-4">
+                                <td colspan="5" class="text-center empty-history">
                                     <div class="d-flex flex-column align-items-center justify-content-center">
                                         <div class="bg-light rounded-circle p-3 mb-2">
                                             <i class="bi bi-inbox fs-3 text-muted"></i>
@@ -269,7 +265,7 @@
             </div>
             
             @if($activities->hasPages())
-                <div class="card-footer bg-white py-2">
+                <div class="card-footer border-top border-secondary-subtle bg-transparent py-3">
                     {{ $activities->withQueryString()->links() }}
                 </div>
             @endif
@@ -278,43 +274,312 @@
 </div>
 
 <style>
-    .text-xs {
-        font-size: 0.75rem !important;
+    :root {
+        --history-yellow: #ffd43b;
+        --history-black: #090909;
+        --history-panel: #151515;
+        --history-soft: #1f1f1f;
+        --history-border: rgba(255, 212, 59, .22);
+        --history-text: #f7f7f7;
+        --history-muted: #aaa;
+        --history-success: #22c55e;
+        --history-warning: #f59e0b;
+        --history-danger: #ef4444;
+        --history-info: #38bdf8;
     }
-    .text-sm {
-        font-size: 0.85rem !important;
+
+    body {
+        background:
+            radial-gradient(circle at top right, rgba(255, 212, 59, .08), transparent 28%),
+            var(--history-black);
+        color: var(--history-text);
     }
-    
-    .table-compact td, 
-    .table-compact th {
-        padding: 0.5rem 0.5rem !important;
+
+    .product-history-page {
+        max-width: 1500px;
+        color: var(--history-text);
+    }
+
+    .history-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+        border: 1px solid var(--history-border);
+        border-radius: 24px;
+        background:
+            radial-gradient(circle at 88% 18%, rgba(255, 212, 59, .20), transparent 24%),
+            linear-gradient(135deg, #080808 0%, #171717 58%, #2b2300 100%);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, .35);
+    }
+
+    .history-hero::after {
+        content: "";
+        position: absolute;
+        right: -70px;
+        bottom: -120px;
+        width: 260px;
+        height: 260px;
+        border-radius: 50%;
+        background: rgba(255, 212, 59, .1);
+        pointer-events: none;
+    }
+
+    .history-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .history-title {
+        margin: 0;
+        color: var(--history-yellow);
+        font-weight: 950;
+    }
+
+    .history-subtitle {
+        margin: .4rem 0 0;
+        color: #d0d0d0;
+        font-size: .9rem;
+    }
+
+    .history-card {
+        border: 1px solid #2d2d2d !important;
+        border-radius: 20px !important;
+        background: linear-gradient(180deg, #191919, #111) !important;
+        color: var(--history-text);
+        box-shadow: 0 16px 36px rgba(0, 0, 0, .32) !important;
+    }
+
+    .history-card:hover {
+        border-color: rgba(255, 212, 59, .48) !important;
+    }
+
+    .form-label {
+        color: #ddd !important;
+        font-weight: 800 !important;
+    }
+
+    .form-control,
+    .form-select {
+        min-height: 44px;
+        border: 1px solid #3a3a3a;
+        border-radius: 12px;
+        background: #131313;
+        color: #fff !important;
+        box-shadow: none;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--history-yellow);
+        background: #171717;
+        color: #fff;
+        box-shadow: 0 0 0 .2rem rgba(255, 212, 59, .12);
+    }
+
+    .form-select option {
+        background: #171717;
+        color: #fff;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+    }
+
+    .btn-search-history {
+        min-height: 44px;
+        border: 1px solid var(--history-yellow);
+        border-radius: 12px;
+        background: linear-gradient(135deg, #ffe66a, var(--history-yellow));
+        color: #111;
+        font-weight: 900;
+    }
+
+    .btn-search-history:hover {
+        background: linear-gradient(135deg, #fff08c, #ffc800);
+        color: #000;
+    }
+
+    .btn-reset-history {
+        min-height: 44px;
+        border: 1px solid #3b3b3b;
+        border-radius: 12px;
+        background: #171717;
+        color: #ddd;
+        font-weight: 800;
+    }
+
+    .btn-reset-history:hover {
+        border-color: var(--history-yellow);
+        background: var(--history-yellow);
+        color: #111;
+    }
+
+    .history-table {
+        --bs-table-bg: transparent;
+        --bs-table-color: var(--history-text);
+        --bs-table-border-color: #303030;
+        --bs-table-hover-bg: rgba(255, 212, 59, .05);
+        --bs-table-hover-color: #fff;
+        margin-bottom: 0;
+    }
+
+    .history-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: #101010 !important;
+        color: var(--history-yellow) !important;
+        border-color: #303030;
+        font-size: .72rem;
+        font-weight: 900;
+        letter-spacing: .3px;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .history-table td {
+        color: #e8e8e8;
+        border-color: #303030;
+        vertical-align: middle;
+    }
+
+    .subject-name {
+        color: #fff !important;
+        font-weight: 850;
+    }
+
+    .subject-subtitle {
+        color: var(--history-muted) !important;
+    }
+
+    .date-main {
+        color: #fff !important;
+        font-weight: 800;
+    }
+
+    .date-time {
+        color: var(--history-muted) !important;
+    }
+
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--history-border);
+        border-radius: 50%;
+        background: rgba(255, 212, 59, .08) !important;
+        color: var(--history-yellow);
+    }
+
+    .change-box {
+        padding: .75rem;
+        border: 1px solid #303030 !important;
+        border-radius: 14px !important;
+        background: #111 !important;
+    }
+
+    .change-field {
+        color: #bbb !important;
+        font-weight: 800;
+    }
+
+    .old-value {
+        border: 1px solid rgba(239, 68, 68, .25);
+        border-radius: 8px;
+        background: rgba(239, 68, 68, .10);
+        color: #ffaaaa;
+    }
+
+    .new-value {
+        border: 1px solid rgba(34, 197, 94, .25);
+        border-radius: 8px;
+        background: rgba(34, 197, 94, .10);
+        color: #86efac;
     }
 
     .badge-mini {
         display: inline-flex;
         align-items: center;
-        padding: 0.15rem 0.5rem;
-        font-size: 0.72rem;
-        font-weight: 600;
-        border-radius: 50rem;
+        padding: .3rem .65rem;
+        border-radius: 999px;
+        font-size: .72rem;
+        font-weight: 850;
     }
 
-    .bg-success-light { background-color: rgba(25, 135, 84, 0.08) !important; }
-    .bg-warning-light { background-color: rgba(255, 193, 7, 0.08) !important; }
-    .bg-danger-light  { background-color: rgba(220, 53, 69, 0.08) !important; }
-    .bg-info-light    { background-color: rgba(13, 202, 240, 0.08) !important; }
-
-    .table-hover tbody tr:hover {
-        background-color: #f9fafb;
+    .event-created {
+        border: 1px solid rgba(34, 197, 94, .35);
+        background: rgba(34, 197, 94, .12);
+        color: #86efac;
     }
+
+    .event-updated {
+        border: 1px solid rgba(245, 158, 11, .35);
+        background: rgba(245, 158, 11, .12);
+        color: #fcd34d;
+    }
+
+    .event-deleted {
+        border: 1px solid rgba(239, 68, 68, .35);
+        background: rgba(239, 68, 68, .12);
+        color: #ff9f9f;
+    }
+
+    .empty-history {
+        padding: 3.5rem 1rem !important;
+        color: var(--history-muted) !important;
+    }
+
+    .pagination {
+        --bs-pagination-color: var(--history-yellow);
+        --bs-pagination-bg: #171717;
+        --bs-pagination-border-color: #333;
+        --bs-pagination-hover-color: #111;
+        --bs-pagination-hover-bg: var(--history-yellow);
+        --bs-pagination-hover-border-color: var(--history-yellow);
+        --bs-pagination-active-color: #111;
+        --bs-pagination-active-bg: var(--history-yellow);
+        --bs-pagination-active-border-color: var(--history-yellow);
+        --bs-pagination-disabled-color: #666;
+        --bs-pagination-disabled-bg: #111;
+        --bs-pagination-disabled-border-color: #2a2a2a;
+    }
+
+    .text-xs {
+        font-size: .75rem !important;
+    }
+
+    .text-sm {
+        font-size: .86rem !important;
+    }
+
+    .table-compact td,
+    .table-compact th {
+        padding: .65rem .6rem !important;
+    }
+
     .last\:mb-0:last-child {
         margin-bottom: 0 !important;
     }
+
     .last\:border-0:last-child {
         border-bottom: 0 !important;
     }
+
     .gap-1\.5 {
-        gap: 0.375rem !important;
+        gap: .375rem !important;
+    }
+
+    @media (max-width: 767.98px) {
+        .history-hero {
+            padding: 1.2rem;
+            border-radius: 19px;
+        }
+
+        .history-card {
+            border-radius: 17px !important;
+        }
     }
 </style>
 @endsection

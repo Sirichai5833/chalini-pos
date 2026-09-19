@@ -22,90 +22,250 @@
 
 <style>
     :root {
-        --primary-color: #007849;
-        --accent-color: #FF5B00;
-        --secondary-color: #E60012;
-        --bg-color: #fff9f4;
+        --primary-color: #ffd43b;
+        --accent-color: #ffd43b;
+        --secondary-color: #e0b400;
+        --bg-color: #090909;
+        --surface-color: #141414;
+        --soft-color: #202020;
+        --text-color: #f7f7f7;
+        --muted-color: #a7a7a7;
+        --border-color: rgba(255, 212, 59, .22);
+    }
+
+    html {
+        scroll-behavior: smooth;
     }
 
     body {
+        min-height: 100vh;
+        padding-top: 78px;
+        background:
+            radial-gradient(circle at top right, rgba(255, 212, 59, .08), transparent 28%),
+            var(--bg-color);
+        color: var(--text-color);
         font-family: 'Sarabun', sans-serif;
-        padding-top: 70px;
-        background-color: var(--bg-color);
     }
 
     .navbar {
-        background-color: var(--primary-color) !important;
+        min-height: 68px;
+        border-bottom: 1px solid var(--border-color);
+        background: rgba(9, 9, 9, .94) !important;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, .38) !important;
+        backdrop-filter: blur(14px);
     }
 
-    .navbar-brand,
-    .nav-link,
-    .btn-link {
-        color: #fff !important;
+    .navbar .container {
+        gap: .75rem;
+    }
+
+    .navbar-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        color: var(--primary-color) !important;
+        font-size: 1.15rem;
+        font-weight: 900 !important;
+        letter-spacing: .01em;
+        transition: .2s ease;
+    }
+
+    .navbar-brand:hover {
+        color: #ffea82 !important;
+        transform: translateY(-1px);
+    }
+
+    .navbar-brand::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        box-shadow: 0 0 14px rgba(255, 212, 59, .75);
     }
 
     .navbar-toggler {
-        border-color: rgba(255, 255, 255, 0.3);
+        border: 1px solid var(--border-color);
+        background: rgba(255, 212, 59, .08);
+        box-shadow: none !important;
+    }
+
+    .navbar-toggler-icon {
+        filter: invert(88%) sepia(69%) saturate(1097%) hue-rotate(342deg) brightness(104%);
+    }
+
+    .nav-link,
+    .navbar .btn-link {
+        position: relative;
+        padding: .55rem .75rem !important;
+        border-radius: 10px;
+        color: #e9e9e9 !important;
+        font-size: .88rem;
+        font-weight: 700;
+        text-decoration: none !important;
+        transition: .2s ease;
+    }
+
+    .nav-link:hover,
+    .nav-link:focus,
+    .navbar .btn-link:hover {
+        background: rgba(255, 212, 59, .10);
+        color: var(--primary-color) !important;
+        transform: translateY(-1px);
+    }
+
+    .nav-link i {
+        color: var(--primary-color);
+    }
+
+    .cart-total-items {
+        min-width: 21px;
+        border: 1px solid #111;
+        background: var(--primary-color) !important;
+        color: #111 !important;
+        font-weight: 900;
     }
 
     .btn-primary {
-        background-color: var(--accent-color);
-        border-color: var(--accent-color);
-        color: #fff;
+        border-color: var(--primary-color);
+        border-radius: 12px;
+        background: linear-gradient(135deg, #ffe66b, var(--primary-color));
+        color: #111;
+        font-weight: 850;
+        box-shadow: 0 8px 20px rgba(255, 212, 59, .14);
+        transition: .2s ease;
     }
 
-    .btn-primary:hover {
-        background-color: var(--secondary-color);
-        border-color: var(--secondary-color);
+    .btn-primary:hover,
+    .btn-primary:focus {
+        border-color: #ffea82;
+        background: linear-gradient(135deg, #fff08f, #ffc800);
+        color: #000;
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(255, 212, 59, .22);
     }
 
     .mobile-fixed-bottom-bar {
         position: fixed;
+        right: 0;
         bottom: 0;
         left: 0;
-        right: 0;
-        height: 60px;
-        background-color: #fff;
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
         z-index: 1055;
-        padding: 0.5rem;
-        border-top: 1px solid #eee;
+        height: 66px;
+        padding: .45rem;
+        border-top: 1px solid var(--border-color);
+        background: rgba(12, 12, 12, .96);
+        box-shadow: 0 -10px 28px rgba(0, 0, 0, .42);
+        backdrop-filter: blur(14px);
     }
 
     .mobile-fixed-bottom-bar a {
+        position: relative;
         flex: 1;
-        color: var(--primary-color);
-        text-decoration: none;
-        font-size: 0.75rem;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        position: relative;
+        border-radius: 13px;
+        color: #a9a9a9;
+        font-size: .72rem;
+        text-decoration: none;
+        transition: .2s ease;
     }
 
-    .mobile-fixed-bottom-bar a:hover {
-        color: var(--accent-color);
+    .mobile-fixed-bottom-bar a:hover,
+    .mobile-fixed-bottom-bar a:focus {
+        background: rgba(255, 212, 59, .09);
+        color: var(--primary-color);
+        transform: translateY(-2px);
     }
 
     .mobile-fixed-bottom-bar i {
-        font-size: 1.4rem;
+        margin-bottom: 3px;
+        color: var(--primary-color);
+        font-size: 1.25rem;
         line-height: 1;
     }
 
     .mobile-fixed-bottom-bar small {
+        margin-top: 1px;
         line-height: 1.1;
-        margin-top: 2px;
+        font-weight: 700;
     }
 
     .mobile-fixed-bottom-bar .badge {
-        font-size: 0.6rem;
-        top: 5px !important;
-        right: 15px !important;
+        top: 2px !important;
+        right: 14px !important;
+        min-width: 20px;
+        border: 1px solid #111;
+        background: var(--primary-color) !important;
+        color: #111 !important;
+        font-size: .6rem;
+        font-weight: 900;
     }
 
-    .nav-link:hover {
-        text-decoration: underline;
+    body > .container.py-4 {
+        max-width: 1320px;
+    }
+
+    .swal2-popup {
+        border: 1px solid var(--border-color) !important;
+        border-radius: 18px !important;
+        background: #171717 !important;
+        color: var(--text-color) !important;
+    }
+
+    .swal2-title,
+    .swal2-html-container {
+        color: var(--text-color) !important;
+    }
+
+    .swal2-confirm {
+        border: none !important;
+        background: var(--primary-color) !important;
+        color: #111 !important;
+        font-weight: 850 !important;
+    }
+
+    .swal2-cancel {
+        background: #333 !important;
+        color: #fff !important;
+    }
+
+    @media (max-width: 767.98px) {
+        body {
+            padding-top: 70px;
+            padding-bottom: 78px;
+        }
+
+        .navbar {
+            min-height: 62px;
+        }
+
+        .navbar-collapse {
+            margin-top: .75rem;
+            padding: .85rem;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            background: #111;
+            box-shadow: 0 14px 30px rgba(0, 0, 0, .35);
+        }
+
+        .navbar-nav {
+            align-items: stretch !important;
+        }
+
+        .navbar-nav .nav-item,
+        .navbar-nav .nav-link,
+        .navbar-nav form,
+        .navbar-nav button {
+            width: 100%;
+        }
+
+        body > .container.py-4 {
+            padding-right: .8rem;
+            padding-left: .8rem;
+        }
     }
 </style>
 
@@ -127,7 +287,7 @@
         <a class="navbar-brand fw-bold"
    href="{{ route('online.index') }}">
 
-    🛍️ {{ $shopSettings->shop_name ?? 'Chalini' }}
+     {{ $shopSettings->shop_name ?? 'Chalini' }}
 
 </a>
 
@@ -186,7 +346,7 @@
                     <a class="nav-link"
                         href="{{ route('online.index') }}">
 
-                        หน้าแรก
+                        <i class="fa-solid fa-house me-1"></i> หน้าแรก
 
                     </a>
 
@@ -199,7 +359,7 @@
                     <a class="nav-link"
                         href="{{ route('online.track') }}">
 
-                        ติดตามคำสั่งซื้อ
+                        <i class="fa-solid fa-box me-1"></i> ติดตามคำสั่งซื้อ
 
                     </a>
 
@@ -256,7 +416,7 @@
                             <button type="submit"
                                 class="nav-link btn btn-link p-0">
 
-                                ออกจากระบบ
+                                <i class="fa-solid fa-right-from-bracket me-1"></i> ออกจากระบบ
 
                             </button>
 
@@ -272,7 +432,7 @@
                         <a class="nav-link"
                             href="{{ route('login') }}">
 
-                            เข้าสู่ระบบ
+                            <i class="fa-solid fa-right-to-bracket me-1"></i> เข้าสู่ระบบ
 
                         </a>
 
@@ -329,7 +489,7 @@
                             <button type="submit"
                                 class="btn btn-link nav-link p-0">
 
-                                ออกจากระบบ
+                                <i class="fa-solid fa-right-from-bracket me-1"></i> ออกจากระบบ
 
                             </button>
 
@@ -340,7 +500,7 @@
                         <a href="{{ route('login') }}"
                             class="btn btn-link nav-link p-0">
 
-                            เข้าสู่ระบบ
+                            <i class="fa-solid fa-right-to-bracket me-1"></i> เข้าสู่ระบบ
 
                         </a>
 
@@ -537,7 +697,10 @@
 
                     toast: true,
 
-                    position: 'top-end'
+                    position: 'top-end',
+                    background: '#171717',
+                    color: '#f7f7f7',
+                    iconColor: '#ffd43b'
 
                 });
 

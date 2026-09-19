@@ -11,11 +11,13 @@ use App\Http\Controllers\SaleController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ManageController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\BarcodeController;
 use App\Http\Controllers\ShopController;
+use App\Http\Controllers\OnlineUserController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\CategoryController;
@@ -127,7 +129,8 @@ Route::middleware('auth')
           Route::put('/cart/update-quantity/{id}', [
             OnlineController::class,
             'updateQuantity'
-        ])->block(15, 15)
+        ])->middleware('shop.open')
+            ->block(15, 15)
             ->name('updateQuantity');
 
 
@@ -147,7 +150,8 @@ Route::middleware('auth')
 Route::patch(
     '/cart/update/{id}',
     [OnlineController::class, 'updateQuantity']
-)->block(15, 15)
+)->middleware('shop.open')
+    ->block(15, 15)
     ->name('online.updateQuantity');
 
  // 💳 สร้าง QR พร้อมเพย์
@@ -170,12 +174,14 @@ Route::delete(
         Route::get('/checkout', [
     OnlineController::class,
     'showCheckoutForm'
-])->name('checkout');
+])->middleware('shop.open')
+    ->name('checkout');
 
 Route::post('/checkout', [
     OnlineController::class,
     'processCheckout'
-])->block(15, 15)
+])->middleware('shop.open')
+    ->block(15, 15)
     ->name('checkout.store');
 
 
@@ -233,6 +239,27 @@ Route::middleware('role:admin,manager,owner,staff')->group(function () {
     ])->name('shift.update');
 });
 
+Route::get(
+    '/online/orders/{order}',
+    [OnlineController::class, 'show']
+)->name('online.orders.show');
+
+Route::get(
+    '/online/orders/history',
+    [OnlineController::class, 'history']
+)->name('online.orders.history');
+
+ Route::patch(
+        '/suppliers/{supplier}/toggle-status',
+        [SupplierController::class, 'toggleStatus']
+    )->name('suppliers.toggle-status');
+
+    Route::resource(
+        'suppliers',
+        SupplierController::class
+    )->except(['show']);
+
+    
 
 // ==========================================
 // 🛒 POS หน้าร้าน
@@ -282,7 +309,8 @@ Route::middleware(['auth', CartMiddleware::class])
         Route::post('/cart/add', [
             OnlineController::class,
             'add'
-        ])->block(15, 15)
+        ])->middleware('shop.open')
+            ->block(15, 15)
             ->name('add');
 
 
@@ -370,6 +398,7 @@ Route::middleware('role:admin,manager,staff,owner')->group(function () {
                 StaffController::class,
                 'destroy'
             ])->name('delete');
+            
 
 
             // ==========================================
@@ -704,6 +733,17 @@ Route::prefix('reports')
         ])->name('daily');
 
     });
+
+    Route::middleware('auth')
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get(
+            '/online-users',
+            [OnlineUserController::class, 'index']
+        )->name('online-users.index');
+    });
+
 
 
 // ==========================================

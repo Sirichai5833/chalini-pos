@@ -78,6 +78,29 @@ class SaleController extends Controller
             'products.*.qty' => 'required|integer|min:1',
             'price_type' => 'required|in:retail,wholesale',
             'payment_method' => 'required|in:cash,qr,card',
+        ], [
+            'request_token.required' =>
+                'ไม่พบรหัสคำขอ กรุณารีเฟรชหน้าแล้วลองใหม่',
+            'request_token.uuid' =>
+                'รหัสคำขอไม่ถูกต้อง กรุณารีเฟรชหน้าแล้วลองใหม่',
+            'products.required' =>
+                'กรุณาเพิ่มสินค้าอย่างน้อย 1 รายการ',
+            'products.min' =>
+                'กรุณาเพิ่มสินค้าอย่างน้อย 1 รายการ',
+            'products.*.product_unit_id.required' =>
+                'ไม่พบหน่วยสินค้า กรุณาเลือกสินค้าใหม่',
+            'products.*.product_unit_id.exists' =>
+                'หน่วยสินค้านี้ไม่มีอยู่แล้ว กรุณารีเฟรชหน้า',
+            'products.*.qty.required' =>
+                'กรุณาระบุจำนวนสินค้า',
+            'products.*.qty.integer' =>
+                'จำนวนสินค้าต้องเป็นจำนวนเต็ม',
+            'products.*.qty.min' =>
+                'จำนวนสินค้าต้องไม่น้อยกว่า 1',
+            'price_type.required' =>
+                'กรุณาเลือกประเภทราคา',
+            'payment_method.required' =>
+                'กรุณาเลือกวิธีชำระเงิน',
         ]);
 
         $result = DB::transaction(function () use (
@@ -110,7 +133,7 @@ class SaleController extends Controller
             if ($existingSales->count() > 1) {
                 throw ValidationException::withMessages([
                     'request_token' =>
-                        'Duplicate POS request references were found.',
+                        'พบคำขอขายซ้ำ กรุณารีเฟรชหน้าแล้วลองใหม่',
                 ]);
             }
 
@@ -136,7 +159,7 @@ class SaleController extends Controller
 
             if ($openShifts->count() > 1) {
                 throw ValidationException::withMessages([
-                    'shift' => 'Multiple open shifts were found for this user.',
+                    'shift' => 'พบกะที่เปิดอยู่มากกว่า 1 กะ กรุณาติดต่อผู้ดูแลระบบ',
                 ]);
             }
 
@@ -159,7 +182,7 @@ class SaleController extends Controller
 
             if ($units->count() !== $quantities->count()) {
                 throw ValidationException::withMessages([
-                    'products' => 'A product unit no longer exists.',
+                    'products' => 'ไม่พบหน่วยสินค้าบางรายการ กรุณารีเฟรชหน้าแล้วเลือกสินค้าใหม่',
                 ]);
             }
 
@@ -171,7 +194,7 @@ class SaleController extends Controller
             ) use ($quantities, $priceField) {
                 if (!$unit->product || !$unit->product->is_active) {
                     throw ValidationException::withMessages([
-                        'products' => 'A product is not available for sale.',
+                        'products' => 'สินค้าบางรายการถูกปิดการขายหรือไม่พร้อมจำหน่าย',
                     ]);
                 }
 
@@ -180,7 +203,7 @@ class SaleController extends Controller
                 if ($price === null || (float) $price < 0) {
                     throw ValidationException::withMessages([
                         'price_type' =>
-                            'The selected server-side price is unavailable.',
+                            'ไม่พบราคาขายของสินค้าบางรายการ',
                     ]);
                 }
 
@@ -193,11 +216,13 @@ class SaleController extends Controller
                     'subtotal' => round((float) $price * $quantity, 2),
                 ];
             });
+
+            // การตรวจและแตกหน่วยสต็อกทำใน StockDeductionService ภายใน transaction
             $total = round($items->sum('subtotal'), 2);
 
             if ($total <= 0) {
                 throw ValidationException::withMessages([
-                    'products' => 'Sale total must be greater than zero.',
+                    'products' => 'ยอดขายรวมต้องมากกว่า 0 บาท',
                 ]);
             }
 
@@ -326,7 +351,7 @@ $units = ProductUnit::whereIn('id', $unitIds)
                 ->first();
 
             if ($stock) {
-                $stock->increment('store_stock', $item->quantity * ($unit->unit_quantity ?? 1));
+                $stock->increment('store_stock', (int) $item->quantity);
             }
 
             ProductStockMovement::create([
@@ -362,128 +387,293 @@ $units = ProductUnit::select(
     }
 
 
-    public function update(Request $request, $id)
-    {
-
-        $request->validate([
+    public function update(
+        Request $request,
+        $id,
+        StockDeductionService $stockDeduction
+    ) {
+        $validated = $request->validate([
             'sale_date' => 'required|date',
-            'items' => 'required|array',
-            'items.*.product_unit_id' => 'required|exists:product_units,id',
+            'sale_type' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_unit_id' => 'required|integer|exists:product_units,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
         ]);
-        $sale = Sale::with('items')->findOrFail($id);
 
-        DB::transaction(function () use ($request, $sale) {
-            $staffId = $request->staff_id ?? auth::id();
+        $sale = DB::transaction(function () use (
+            $request,
+            $validated,
+            $id,
+            $stockDeduction
+        ) {
+            $sale = Sale::query()
+                ->with('items')
+                ->lockForUpdate()
+                ->findOrFail($id);
+
+            $staffId = $request->staff_id ?? Auth::id();
+
             if (!$staffId) {
-                throw new \Exception('ไม่พบข้อมูล staff_id');
+                throw ValidationException::withMessages([
+                    'staff_id' => 'ไม่พบข้อมูลพนักงาน',
+                ]);
             }
 
-            // อัปเดตข้อมูลหลัก
-            $sale->update([
-                'sale_date' => $request->sale_date,
-                'staff_id' => $staffId,
-                'sale_type' => $request->sale_type,
-            ]);
+            /*
+             * คืนสต็อกของรายการเดิมก่อน
+             * store_stock ของแต่ละแถวคือจำนวนของ unit_id นั้นโดยตรง
+             * จึงคืนด้วย quantity เท่านั้น ไม่คูณ unit_quantity
+             */
+            foreach ($sale->items as $oldItem) {
+                $unit = ProductUnit::query()
+                    ->whereKey($oldItem->product_unit_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-            // คืน stock และลบรายการเดิม
-            foreach ($sale->items as $item) {
-                // คืน stock ถ้ามี
-                $unit = ProductUnit::find($item->product_unit_id);
+                $stock = ProductStocks::query()
+                    ->where('product_id', $unit->product_id)
+                    ->where('unit_id', $unit->id)
+                    ->lockForUpdate()
+                    ->first();
 
-                $productStock = ProductStocks::where(
-    'product_id',
-    $unit->product_id
-)
-->where('unit_id', $unit->id)
-->lockForUpdate()
-->first();
-                if ($productStock) {
-                    $productStock->increment(
-    'store_stock',
-    $item->quantity * $unit->unit_quantity
-);
+                if (!$stock) {
+                    $stock = ProductStocks::create([
+                        'product_id' => $unit->product_id,
+                        'unit_id' => $unit->id,
+                        'warehouse_stock' => 0,
+                        'store_stock' => 0,
+                        'track_stock' => 1,
+                    ]);
                 }
 
-                // ลบ item
-                $item->delete();
+                $stock->increment('store_stock', (int) $oldItem->quantity);
+
+                ProductStockMovement::create([
+                    'product_id' => $unit->product_id,
+                    'type' => 'in',
+                    'quantity' => (int) $oldItem->quantity,
+                    'unit_quantity' => (int) ($unit->unit_quantity ?? 1),
+                    'unit' => $unit->unit_name ?? '-',
+                    'location' => 'store',
+                    'note' => 'คืนสต็อกจากการแก้ไขรายการขาย #' . $sale->id,
+                ]);
             }
 
-            // เพิ่มรายการใหม่
-            foreach ($request->items as $itemData) {
-                $sale->items()->create([
-                    'product_unit_id' => $itemData['product_unit_id'],
-                    'unit_quantity' => $itemData['quantity'],
-                    'quantity' => $itemData['quantity'],
-                    'price' => $itemData['price'],
-                    'cost' => $itemUnit?->cost_price ?? 0,
+            $sale->items()->delete();
 
+            $total = 0;
+
+            foreach ($validated['items'] as $itemData) {
+                $unit = ProductUnit::query()
+                    ->with('product')
+                    ->lockForUpdate()
+                    ->findOrFail($itemData['product_unit_id']);
+
+                $quantity = (int) $itemData['quantity'];
+                $price = (float) $itemData['price'];
+
+                $stockDeduction->deduct(
+                    $unit,
+                    $quantity,
+                    'แก้ไขรายการขาย #' . $sale->id
+                );
+
+                $sale->items()->create([
+                    'product_unit_id' => $unit->id,
+                    'unit_quantity' => (int) ($unit->unit_quantity ?? 1),
+                    'quantity' => $quantity,
+                    'price' => $price,
+                    'cost' => (float) ($unit->cost_price ?? 0),
                 ]);
 
-                // ลด stock ถ้ามี
-                // $productStock = ProductStocks::where('product_id', $itemData['product_id'])->first();
-                // if ($productStock) {
-                //     $productStock->decrement('store_stock', $itemData['quantity']);
-                // }
+                $total += $price * $quantity;
             }
 
-            // คำนวณยอดรวมใหม่จาก request
-            $total = collect($request->items)->sum(fn($i) => $i['price'] * $i['quantity']);
-            $sale->update(['total_price' => $total]);
+            $sale->update([
+                'sale_date' => $validated['sale_date'],
+                'staff_id' => $staffId,
+                'sale_type' => $validated['sale_type'] ?? $sale->sale_type,
+                'total_price' => round($total, 2),
+            ]);
+
+            return $sale;
         });
 
-        return redirect()->route('staff.sales.show', $sale->id)->with('success', 'อัปเดตรายการขายแล้ว');
+        return redirect()
+            ->route('staff.sales.show', $sale->id)
+            ->with('success', 'อัปเดตรายการขายแล้ว');
     }
 
 
 
+
+
     // 1. เพิ่ม Request $request เพื่อรับค่าจากฟอร์ม
+    // ยกเลิกรายการขายและคืนสต็อก
     public function destroy(Request $request, $id)
     {
-        return DB::transaction(function () use ($request, $id) {
+        $validated = $request->validate(
+            [
+                'cancel_reason' => [
+                    'required',
+                    'string',
+                    'min:3',
+                    'max:500',
+                ],
+            ],
+            [
+                'cancel_reason.required' =>
+                    'กรุณาระบุเหตุผลในการยกเลิกรายการขาย',
+                'cancel_reason.min' =>
+                    'เหตุผลต้องมีอย่างน้อย 3 ตัวอักษร',
+            ]
+        );
+
+        $actor = $request->user();
+
+        abort_unless(
+            $actor &&
+            in_array(
+                $actor->role,
+                ['admin', 'manager', 'owner'],
+                true
+            ),
+            403,
+            'คุณไม่มีสิทธิ์ยกเลิกรายการขาย'
+        );
+
+        DB::transaction(function () use (
+            $id,
+            $actor,
+            $validated
+        ) {
             $sale = Sale::query()
+                ->with('items')
                 ->lockForUpdate()
                 ->findOrFail($id);
-            $actor = $request->user();
 
-            abort_unless(
-                $actor &&
-                    in_array(
-                        $actor->role,
-                        ['admin', 'manager', 'owner', 'staff'],
-                        true
-                    ),
-                403
-            );
-
-            if (
-                $actor->role === 'staff' &&
-                (int) $sale->staff_id !== (int) $actor->id
-            ) {
-                abort(403);
+            if (($sale->status ?? null) === 'cancelled') {
+                throw ValidationException::withMessages([
+                    'cancel_reason' =>
+                        'รายการขายนี้ถูกยกเลิกไปแล้ว',
+                ]);
             }
 
-            $request->validate([
-                'cancel_reason' => 'required|string|max:500',
-            ]);
-
-            SaleItem::query()
+            $items = SaleItem::query()
                 ->where('sale_id', $sale->id)
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get();
 
-            throw ValidationException::withMessages([
-                'cancel_reason' =>
-                    'ไม่สามารถพิสูจน์เส้นทางการตัดสต็อกของบิลนี้ได้ กรุณาหยุดการยกเลิกอัตโนมัติและทำ manual reconciliation',
-            ]);
+            if ($items->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'cancel_reason' =>
+                        'ไม่พบรายการสินค้าในบิลนี้',
+                ]);
+            }
+
+            $units = ProductUnit::query()
+                ->whereIn(
+                    'id',
+                    $items->pluck('product_unit_id')->filter()->unique()
+                )
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            foreach ($items as $item) {
+                $unit = $units->get($item->product_unit_id);
+
+                if (!$unit) {
+                    throw ValidationException::withMessages([
+                        'cancel_reason' =>
+                            "ไม่พบหน่วยสินค้าของรายการ #{$item->id}",
+                    ]);
+                }
+
+                /*
+                 * ระบบนี้เก็บสต็อกแยกตาม unit_id
+                 * จึงคืนจำนวนตาม quantity ที่ขายของหน่วยนั้นโดยตรง
+                 */
+                $stock = ProductStocks::query()
+                    ->where('product_id', $unit->product_id)
+                    ->where('unit_id', $unit->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$stock) {
+                    $stock = ProductStocks::create([
+                        'product_id' => $unit->product_id,
+                        'unit_id' => $unit->id,
+                        'warehouse_stock' => 0,
+                        'store_stock' => 0,
+                        'track_stock' => 1,
+                    ]);
+                }
+
+                $stock->increment(
+                    'store_stock',
+                    (int) $item->quantity
+                );
+
+                ProductStockMovement::create([
+                    'product_id' => $unit->product_id,
+                    'type' => 'in',
+                    'quantity' => (int) $item->quantity,
+                    'unit_quantity' =>
+                        (int) ($item->unit_quantity
+                            ?? $unit->unit_quantity
+                            ?? 1),
+                    'unit' => $unit->unit_name ?? '-',
+                    'location' => 'store',
+                    'note' =>
+                        '[ยกเลิกการขาย] บิล #' .
+                        $sale->id .
+                        ' เหตุผล: ' .
+                        $validated['cancel_reason'],
+                ]);
+            }
+
+            /*
+             * ไม่ลบ Sale และ SaleItem เพื่อเก็บประวัติ
+             * ตาราง sales ต้องมีคอลัมน์ status
+             */
+            $sale->status = 'cancelled';
+
+            // บันทึกข้อมูลเสริมเฉพาะเมื่อคอลัมน์มีอยู่จริง
+            if (\Illuminate\Support\Facades\Schema::hasColumn(
+                'sales',
+                'cancel_reason'
+            )) {
+                $sale->cancel_reason =
+                    $validated['cancel_reason'];
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn(
+                'sales',
+                'cancelled_by'
+            )) {
+                $sale->cancelled_by = $actor->id;
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn(
+                'sales',
+                'cancelled_at'
+            )) {
+                $sale->cancelled_at = now();
+            }
+
+            $sale->save();
         });
+
+        return redirect()
+            ->route('staff.sales.history')
+            ->with(
+                'success',
+                'ยกเลิกรายการขายและคืนสต็อกเรียบร้อยแล้ว'
+            );
     }
-
-
-
-
 
 
     public function generateQRCode(Request $request)
@@ -508,122 +698,101 @@ $units = ProductUnit::select(
     }
 
 
-    public function checkout(Request $request)
-    {
-       $request->validate([
-    'name' => 'required|string',
-    'phone' => 'required|string',
-    'payment_method' => 'required|in:cash,qr,card,credit',
-    'slip' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
-    'products' => 'required|array',
-    'products.*.product_unit_id' => 'required|exists:product_units,id',
-    'products.*.qty' => 'required|integer|min:1',
-    'products.*.price' => 'required|numeric|min:0',
-]);
+    public function checkout(
+        Request $request,
+        StockDeductionService $stockDeduction
+    ) {
+        $validated = $request->validate([
+            'name' => 'required|string',
+            'phone' => 'required|string',
+            'payment_method' => 'required|in:cash,qr,card,credit',
+            'slip' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'products' => 'required|array|min:1',
+            'products.*.product_unit_id' => 'required|integer|exists:product_units,id',
+            'products.*.qty' => 'required|integer|min:1',
+            'products.*.price' => 'nullable|numeric|min:0',
+        ]);
 
-        DB::beginTransaction();
+        $slipPath = $request->file('slip')->store('slips', 'public');
 
-        try {
-            // อัปโหลดสลิป
-            $slipPath = $request->file('slip')->store('slips', 'public');
+        $sale = DB::transaction(function () use (
+            $request,
+            $validated,
+            $slipPath,
+            $stockDeduction
+        ) {
+            $actor = $request->user();
+
+            abort_unless($actor, 403);
+
+            $shift = Shift::query()
+                ->where('user_id', $actor->id)
+                ->where('status', 'open')
+                ->lockForUpdate()
+                ->first();
+
+            abort_unless($shift, 403, 'กรุณาเปิดกะก่อนขาย');
+
+            $sale = Sale::create([
+                'staff_id' => $actor->id,
+                'shift_id' => $shift->id,
+                'sale_date' => now(),
+                'sale_type' => 'retail',
+                'payment_method' => $validated['payment_method'],
+                'slip' => $slipPath,
+                'total_price' => 0,
+            ]);
+
             $total = 0;
-            $shift = Shift::where('user_id', Auth::id())
-    ->where('status', 'open')
-    ->first();
 
-if (!$shift) {
-    return response()->json([
-        'success' => false,
-        'message' => 'กรุณาเปิดกะก่อนขาย'
-    ], 403);
-}
-            // สร้าง Sale record
-           $sale = Sale::create([
-    'staff_id' => Auth::id(),
-    'shift_id' => $shift->id,
-    'sale_date' => now(),
+            foreach ($validated['products'] as $item) {
+                $unit = ProductUnit::query()
+                    ->with('product')
+                    ->lockForUpdate()
+                    ->findOrFail($item['product_unit_id']);
 
-    'sale_type' => 'retail',
+                if (!$unit->product || !$unit->product->is_active) {
+                    throw ValidationException::withMessages([
+                        'products' => 'สินค้าบางรายการถูกปิดการขายหรือไม่พร้อมจำหน่าย',
+                    ]);
+                }
 
-    'payment_method' => $request->payment_method,
+                // ใช้ราคาจากฐานข้อมูล ป้องกันการแก้ราคาใน request
+                $realPrice = (float) $unit->price;
+                $quantity = (int) $item['qty'];
+                $total += $realPrice * $quantity;
 
-    'slip' => $slipPath,
-
-    'total_price' => $total,
-]);
-
-            foreach ($request->products as $item) {
-                $unit = ProductUnit::findOrFail($item['product_unit_id']);
-                $product = $unit->product;
-                $realPrice = $unit->price;
-                $total += $realPrice * $item['qty'];
+                $stockDeduction->deduct(
+                    $unit,
+                    $quantity,
+                    'ขายสินค้าออนไลน์/Checkout'
+                );
 
                 SaleItem::create([
                     'sale_id' => $sale->id,
                     'product_unit_id' => $unit->id,
-                    'quantity' => $item['qty'],
-                    'unit_quantity' => $unit->unit_quantity,
+                    'quantity' => $quantity,
+                    'unit_quantity' => (int) ($unit->unit_quantity ?? 1),
                     'price' => $realPrice,
-                    'cost' => $unit->cost_price,
+                    'cost' => (float) ($unit->cost_price ?? 0),
                 ]);
-
-                // ตัดสต็อก
-                if ($product->stock && $product->stock->track_stock) {
-                    $product->stock->decrement('store_stock', $item['qty'] * $unit->unit_quantity);
-
-                    ProductStockMovement::create([
-                        'product_id' => $product->id,
-                        'type' => 'out',
-                        'quantity' => $item['qty'],
-                        'unit_quantity' => $unit->unit_quantity,
-                        'unit' => $unit->unit_name,
-                        'location' => 'store',
-                        'note' => 'ขายสินค้า',
-                    ]);
-
-                    // ลดสต็อกหน่วยย่อย
-                    $baseUnit = ProductUnit::where('product_id', $product->id)
-                        ->orderBy('unit_quantity', 'asc')
-                        ->first();
-
-                    if ($unit->unit_quantity > $baseUnit->unit_quantity) {
-                        $baseStock = ProductStocks::where('product_id', $product->id)
-                            ->where('unit_id', $baseUnit->id)
-                            ->first();
-
-                        if ($baseStock) {
-                            $baseStock->decrement('store_stock', $item['qty'] * $unit->unit_quantity);
-                            ProductStockMovement::create([
-                                'product_id' => $product->id,
-                                'type' => 'out',
-                                'quantity' => $item['qty'] * $unit->unit_quantity,
-                                'unit_quantity' => $baseUnit->unit_quantity,
-                                'unit' => $baseUnit->unit_name,
-                                'location' => 'store',
-                                'note' => 'ตัดสต็อกหน่วยย่อยจากการขาย',
-                            ]);
-                        }
-                    }
-                }
             }
-    $sale->update([
-    'total_price' => $total
-]);
-            DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'ชำระเงินสำเร็จ',
-                'sale_id' => $sale->id,
+            $sale->update([
+                'total_price' => round($total, 2),
             ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage(),
-            ], 500);
-        }
+
+            return $sale;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'ชำระเงินสำเร็จ',
+            'sale_id' => $sale->id,
+        ]);
     }
+
+
 
     public function creditSale(
         Request $request,
@@ -694,7 +863,7 @@ if (!$shift) {
 
                 if ($price === null || (float) $price < 0) {
                     throw ValidationException::withMessages([
-                        'products' => 'Product price is not available.',
+                        'products' => 'ไม่พบราคาขายของสินค้าบางรายการ',
                     ]);
                 }
 
@@ -709,11 +878,12 @@ if (!$shift) {
                 ];
             });
 
+            // การตรวจและแตกหน่วยสต็อกทำใน StockDeductionService ภายใน transaction
             $total = round($items->sum('subtotal'), 2);
 
             if ($total <= 0) {
                 throw ValidationException::withMessages([
-                    'products' => 'Credit sale total must be greater than zero.',
+                    'products' => 'ยอดขายเงินเชื่อต้องมากกว่า 0 บาท',
                 ]);
             }
 

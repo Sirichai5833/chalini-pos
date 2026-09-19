@@ -11,95 +11,313 @@
 
     <style>
         :root {
-            --primary-color: #007849;
-            /* เขียวเซเว่น */
-            --accent-color: #FF7F00;
-            /* ส้มเซเว่น */
-            --danger-color: #ED1C24;
-            /* แดงเซเว่น */
-            --light-bg: #fff9f4;
-            --text-dark: #212529;
+            --primary-color: #f5c400;
+            --primary-dark: #c99f00;
+            --accent-color: #ffd43b;
+            --accent-hover: #ffbf00;
+            --danger-color: #ef4444;
+            --dark-bg: #090909;
+            --dark-surface: #121212;
+            --dark-card: #181818;
+            --dark-soft: #222222;
+            --text-light: #f8f8f8;
+            --text-muted: #a9a9a9;
+            --border-color: rgba(255, 212, 59, .22);
+            --yellow-shadow: 0 16px 38px rgba(245, 196, 0, .10);
         }
 
         body {
             font-family: 'Sarabun', sans-serif;
-            background-color: var(--light-bg);
+            background:
+                radial-gradient(circle at top right, rgba(245, 196, 0, .07), transparent 28%),
+                var(--dark-bg);
+            color: var(--text-light);
             padding-top: 70px;
         }
 
         .navbar {
-            background-color: var(--primary-color) !important;
+            background: rgba(8, 8, 8, .96) !important;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+            backdrop-filter: blur(12px);
         }
 
         .navbar-brand,
         .nav-link,
         .btn-link {
-            color: #fff !important;
+            color: var(--text-light) !important;
         }
 
-        .btn-orange {
-            background-color: var(--accent-color);
+        .navbar-brand:hover,
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--accent-color) !important;
+        }
+
+        .container-fluid.py-5.mb-3 {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-color) !important;
+            border-bottom: 3px solid var(--primary-color) !important;
+            border-radius: 0 0 32px 32px !important;
+            background:
+                radial-gradient(circle at 86% 20%, rgba(255, 212, 59, .20), transparent 24%),
+                linear-gradient(135deg, #080808 0%, #171717 58%, #2b2300 100%) !important;
+            box-shadow: var(--yellow-shadow);
+        }
+
+        .container-fluid.py-5.mb-3::after {
+            content: "";
+            position: absolute;
+            right: -80px;
+            bottom: -115px;
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            background: rgba(245, 196, 0, .13);
+            pointer-events: none;
+        }
+
+        .container-fluid.py-5.mb-3 h2 {
+            position: relative;
+            z-index: 1;
+            color: var(--accent-color) !important;
+            text-shadow: 0 4px 18px rgba(0, 0, 0, .65);
+        }
+
+        .container-fluid.py-5.mb-3 p {
+            position: relative;
+            z-index: 1;
+            color: #dedede !important;
+        }
+
+        #category-menu {
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            background: var(--dark-surface);
+            box-shadow: var(--yellow-shadow);
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) var(--dark-soft);
+        }
+
+        #category-menu::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        #category-menu::-webkit-scrollbar-track {
+            background: var(--dark-soft);
+            border-radius: 20px;
+        }
+
+        #category-menu::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 20px;
+        }
+
+        .category-link {
+            flex: none !important;
+            padding: .55rem .9rem !important;
+            border: 1px solid #444 !important;
+            border-radius: 999px !important;
+            background: #1a1a1a !important;
+            color: #d7d7d7 !important;
+            font-weight: 750 !important;
+            scroll-snap-align: start;
+            text-decoration: none;
+            transition: .18s ease;
+        }
+
+        .category-link.btn-orange,
+        .category-link:hover {
+            border-color: var(--primary-color) !important;
+            background: linear-gradient(135deg, var(--accent-color), var(--primary-color)) !important;
+            color: #111 !important;
+            transform: translateY(-2px);
+            box-shadow: 0 7px 18px rgba(245, 196, 0, .20);
+        }
+
+        form[action*="online"] .form-control {
+            min-height: 48px;
+            border: 1px solid #383838;
+            border-radius: 14px;
+            background: #141414;
+            color: var(--text-light);
+            box-shadow: none;
+        }
+
+        form[action*="online"] .form-control::placeholder {
+            color: #777;
+        }
+
+        form[action*="online"] .form-control:focus {
+            border-color: var(--primary-color);
+            background: #171717;
             color: #fff;
-            border: none;
+            box-shadow: 0 0 0 .2rem rgba(245, 196, 0, .13);
         }
 
-        .btn-orange:hover {
-            background-color: #e76b00;
-            color: #fff;
-        }
-
+        .btn-orange,
         .btn-primary {
-            background-color: var(--accent-color);
-            border-color: var(--accent-color);
-            color: white;
+            border-color: var(--primary-color) !important;
+            background: linear-gradient(135deg, var(--accent-color), var(--primary-color)) !important;
+            color: #111 !important;
+            font-weight: 850;
+            box-shadow: 0 7px 18px rgba(245, 196, 0, .15);
+        }
+
+        .btn-orange:hover,
+        .btn-primary:hover {
+            border-color: var(--accent-hover) !important;
+            background: linear-gradient(135deg, #ffe46b, var(--accent-hover)) !important;
+            color: #000 !important;
+            transform: translateY(-1px);
+        }
+
+        .btn-outline-secondary {
+            border-color: #454545 !important;
+            background: #171717 !important;
+            color: #ddd !important;
         }
 
         .btn-outline-secondary:hover {
-            background-color: var(--accent-color);
-            color: white;
+            border-color: var(--primary-color) !important;
+            background: var(--primary-color) !important;
+            color: #111 !important;
         }
 
-        .overflow-auto a {
-            scroll-snap-align: start;
+        #product-list .row {
+            row-gap: 1rem !important;
         }
 
-        .btn-primary:hover {
-            background-color: var(--danger-color);
-            border-color: var(--danger-color);
+        #product-list .card {
+            overflow: hidden;
+            border: 1px solid #292929 !important;
+            border-radius: 20px !important;
+            background: linear-gradient(180deg, #1a1a1a, #131313);
+            color: var(--text-light);
+            box-shadow: 0 14px 30px rgba(0, 0, 0, .34) !important;
+            transition: transform .2s, box-shadow .2s, border-color .2s;
+            contain: content;
         }
 
-        .category-btn.active {
-            background-color: var(--accent-color) !important;
-            color: white;
+        #product-list .card:hover {
+            border-color: rgba(255, 212, 59, .62) !important;
+            transform: translateY(-5px);
+            box-shadow: 0 22px 48px rgba(0, 0, 0, .5), 0 0 22px rgba(245, 196, 0, .08) !important;
         }
 
-        .card .price {
-            color: var(--accent-color);
-            font-weight: bold;
+        .product-image-wrap {
+            position: relative;
+            overflow: hidden;
+            aspect-ratio: 1 / .76;
+            border-bottom: 1px solid #292929;
+            background: linear-gradient(135deg, #202020, #101010);
+        }
+
+        .product-image-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform .3s, filter .3s;
+        }
+
+        .card:hover .product-image-wrap img {
+            transform: scale(1.035);
+            filter: brightness(1.04);
+        }
+
+        .product-placeholder {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            place-items: center;
+            color: #666;
+            font-size: 2rem;
+        }
+
+        .card .card-body {
+            padding: .95rem;
+        }
+
+        .card .card-title {
+            display: -webkit-box;
+            overflow: hidden;
+            min-height: 2.7em;
+            margin: 0;
+            color: #fff;
+            font-size: .98rem;
+            font-weight: 850;
+            line-height: 1.35;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+
+        .card .price,
+        .text-orange {
+            color: var(--accent-color) !important;
+            font-weight: 900;
+        }
+
+        .text-muted {
+            color: var(--text-muted) !important;
+        }
+
+        .card-out-of-stock {
+            opacity: .58;
+            filter: grayscale(.35);
+        }
+
+        .badge-low-stock,
+        .badge-out-of-stock {
+            z-index: 2;
+            border-radius: 999px !important;
+            padding: .38rem .6rem !important;
+            font-size: .68rem !important;
+            font-weight: 850 !important;
+            box-shadow: 0 5px 14px rgba(0, 0, 0, .38);
+        }
+
+        .badge-out-of-stock {
+            background: var(--danger-color);
+            color: #fff;
+        }
+
+        .badge-low-stock {
+            background: var(--accent-color);
+            color: #111;
         }
 
         .add-to-cart {
             cursor: pointer;
         }
 
-        .card-out-of-stock {
-            opacity: 0.6;
+        .add-to-cart-form .btn {
+            min-height: 43px;
+            border-radius: 12px !important;
+            font-weight: 850;
         }
 
-        .badge-low-stock {
-            background-color: #ffc107;
-            color: black;
-            font-size: 0.75rem;
-            border-radius: 5px;
-            padding: 2px 6px;
+        .add-to-cart-form .btn-secondary {
+            border-color: #3b3b3b;
+            background: #292929;
+            color: #999;
         }
 
-        .badge-out-of-stock {
-            background-color: var(--danger-color);
-            color: white;
-            font-size: 0.75rem;
-            border-radius: 5px;
-            padding: 2px 6px;
+        .pagination {
+            --bs-pagination-color: var(--accent-color);
+            --bs-pagination-bg: #171717;
+            --bs-pagination-border-color: #333;
+            --bs-pagination-hover-color: #111;
+            --bs-pagination-hover-bg: var(--accent-color);
+            --bs-pagination-hover-border-color: var(--accent-color);
+            --bs-pagination-active-color: #111;
+            --bs-pagination-active-bg: var(--primary-color);
+            --bs-pagination-active-border-color: var(--primary-color);
+            --bs-pagination-disabled-color: #666;
+            --bs-pagination-disabled-bg: #111;
+            --bs-pagination-disabled-border-color: #2a2a2a;
+            font-size: 1rem;
         }
 
         .pagination svg {
@@ -107,39 +325,94 @@
             height: 1em;
         }
 
-        .pagination {
-            font-size: 1rem;
-        }
-
         .pagination .page-link {
-            padding: 0.5rem 0.75rem;
+            padding: .5rem .75rem;
             font-size: 1rem;
-        }
-
-        .text-orange {
-            color: var(--accent-color);
+            box-shadow: none;
         }
 
         .mobile-fixed-bottom-bar {
-            background-color: white;
-            border-top: 1px solid #eee;
-            box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.1);
+            background: #101010;
+            border-top: 1px solid var(--border-color);
+            box-shadow: 0 -8px 22px rgba(0, 0, 0, .35);
         }
 
         .mobile-fixed-bottom-bar a {
-            color: var(--primary-color);
+            color: #c5c5c5;
         }
 
         .mobile-fixed-bottom-bar a.active,
         .mobile-fixed-bottom-bar a:hover {
             color: var(--accent-color);
         }
+
+        .bg-warning.bg-opacity-25 {
+            border: 1px solid rgba(245, 196, 0, .28);
+            background: #211d08 !important;
+            color: #ffe46b;
+        }
+
+        .bg-warning.bg-opacity-25 .text-danger {
+            color: #ffe46b !important;
+        }
+
+        @media (max-width: 767.98px) {
+            .container-fluid.py-5.mb-3 {
+                border-radius: 0 0 22px 22px !important;
+                padding-top: 2rem !important;
+                padding-bottom: 2rem !important;
+            }
+
+            #product-list .row {
+                --bs-gutter-x: .7rem;
+            }
+
+            .card .card-body {
+                padding: .75rem;
+            }
+
+            .card .card-title {
+                font-size: .88rem;
+            }
+
+            .card .price {
+                font-size: 1.05rem !important;
+            }
+        }
     </style>
+
+
+   @php
+    $onlineOpenTime = \Illuminate\Support\Facades\DB::table('settings')
+        ->where('key', 'open_time')
+        ->value('value');
+
+    $onlineCloseTime = \Illuminate\Support\Facades\DB::table('settings')
+        ->where('key', 'close_time')
+        ->value('value');
+
+    try {
+        $onlineOpenTime = \Carbon\Carbon::parse(
+            $onlineOpenTime ?: '09:00'
+        )->format('H:i');
+    } catch (\Throwable $e) {
+        $onlineOpenTime = '09:00';
+    }
+
+    try {
+        $onlineCloseTime = \Carbon\Carbon::parse(
+            $onlineCloseTime ?: '21:00'
+        )->format('H:i');
+    } catch (\Throwable $e) {
+        $onlineCloseTime = '21:00';
+    }
+@endphp
+
+
 
    {{-- 🏪 Header ร้าน --}}
 
-<div class="container-fluid py-5 mb-3"
-    style="background: linear-gradient(135deg, #fef9f4 0%, #ffe3d2 100%); border-bottom: 4px solid #FF5B00;">
+<div class="container-fluid py-5 mb-3">
 
 
 <div class="container text-center">
@@ -149,14 +422,18 @@
     </h2>
 
     <p class="text-muted">
-        เลือกซื้อสินค้าที่ต้องการ จัดส่งถึงที่ไม่มีค่าบริการ
-        (ตั้งแต่ 8.00 ถึง 21.00)
-    </p>
+    เลือกซื้อสินค้าที่ต้องการ จัดส่งถึงที่ไม่มีค่าบริการ
+    <br>
+
+    <i class="bi bi-clock-fill me-1"></i>
+    เปิดให้บริการ
+    {{ $onlineOpenTime }}–{{ $onlineCloseTime }} น.
+</p>
 </div>
 
 {{-- 🔔 System Alert --}}
 @if (!empty($systemAlert))
-    <div class="container-fluid bg-warning bg-opacity-25 py-2 mb-3 border-start border-5 border-danger">
+    <div class="container-fluid bg-warning bg-opacity-25 py-2 mb-3  border-5">
         <div class="container">
 
             @if (
@@ -279,7 +556,14 @@
                 $product->productUnits->first();
 
             $isActive =
-                $product->is_active ?? true;
+                (bool) ($product->is_active ?? true);
+
+            /*
+            | สินค้าที่ปิดการขายจะไม่ถูกสร้างเป็น Card ในหน้านี้
+            */
+            if (!$isActive) {
+                continue;
+            }
 
         @endphp
 
@@ -305,62 +589,41 @@
                 @endif
 
 
-                {{-- รูปสินค้า --}}
-                @if ($product->images->isNotEmpty())
+                {{-- รูปสินค้า: โหลดเฉพาะรูปแรกเพื่อลดจำนวน request และทำให้หน้าเร็วขึ้น --}}
+               @php
+    $firstImage = $product->images->first();
+    $imageUrl = null;
 
-                    <div
-                        id="carouselProduct{{ $product->id }}"
-                        class="carousel slide mb-3">
+    if ($firstImage && filled($firstImage->image_path)) {
+        $imagePath = str_replace('\\', '/', $firstImage->image_path);
+        $imagePath = ltrim($imagePath, '/');
 
-                        <div class="carousel-inner">
+        $imagePath = preg_replace(
+            '#^(public/storage/|storage/app/public/|public/|storage/)#',
+            '',
+            $imagePath
+        );
 
-                            @foreach ($product->images as $key => $image)
+        if (Storage::disk('public')->exists($imagePath)) {
+            $imageUrl = asset('storage/' . $imagePath);
+        }
+    }
+@endphp
 
-                                <div
-                                    class="carousel-item
-                                    {{ $key === 0 ? 'active' : '' }}">
-
-                                    <img
-                                        src="{{ asset('storage/' . $image->image_path) }}"
-                                        class="d-block w-100"
-                                        loading="lazy"
-                                        style="height:200px; object-fit:cover;">
-
-                                </div>
-
-                            @endforeach
-
-                        </div>
-
-
-                        @if ($product->images->count() > 1)
-
-                            <button
-                                class="carousel-control-prev"
-                                type="button"
-                                data-bs-target="#carouselProduct{{ $product->id }}"
-                                data-bs-slide="prev">
-
-                                <span class="carousel-control-prev-icon"></span>
-
-                            </button>
-
-                            <button
-                                class="carousel-control-next"
-                                type="button"
-                                data-bs-target="#carouselProduct{{ $product->id }}"
-                                data-bs-slide="next">
-
-                                <span class="carousel-control-next-icon"></span>
-
-                            </button>
-
-                        @endif
-
-                    </div>
-
-                @endif
-
+                <div class="product-image-wrap">
+                    @if ($imageUrl)
+                        <img
+                            src="{{ $imageUrl }}"
+                            alt="{{ $product->name }}"
+                            width="480"
+                            height="365"
+                            loading="lazy"
+                            decoding="async"
+                            fetchpriority="low">
+                    @else
+                        <div class="product-placeholder"><i class="bi bi-image"></i></div>
+                    @endif
+                </div>
 
                 {{-- รายละเอียด --}}
                 <div class="card-body d-flex flex-column">
@@ -432,14 +695,14 @@
                             value="1">
 
 
-                        @if (!$isActive || $totalStock <= 0)
+                        @if ($totalStock <= 0)
 
                             <button
                                 type="button"
                                 class="btn btn-secondary w-100"
                                 disabled>
 
-                                สินค้าหมด / ปิดการขาย
+                                สินค้าหมด
 
                             </button>
 
@@ -482,7 +745,7 @@
 {{-- Pagination --}}
 <div class="mt-4 d-flex justify-content-center">
 
-    {{ $products->links() }}
+    {{ $products->withQueryString()->links() }}
 
 </div>
 
@@ -494,41 +757,82 @@
 
 <script>
 
-document.addEventListener('DOMContentLoaded', function () {
+(() => {
+    /*
+    |--------------------------------------------------------------------------
+    | เพิ่มสินค้าลงตะกร้าแบบ AJAX
+    | ป้องกันการผูก Event ซ้ำและป้องกันการส่ง Request ซ้ำ
+    |--------------------------------------------------------------------------
+    */
+    if (window.onlineCartSubmitBound) {
+        return;
+    }
 
-    // 🛒 ดักจับการกดปุ่ม "เพิ่มลงตะกร้า" ไม่ให้รีโหลดหน้า
-    document.addEventListener('submit', function (event) {
+    window.onlineCartSubmitBound = true;
+
+    document.addEventListener('submit', async function (event) {
         const form = event.target.closest('.add-to-cart-form');
-        if (!form) return;
 
-        event.preventDefault(); // ป้องกันไม่ให้หน้าเว็บ รีโหลด/กระพริบ
+        if (!form) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        // ป้องกันการส่งฟอร์มเดิมซ้ำขณะที่ Request แรกยังไม่เสร็จ
+        if (form.dataset.submitting === 'true') {
+            return;
+        }
 
         const submitBtn = form.querySelector('button[type="submit"]');
-        if (!submitBtn) return;
-        
+
+        if (!submitBtn || submitBtn.disabled) {
+            return;
+        }
+
+        form.dataset.submitting = 'true';
+
         const originalText = submitBtn.innerHTML;
 
-        // เปลี่ยนสถานะปุ่มชั่วคราว เพื่อให้ผู้ใช้รู้ว่ากำลังทำงาน
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span> กำลังเพิ่ม...`;
+        submitBtn.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            กำลังเพิ่ม...
+        `;
 
-        // ส่งข้อมูลแบบ AJAX ไปหา public function add() ใน Controller
-        fetch(form.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': form.querySelector('input[name="_token"]').value,
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: new FormData(form)
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('เกิดข้อผิดพลาดจากเซิร์ฟเวอร์');
-            return response.json();
-        })
-        .then(data => {
+        try {
+            const csrfToken = form.querySelector('input[name="_token"]')?.value;
+
+            if (!csrfToken) {
+                throw new Error('ไม่พบ CSRF token');
+            }
+
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new FormData(form)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.message || 'ไม่สามารถเพิ่มสินค้าลงตะกร้าได้'
+                );
+            }
+
             if (data.success) {
-                // แจ้งเตือนแบบ SweetAlert (ถ้ามีใช้งาน)
+                const cartBadge = document.querySelector('#cart-count');
+
+                if (cartBadge && data.total_quantity !== undefined) {
+                    cartBadge.textContent = data.total_quantity;
+                }
+
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'success',
@@ -542,26 +846,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     alert('เพิ่มลงตะกร้าเรียบร้อย!');
                 }
-
-                // อัปเดตตัวเลขบนไอคอนตะกร้า (ถ้าหน้าเว็บมี element ID เช่น #cart-count)
-                const cartBadge = document.querySelector('#cart-count');
-                if (cartBadge && data.total_quantity !== undefined) {
-                    cartBadge.innerText = data.total_quantity;
-                }
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('ไม่สามารถเพิ่มสินค้าได้ กรุณาลองใหม่อีกครั้ง');
-        })
-        .finally(() => {
-            // คืนค่าปุ่มกลับเป็นปกติ
+        } catch (error) {
+            console.error('Add to cart error:', error);
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: error.message || 'ไม่สามารถเพิ่มสินค้าได้ กรุณาลองใหม่อีกครั้ง'
+                });
+            } else {
+                alert(error.message || 'ไม่สามารถเพิ่มสินค้าได้ กรุณาลองใหม่อีกครั้ง');
+            }
+        } finally {
+            form.dataset.submitting = 'false';
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
-        });
+        }
     });
-
-});
+})();
 
 document.addEventListener('DOMContentLoaded', function () {
 

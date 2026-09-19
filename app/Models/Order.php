@@ -22,6 +22,9 @@ class Order extends Model
         'proof_image',
         'assigned_to',
         'cancel_reason',
+        'cancelled_by',
+        'cancelled_at',
+        'shipping_fee',
     ];
      public function items()
     {

@@ -235,13 +235,9 @@ class MemberController extends Controller
 
 
     return redirect()
-        ->route(
-            'members.index'
-        )
-        ->with(
-            'success',
-            "เพิ่มสมาชิกเรียบร้อยแล้ว | รหัสผ่านเริ่มต้น: {$randomPassword}"
-        );
+    ->route('members.create')
+    ->with('success', 'เพิ่มสมาชิกเรียบร้อยแล้ว')
+    ->with('generated_password', $randomPassword);
 }
 
 

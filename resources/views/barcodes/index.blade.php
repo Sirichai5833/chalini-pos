@@ -1,20 +1,64 @@
 @extends('layouts.layout')
 
-@section('content') <div class="container mt-5"> <div class="card shadow-lg"> <div class="card-body">
+
+@push('styles')
+<style>
+[data-barcode-page]{--gold:#ffc107;--gold2:#ffe082;--panel:#151515;--muted:#9d9d9d;--border:rgba(255,255,255,.09);color:#f5f5f5}
+[data-barcode-page] .barcode-shell{max-width:1550px;margin:auto}
+[data-barcode-page] .barcode-hero{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem;padding:1.35rem 1.5rem;border:1px solid rgba(255,193,7,.32);border-radius:24px;background:radial-gradient(circle at 88% 12%,rgba(255,193,7,.22),transparent 25%),linear-gradient(135deg,#222,#090909 72%);box-shadow:0 22px 55px rgba(0,0,0,.34)}
+[data-barcode-page] .hero-copy{display:flex;align-items:center;gap:1rem}
+[data-barcode-page] .hero-icon{width:62px;height:62px;display:grid;place-items:center;flex:none;border-radius:19px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#111;font-size:1.55rem}
+[data-barcode-page] .hero-kicker{color:var(--gold);font-size:.7rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
+[data-barcode-page] .hero-title{margin:.12rem 0 0;color:#fff;font-size:clamp(1.35rem,2.3vw,2rem);font-weight:900}
+[data-barcode-page] .hero-subtitle{margin:.35rem 0 0;color:var(--muted);font-size:.9rem}
+[data-barcode-page] .btn-gold,[data-barcode-page] .btn-dark-outline{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:.45rem;padding:.65rem 1rem;border-radius:12px;font-weight:850;transition:.2s}
+[data-barcode-page] .btn-gold{border:1px solid var(--gold);background:linear-gradient(135deg,var(--gold),var(--gold2));color:#111}
+[data-barcode-page] .btn-gold:hover{color:#000;transform:translateY(-2px);box-shadow:0 9px 23px rgba(255,193,7,.22)}
+[data-barcode-page] .btn-dark-outline{border:1px solid #484848;background:rgba(255,255,255,.025);color:#ddd}
+[data-barcode-page] .btn-dark-outline:hover{border-color:var(--gold);background:rgba(255,193,7,.07);color:var(--gold)}
+[data-barcode-page] .barcode-panel{overflow:hidden;border:1px solid var(--border);border-radius:22px;background:linear-gradient(145deg,var(--panel),#101010);box-shadow:0 18px 46px rgba(0,0,0,.31)}
+[data-barcode-page] .filter-panel{padding:1rem;border-bottom:1px solid var(--border);background:#121212}
+[data-barcode-page] .filter-heading{display:flex;align-items:center;gap:.5rem;margin-bottom:.85rem;color:var(--gold);font-size:.86rem;font-weight:850}
+[data-barcode-page] .form-control,[data-barcode-page] .form-select{min-height:46px;border-color:#3d3d3d!important;background:#0d0d0d!important;color:#fff!important;box-shadow:none!important}
+[data-barcode-page] .form-control::placeholder{color:#6d6d6d}
+[data-barcode-page] .form-control:focus,[data-barcode-page] .form-select:focus{border-color:var(--gold)!important;box-shadow:0 0 0 .2rem rgba(255,193,7,.12)!important}
+[data-barcode-page] .form-select option{background:#111;color:#fff}
+[data-barcode-page] .selected-summary{display:flex;align-items:center;gap:.6rem;padding:.8rem 1rem;border-bottom:1px solid var(--border);background:rgba(255,193,7,.045);color:var(--muted);font-size:.82rem}
+[data-barcode-page] .selected-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .62rem;border:1px solid rgba(255,193,7,.28);border-radius:999px;background:rgba(255,193,7,.08);color:var(--gold);font-weight:850}
+[data-barcode-page] .barcode-table{margin:0;color:#f5f5f5;border-color:var(--border)}
+[data-barcode-page] .barcode-table thead th{padding:.85rem .75rem;border-color:rgba(255,193,7,.24);background:linear-gradient(135deg,#202020,#121212);color:var(--gold);font-size:.72rem;font-weight:850;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+[data-barcode-page] .barcode-table tbody td{padding:.85rem .75rem;border-color:var(--border);background:#151515;color:#e9e9e9}
+[data-barcode-page] .barcode-table tbody tr:hover td{background:#202020}
+[data-barcode-page] .barcode-code{color:var(--gold);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.82rem;font-weight:800;letter-spacing:.04em}
+[data-barcode-page] .barcode-preview-box{display:inline-flex;align-items:center;justify-content:center;min-width:190px;min-height:72px;padding:.55rem .7rem;border-radius:12px;background:#fff}
+[data-barcode-page] .form-check-input{width:1.08rem;height:1.08rem;border-color:#666;background-color:#111}
+[data-barcode-page] .form-check-input:checked{border-color:var(--gold);background-color:var(--gold)}
+@media(max-width:767.98px){[data-barcode-page] .barcode-hero{align-items:stretch;flex-direction:column;padding:1rem}[data-barcode-page] .hero-actions .btn{width:100%}[data-barcode-page] .barcode-table{min-width:980px}}
+</style>
+@endpush
 
 
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="card-title mb-0">รายการบาร์โค้ดสินค้า</h2>
-
-                <button type="button"
-                    class="btn btn-primary"
-                    onclick="printSelectedBarcodes()">
-                    🖨️ พิมพ์ที่เลือก
+@section('content')
+<div class="container-fluid py-4" data-barcode-page>
+    <div class="barcode-shell">
+        <section class="barcode-hero">
+            <div class="hero-copy">
+                <span class="hero-icon"><i class="bi bi-upc-scan"></i></span>
+                <div>
+                    <div class="hero-kicker">Barcode Management</div>
+                    <h1 class="hero-title">รายการบาร์โค้ดสินค้า</h1>
+                    <p class="hero-subtitle">ค้นหา เลือก และพิมพ์บาร์โค้ดสินค้าได้จากหน้าเดียว</p>
+                </div>
+            </div>
+            <div class="hero-actions">
+                <button type="button" class="btn btn-gold" onclick="printSelectedBarcodes()">
+                    <i class="bi bi-printer-fill"></i> พิมพ์รายการที่เลือก
                 </button>
             </div>
-
+        </section>
+        <section class="barcode-panel">
             {{-- ค้นหา + หมวดหมู่ --}}
-            <div class="row mb-3 g-2">
+            <div class="filter-panel"><div class="filter-heading"><i class="bi bi-funnel-fill"></i> ค้นหาและกรองรายการบาร์โค้ด</div><div class="row g-2">
 
                 <div class="col-md-6">
                     <input type="text"
@@ -37,30 +81,29 @@
 
                 <div class="col-md-2">
                     <button type="button"
-                        class="btn btn-outline-secondary w-100"
+                        class="btn btn-dark-outline w-100"
                         onclick="selectAllVisible()">
-                        ☑️ เลือกทั้งหมด
+                        <i class="bi bi-check2-all"></i> เลือกที่แสดงทั้งหมด
                     </button>
                 </div>
 
-            </div>
+            </div></div>
 
-            <div class="mb-3">
+            <div class="selected-summary">
                 <span class="text-muted">
                     เลือกแล้ว:
-                    <strong id="selectedCount">0</strong>
-                    รายการ
+                    <span class="selected-badge"><strong id="selectedCount">0</strong> รายการ</span>
                 </span>
             </div>
 
             <div class="table-responsive">
-                <table class="table table-bordered text-center align-middle">
+                <table class="table barcode-table text-center align-middle">
 
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th width="50">
                                 <input type="checkbox"
-                                    id="selectAllCheckbox">
+                                    id="selectAllCheckbox" class="form-check-input">
                             </th>
 
                             <th>ชื่อสินค้า</th>
@@ -84,7 +127,7 @@
 
                                     <td>
                                         <input type="checkbox"
-                                            class="barcode-checkbox"
+                                            class="barcode-checkbox form-check-input"
                                             value="{{ $unit->id }}"
                                             data-code="{{ $unit->barcode }}"
                                             data-name="{{ $product->name }}"
@@ -104,11 +147,11 @@
                                     </td>
 
                                     <td>
-                                        {{ $unit->barcode }}
+                                        <span class="barcode-code">{{ $unit->barcode }}</span>
                                     </td>
 
                                     <td>
-                                        <svg id="barcode-{{ $unit->id }}"></svg>
+                                        <span class="barcode-preview-box"><svg id="barcode-{{ $unit->id }}"></svg></span>
                                     </td>
 
                                     <td>
@@ -119,7 +162,7 @@
                                                 '{{ addslashes($product->name) }}',
                                                 '{{ addslashes($unit->unit_name) }}'
                                             )"
-                                            class="btn btn-secondary">
+                                            class="btn btn-dark-outline btn-sm">
 
                                             🖨️ พิมพ์
                                         </button>
@@ -136,10 +179,9 @@
                 </table>
             </div>
 
-        </div>
+        </section>
     </div>
 </div>
-
 
 @include('layouts.partials.jsbarcode')
 
