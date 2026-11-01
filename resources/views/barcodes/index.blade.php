@@ -410,316 +410,226 @@
 
     /*
     |--------------------------------------------------------------------------
-    | พิมพ์รายการที่เลือก
+    | พิมพ์บาร์โค้ดลงสติกเกอร์ 50 x 20 มม.
     |--------------------------------------------------------------------------
     */
 
-    function printSelectedBarcodes() {
-
-        const selected =
-            document
-                .querySelectorAll(
-                    '.barcode-checkbox:checked'
-                );
-
-
-        if (
-            selected.length === 0
-        ) {
-
-            alert(
-                'กรุณาเลือกบาร์โค้ดที่ต้องการพิมพ์'
-            );
-
-            return;
-
-        }
-
-
-        let barcodeImages = [];
-
-
-        selected.forEach(function (checkbox) {
-
-            const id =
-                checkbox.value;
-
-            const svg =
-                document
-                    .getElementById(
-                        `barcode-${id}`
-                    );
-
-
-            const svgData =
-                new XMLSerializer()
-                    .serializeToString(svg);
-
-
-            const blob =
-                new Blob(
-                    [svgData],
-                    {
-                        type:
-                            'image/svg+xml'
-                    }
-                );
-
-
-            const url =
-                URL.createObjectURL(
-                    blob
-                );
-
-
-            barcodeImages.push({
-
-                url: url,
-
-                name:
-                    checkbox.dataset.name,
-
-                unit:
-                    checkbox.dataset.unit,
-
-                code:
-                    checkbox.dataset.code
-
-            });
-
-        });
-
-
-        let printWindow =
-            window.open(
-                '',
-                '_blank'
-            );
-
-
-        let html = `
-
-            <html>
-
-            <head>
-
-                <style>
-
-                    body {
-                        font-family: Arial, sans-serif;
-                        margin: 10px;
-                    }
-
-                    .barcode-item {
-                        display: inline-block;
-                        width: 220px;
-                        text-align: center;
-                        margin: 10px;
-                        padding: 8px;
-                        page-break-inside: avoid;
-                    }
-
-                    img {
-                        width: 200px;
-                        height: auto;
-                    }
-
-                    p {
-                        margin: 3px 0;
-                        font-size: 14px;
-                    }
-
-                </style>
-
-            </head>
-
-            <body>
-
-        `;
-
-
-        barcodeImages.forEach(function (barcode) {
-
-            html += `
-
-                <div class="barcode-item">
-
-                    <img src="${barcode.url}">
-
-                    <p>
-                        <strong>
-                            ${barcode.name}
-                        </strong>
-                    </p>
-
-                    <p>
-                        ${barcode.unit}
-                    </p>
-
-                    <p>
-                        ${barcode.code}
-                    </p>
-
-                </div>
-
-            `;
-
-        });
-
-
-        html += `
-
-                <script>
-
-                    window.onload = function () {
-
-                        window.print();
-
-                        window.onafterprint =
-                            function () {
-
-                                window.close();
-
-                            };
-
-                    };
-
-                <\/script>
-
-            </body>
-
-            </html>
-
-        `;
-
-
-        printWindow.document.write(
-            html
-        );
-
-        printWindow.document.close();
-
+    function escapePrintText(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
+    function printBarcodeLabels(items) {
+        if (!items.length) {
+            alert('ไม่พบรายการบาร์โค้ดที่ต้องการพิมพ์');
+            return;
+        }
 
-    /*
-    |--------------------------------------------------------------------------
-    | พิมพ์ทีละรายการ
-    |--------------------------------------------------------------------------
-    */
+        const printWindow = window.open('', '_blank');
 
-    function printBarcode(
-        productId,
-        code,
-        name,
-        unit
-    ) {
+        if (!printWindow) {
+            alert('ไม่สามารถเปิดหน้าพิมพ์ได้ กรุณาอนุญาต Pop-up ในเบราว์เซอร์');
+            return;
+        }
 
-        const svg =
-            document
-                .getElementById(
-                    `barcode-${productId}`
-                );
+        const objectUrls = [];
+        const labelsHtml = items.map(function (item) {
+            const svg = document.getElementById(`barcode-${item.id}`);
+            if (!svg) return '';
 
+            const svgClone = svg.cloneNode(true);
+            svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
-        const svgClone =
-            svg.cloneNode(
-                true
-            );
+            const svgData = new XMLSerializer().serializeToString(svgClone);
+            const blob = new Blob([svgData], {
+                type: 'image/svg+xml;charset=utf-8'
+            });
+            const imageUrl = URL.createObjectURL(blob);
+            objectUrls.push(imageUrl);
 
+            return `
+                <section class="barcode-label">
+                    <img class="barcode-image" src="${imageUrl}" alt="Barcode">
+                    <div class="barcode-details">
+                        <span class="product-name">${escapePrintText(item.name)}</span>
+                        <span class="product-unit">${escapePrintText(item.unit)}</span>
+                        <span class="barcode-number">${escapePrintText(item.code)}</span>
+                    </div>
+                </section>
+            `;
+        }).join('');
 
-        const svgData =
-            new XMLSerializer()
-                .serializeToString(
-                    svgClone
-                );
-
-
-        const svgBlob =
-            new Blob(
-                [svgData],
-                {
-                    type:
-                        'image/svg+xml;charset=utf-8'
-                }
-            );
-
-
-        const url =
-            URL.createObjectURL(
-                svgBlob
-            );
-
-
-        const printWindow =
-            window.open(
-                '',
-                '_blank'
-            );
-
-
+        printWindow.document.open();
         printWindow.document.write(`
-
-            <html>
-
+            <!doctype html>
+            <html lang="th">
             <head>
-
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>พิมพ์บาร์โค้ดสินค้า</title>
                 <style>
+                    @page {
+                        size: 50mm 20mm;
+                        margin: 0;
+                    }
 
-                    body {
+                    * { box-sizing: border-box; }
+
+                    html, body {
+                        width: 50mm;
+                        margin: 0;
+                        padding: 0;
+                        font-family: Tahoma, Arial, sans-serif;
+                        color: #000;
+                    }
+
+                    .barcode-label {
+                        width: 50mm;
+                        height: 20mm;
+                        padding: 0.5mm 1mm;
+                        margin: 0;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        overflow: hidden;
                         text-align: center;
-                        font-family: sans-serif;
-                        margin-top: 10px;
+                        page-break-after: always;
+                        break-after: page;
                     }
 
-                    img {
-                        max-width: 100%;
-                        height: auto;
+                    .barcode-label:last-child {
+                        page-break-after: auto;
+                        break-after: auto;
                     }
 
-                    p {
-                        font-size: 18px;
-                        margin: 2px 0;
+                    .barcode-image {
+                        display: block;
+                        width: 48mm;
+                        max-width: 48mm;
+                        height: 12mm;
+                        object-fit: fill;
+                        margin: 0 auto 0.7mm;
                     }
 
+                    .barcode-details {
+                        width: 100%;
+                        display: flex;
+                        flex-direction: row;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 1mm;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        line-height: 1;
+                    }
+
+                    .product-name {
+                        max-width: 19mm;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        font-size: 5pt;
+                        font-weight: 700;
+                    }
+
+                    .product-unit {
+                        flex: none;
+                        overflow: hidden;
+                        font-size: 4.5pt;
+                    }
+
+                    .barcode-number {
+                        flex: none;
+                        overflow: hidden;
+                        font-family: Arial, sans-serif;
+                        font-size: 5pt;
+                        font-weight: 700;
+                        letter-spacing: 0.05pt;
+                    }
+
+                    @media screen {
+                        body { background: #fff; }
+                        .barcode-label {
+                            background: #fff;
+                            outline: none;
+                            margin-bottom: 0;
+                        }
+                    }
+
+                    @media print {
+                        html, body { background: #fff; }
+                        .barcode-label { border: none; outline: none; box-shadow: none; }
+                    }
                 </style>
-
             </head>
-
             <body>
-
-                <img src="${url}">
-
-                <p>
-                    ${name} / ${unit}
-                </p>
-
-                <p>
-                    ${code}
-                </p>
-
+                ${labelsHtml}
                 <script>
+                    window.addEventListener('load', async function () {
+                        const images = Array.from(document.images);
+                        await Promise.all(images.map(function (img) {
+                            if (img.complete) return Promise.resolve();
+                            return new Promise(function (resolve) {
+                                img.onload = resolve;
+                                img.onerror = resolve;
+                            });
+                        }));
 
-                    window.onload = function () {
+                        setTimeout(function () {
+                            window.focus();
+                            window.print();
+                        }, 250);
+                    });
 
-                        window.print();
-
-                        window.onafterprint =
-                            () => window.close();
-
-                    }
-
+                    window.addEventListener('afterprint', function () {
+                        window.close();
+                    });
                 <\/script>
-
             </body>
-
             </html>
-
         `);
-
-
         printWindow.document.close();
 
+        printWindow.addEventListener('beforeunload', function () {
+            objectUrls.forEach(function (url) {
+                URL.revokeObjectURL(url);
+            });
+        });
+    }
+
+    // พิมพ์รายการที่ติ๊กเลือกไว้
+    function printSelectedBarcodes() {
+        const selected = document.querySelectorAll('.barcode-checkbox:checked');
+
+        if (selected.length === 0) {
+            alert('กรุณาเลือกบาร์โค้ดที่ต้องการพิมพ์');
+            return;
+        }
+
+        const items = Array.from(selected).map(function (checkbox) {
+            return {
+                id: checkbox.value,
+                code: checkbox.dataset.code || '',
+                name: checkbox.dataset.name || '',
+                unit: checkbox.dataset.unit || ''
+            };
+        });
+
+        printBarcodeLabels(items);
+    }
+
+    // พิมพ์ทีละรายการ
+    function printBarcode(productId, code, name, unit) {
+        printBarcodeLabels([{
+            id: productId,
+            code: code,
+            name: name,
+            unit: unit
+        }]);
     }
 
 </script>

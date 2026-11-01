@@ -1,289 +1,470 @@
 @extends('layouts.layout')
 
 @section('content')
+
     <style>
         :root {
-            --myorder-yellow: #ffd43b;
-            --myorder-yellow-dark: #caa400;
-            --myorder-black: #090909;
-            --myorder-surface: #121212;
-            --myorder-card: #181818;
-            --myorder-soft: #222;
-            --myorder-border: rgba(255, 212, 59, .22);
-            --myorder-text: #f7f7f7;
-            --myorder-muted: #aaa;
-            --myorder-success: #22c55e;
-            --myorder-danger: #ef4444;
-            --myorder-info: #38bdf8;
+            --yellow: #ffd43b;
+            --yellow-dark: #eab900;
+            --black: #090909;
+            --surface: #151515;
+            --card: #1c1c1c;
+            --border: #333;
+            --text: #f5f5f5;
+            --muted: #999;
+            --green: #22c55e;
+            --red: #ef4444;
+            --blue: #38bdf8;
         }
 
         body {
-            background:
-                radial-gradient(circle at top right, rgba(255, 212, 59, .08), transparent 28%),
-                var(--myorder-black);
-            color: var(--myorder-text);
+            background: var(--black);
+            color: var(--text);
         }
 
-        .my-orders-page {
-            max-width: 1180px;
+        /* ===== Layout ===== */
+
+        .orders-page {
+            max-width: 1250px;
+            margin: auto;
         }
 
-        .my-orders-hero {
-            position: relative;
-            overflow: hidden;
-            padding: 1.5rem;
-            margin-bottom: 1.25rem;
-            border: 1px solid var(--myorder-border);
-            border-radius: 24px;
-            background:
-                radial-gradient(circle at 88% 18%, rgba(255, 212, 59, .20), transparent 24%),
-                linear-gradient(135deg, #080808 0%, #171717 58%, #2b2300 100%);
-            box-shadow: 0 18px 42px rgba(0, 0, 0, .35);
+        .orders-header {
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 212, 59, .25);
+            border-radius: 18px;
+            background: linear-gradient(120deg, #171717, #292200);
         }
 
-        .my-orders-hero::after {
-            content: "";
-            position: absolute;
-            right: -70px;
-            bottom: -120px;
-            width: 260px;
-            height: 260px;
-            border-radius: 50%;
-            background: rgba(255, 212, 59, .1);
-            pointer-events: none;
-        }
-
-        .my-orders-hero-content {
-            position: relative;
-            z-index: 1;
-        }
-
-        .my-orders-title {
+        .orders-header h3 {
+            color: var(--yellow);
+            font-weight: 900;
             margin: 0;
-            color: var(--myorder-yellow);
-            font-weight: 950;
         }
 
-        .my-orders-subtitle {
-            margin: .4rem 0 0;
-            color: #d0d0d0;
-            font-size: 1.12rem;
+        .orders-header p {
+            color: #bbb;
+            margin: 8px 0 0;
         }
+
+        /* ===== Filters ===== */
 
         .filter-panel {
             display: flex;
             flex-wrap: wrap;
-            gap: .65rem;
-            padding: .85rem;
-            margin-bottom: 1.25rem;
-            border: 1px solid var(--myorder-border);
-            border-radius: 18px;
-            background: var(--myorder-surface);
-            box-shadow: 0 12px 28px rgba(0, 0, 0, .24);
+            gap: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--surface);
         }
 
         .filter-btn {
-            min-height: 40px;
-            padding: .5rem .85rem;
-            border: 1px solid #3a3a3a;
-            border-radius: 999px;
-            background: #171717;
-            color: #d6d6d6;
-            font-weight: 800;
-            transition: .2s ease;
+            padding: 9px 16px;
+            border: 1px solid #444;
+            border-radius: 30px;
+            background: #202020;
+            color: #ddd;
+            font-weight: 750;
+            transition: .2s;
         }
 
         .filter-btn:hover,
         .filter-btn.active {
-            border-color: var(--myorder-yellow);
-            background: linear-gradient(135deg, #ffe66a, var(--myorder-yellow));
+            background: var(--yellow);
             color: #111;
-            transform: translateY(-1px);
-            box-shadow: 0 7px 18px rgba(255, 212, 59, .16);
+            border-color: var(--yellow);
         }
 
-        .filter-btn[data-status="late"] {
-            border-color: rgba(239, 68, 68, .45);
-            color: #ff9f9f;
-        }
-
-        .filter-btn[data-status="late"]:hover,
         .filter-btn[data-status="late"].active {
-            border-color: var(--myorder-danger);
-            background: var(--myorder-danger);
-            color: #fff;
+            background: var(--red);
+            border-color: var(--red);
+            color: white;
+        }
+
+        /* ===== Order grid ===== */
+
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            align-items: start;
         }
 
         .order-card {
             overflow: hidden;
-            border: 1px solid #2d2d2d !important;
-            border-radius: 22px !important;
-            background: linear-gradient(180deg, #1a1a1a, #111);
-            color: var(--myorder-text);
-            box-shadow: 0 16px 36px rgba(0, 0, 0, .34) !important;
-            transition: .2s ease;
+            border: 1px solid #333;
+            border-radius: 17px;
+            background: var(--card);
+            color: var(--text);
+            transition: .2s;
         }
 
         .order-card:hover {
-            border-color: rgba(255, 212, 59, .56) !important;
-            transform: translateY(-3px);
-            box-shadow: 0 24px 48px rgba(0, 0, 0, .46) !important;
+            border-color: rgba(255, 212, 59, .6);
+            transform: translateY(-2px);
         }
 
         .order-card.is-late {
-            border-color: rgba(239, 68, 68, .58) !important;
+            border-color: rgba(239, 68, 68, .7);
         }
 
-        .order-card-header {
-            padding: 1rem 1.1rem;
-            border-bottom: 1px solid var(--myorder-border);
-            background:
-                linear-gradient(135deg, rgba(255, 212, 59, .10), rgba(255, 212, 59, .03)),
-                #111;
+        /* ===== Card header ===== */
+
+        .order-header {
+            padding: 17px;
+            border-bottom: 1px solid #383838;
+            background: #111;
+        }
+
+        .order-header-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
         }
 
         .order-code {
-            color: #fff;
-            font-weight: 900;
+            color: var(--yellow);
+            font-size: 1.25rem;
+            font-weight: 950;
         }
 
         .order-date {
-            color: var(--myorder-muted);
-            font-size: .92rem;
+            color: var(--muted);
+            font-size: .8rem;
+            text-align: right;
         }
 
-        .late-badge {
-            border: 1px solid rgba(239, 68, 68, .38);
-            background: rgba(239, 68, 68, .14);
-            color: #ff9f9f;
-        }
-
-        .late-alert {
-            border: 1px solid rgba(239, 68, 68, .32);
-            border-radius: 16px;
-            background: rgba(239, 68, 68, .10);
-            color: #ffb1b1;
-        }
-
-        .order-info-grid {
+        .customer-info {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: .5rem;
-        }
-
-        .info-box {
-            padding: .55rem .65rem;
-            border: 1px solid #2d2d2d;
-            border-radius: 10px;
-            background: #121212;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            margin-top: 15px;
+            padding-top: 13px;
+            border-top: 1px dashed #444;
         }
 
         .info-label {
             display: block;
-            margin-bottom: .1rem;
-            color: var(--myorder-muted);
-            font-size: .64rem;
+            color: var(--muted);
+            font-size: .75rem;
+            margin-bottom: 3px;
         }
 
-        .info-value {
-            color: #fff;
-            font-size: .98rem;
-            font-weight: 750;
-            word-break: break-word;
+        .customer-name {
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: white;
+            overflow-wrap: anywhere;
         }
 
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: .4rem .7rem;
-            border-radius: 999px;
-            background: rgba(56, 189, 248, .13);
-            color: #7dd3fc;
-            border: 1px solid rgba(56, 189, 248, .34);
-            font-size: .95rem;
-            font-weight: 850;
+        .room-number {
+            color: var(--yellow);
+            font-size: 1.8rem;
+            font-weight: 950;
+            text-align: right;
         }
 
-        .product-list {
+        /* ===== Card body ===== */
+
+        .order-body {
+            padding: 15px;
+        }
+
+        .late-alert {
+            padding: 10px 12px;
+            margin-bottom: 13px;
+            border: 1px solid rgba(239, 68, 68, .4);
+            border-radius: 10px;
+            background: rgba(239, 68, 68, .1);
+            color: #ffaaaa;
+            font-size: .85rem;
+            font-weight: 800;
+        }
+
+        .order-details {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+            margin-bottom: 15px;
+        }
+
+        .detail-box {
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            background: #121212;
+            min-width: 0;
+        }
+
+        .detail-value {
+            color: white;
+            font-weight: 800;
+            overflow-wrap: anywhere;
+        }
+
+        /* ===== Products ===== */
+
+        .products-box {
             overflow: hidden;
-            border: 1px solid #2c2c2c;
-            border-radius: 16px;
+            margin-bottom: 14px;
+            border: 1px solid rgba(255, 212, 59, .3);
+            border-radius: 12px;
+            background: #131313;
         }
 
-        .product-list .list-group-item {
-            border-color: #292929;
-            background: #131313;
-            color: var(--myorder-text);
+        .products-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 11px 13px;
+            border-bottom: 1px solid #333;
+            background: rgba(255, 212, 59, .06);
+        }
+
+        .products-header strong {
+            color: var(--yellow);
+            font-size: 1rem;
+        }
+
+        .products-count {
+            color: var(--yellow);
+            font-size: .85rem;
+            font-weight: 800;
+        }
+
+        .product-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            gap: 10px;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #292929;
+        }
+
+        .product-row:last-child {
+            border-bottom: 0;
         }
 
         .product-name {
-            color: #fff;
+            color: white;
             font-weight: 850;
+            overflow-wrap: anywhere;
         }
 
         .product-meta {
-            color: var(--myorder-muted);
-            font-size: .76rem;
+            color: var(--muted);
+            font-size: .78rem;
+            margin-top: 3px;
         }
 
         .gift-text {
             color: #86efac;
-            font-size: .76rem;
+            font-size: .78rem;
+            margin-top: 4px;
         }
 
-        .line-total {
-            color: var(--myorder-yellow);
-            font-weight: 900;
+        .product-qty {
+            padding: 7px 9px;
+            border-radius: 8px;
+            background: #080808;
+            color: white;
+            font-weight: 850;
             white-space: nowrap;
         }
 
-        .grand-total {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            padding: 1rem;
-            margin: 1rem 0;
-            border: 1px solid var(--myorder-border);
-            border-radius: 16px;
-            background: rgba(255, 212, 59, .07);
+        .product-price {
+            color: var(--yellow);
+            font-weight: 900;
+            white-space: nowrap;
+            text-align: right;
         }
 
-        .order-total-breakdown {
+        /* ===== Total ===== */
+
+        .total-box {
             display: grid;
-            gap: .45rem;
-            width: 100%;
+            grid-template-columns: 1fr auto;
+            gap: 9px;
+            padding: 13px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+            border-radius: 11px;
+            background: #101010;
         }
 
-        .order-total-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
+        .total-label {
+            color: var(--muted);
         }
 
-        .order-total-row.total-final {
-            padding-top: .7rem;
-            margin-top: .2rem;
-            border-top: 1px solid rgba(255, 255, 255, .12);
+        .total-value {
+            color: white;
+            font-weight: 800;
+            text-align: right;
         }
 
-        .grand-total-label {
-            color: var(--myorder-muted);
-            font-size: .95rem;
+        .final-label {
+            padding-top: 10px;
+            border-top: 1px solid #444;
+            color: white;
+            font-weight: 900;
         }
 
-        .grand-total-amount {
-            color: var(--myorder-yellow);
-            font-size: 1.4rem;
+        .final-value {
+            padding-top: 7px;
+            border-top: 1px solid #444;
+            color: var(--yellow);
+            font-size: 1.35rem;
             font-weight: 950;
+            text-align: right;
         }
+
+        /* ===== Status ===== */
+
+        .status-heading {
+            color: white;
+            font-weight: 850;
+            font-size: .9rem;
+            margin-bottom: 10px;
+        }
+
+        .order-progress {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            padding: 12px 5px;
+            margin-bottom: 14px;
+            border: 1px solid #333;
+            border-radius: 12px;
+            background: #111;
+        }
+
+        .order-progress::before {
+            content: "";
+            position: absolute;
+            top: 25px;
+            left: 16.66%;
+            right: 16.66%;
+            height: 3px;
+            background: #444;
+        }
+
+        .progress-fill {
+            position: absolute;
+            top: 25px;
+            left: 16.66%;
+            height: 3px;
+            background: var(--yellow);
+            transition: width .2s;
+        }
+
+        .progress-step {
+            z-index: 1;
+            text-align: center;
+        }
+
+        .progress-dot {
+            display: grid;
+            place-items: center;
+            width: 25px;
+            height: 25px;
+            margin: 0 auto 7px;
+            border: 2px solid #555;
+            border-radius: 50%;
+            background: #171717;
+            color: #999;
+            font-size: .7rem;
+            font-weight: 900;
+        }
+
+        .progress-step.done .progress-dot,
+        .progress-step.current .progress-dot {
+            background: var(--yellow);
+            border-color: var(--yellow);
+            color: #111;
+        }
+
+        .progress-label {
+            color: #888;
+            font-size: .7rem;
+            font-weight: 750;
+        }
+
+        .progress-step.current .progress-label,
+        .progress-step.done .progress-label {
+            color: var(--yellow);
+        }
+
+        .progress-cancelled {
+            padding: 12px;
+            margin-bottom: 14px;
+            border: 1px solid rgba(239, 68, 68, .4);
+            border-radius: 10px;
+            background: rgba(239, 68, 68, .1);
+            color: #ffaaaa;
+            text-align: center;
+            font-weight: 850;
+        }
+
+        /* ===== Action panel ===== */
 
         .status-panel {
-            padding: 1rem;
-            border: 1px solid #2d2d2d;
-            border-radius: 18px;
+            padding: 13px;
+            border: 1px solid #383838;
+            border-radius: 12px;
             background: #111;
+        }
+
+        .action-note {
+            color: var(--muted);
+            font-size: .8rem;
+            margin-bottom: 10px;
+        }
+
+        .status-actions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+        }
+
+        .action-btn {
+            min-height: 46px;
+            padding: 9px 12px;
+            border-radius: 9px;
+            font-weight: 900;
+            transition: .2s;
+        }
+
+        .action-next {
+            background: var(--yellow);
+            border: 1px solid var(--yellow);
+            color: #111;
+        }
+
+        .action-next:hover {
+            background: #ffe477;
+            color: #111;
+        }
+
+        .action-cancel {
+            min-width: 95px;
+            background: transparent;
+            border: 1px solid var(--red);
+            color: #ff9999;
+        }
+
+        .action-cancel:hover {
+            background: var(--red);
+            color: white;
+        }
+
+        .cancel-reason,
+        .upload-proof {
+            display: none;
+            margin-top: 13px;
         }
 
         .form-label {
@@ -291,1282 +472,728 @@
             font-weight: 800;
         }
 
-        .form-select,
         .form-control {
-            min-height: 46px;
-            border: 1px solid #383838;
-            border-radius: 13px;
-            background: #151515;
-            color: #fff;
-            box-shadow: none;
+            background: #1b1b1b;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 9px;
         }
 
-        .form-select:focus,
         .form-control:focus {
-            border-color: var(--myorder-yellow);
-            background: #171717;
-            color: #fff;
-            box-shadow: 0 0 0 .2rem rgba(255, 212, 59, .12);
+            background: #202020;
+            color: white;
+            border-color: var(--yellow);
+            box-shadow: 0 0 0 2px rgba(255, 212, 59, .12);
         }
 
-        .form-select option {
-            background: #171717;
-            color: #fff;
-        }
-
-        .update-order-btn {
-            min-height: 46px;
-            border: 1px solid var(--myorder-yellow);
-            border-radius: 13px;
-            background: linear-gradient(135deg, #ffe66a, var(--myorder-yellow));
+        .form-control::file-selector-button {
+            background: var(--yellow);
             color: #111;
-            font-weight: 900;
-            box-shadow: 0 8px 20px rgba(255, 212, 59, .14);
-            transition: .2s ease;
+            border: 0;
         }
 
-        .update-order-btn:hover:not(:disabled) {
-            border-color: #fff08c;
-            background: linear-gradient(135deg, #fff08c, #ffc800);
-            color: #000;
-            transform: translateY(-1px);
+        .confirm-cancel-btn {
+            min-height: 43px;
+            font-weight: 850;
         }
+
+        .locked-status {
+            color: #aaa;
+            font-size: .85rem;
+        }
+
+        /* ===== Empty ===== */
 
         .empty-orders {
-            padding: 3.5rem 1.25rem;
-            border: 1px dashed var(--myorder-border);
-            border-radius: 22px;
-            background: rgba(18, 18, 18, .72);
+            grid-column: 1/-1;
+            padding: 55px 20px;
+            border: 1px dashed #555;
+            border-radius: 16px;
+            background: #151515;
             text-align: center;
         }
 
-        .empty-orders-icon {
-            width: 82px;
-            height: 82px;
-            display: grid;
-            place-items: center;
-            margin: 0 auto 1rem;
-            border-radius: 24px;
-            background: rgba(255, 212, 59, .08);
-            color: var(--myorder-yellow);
-            font-size: 2.2rem;
-        }
-
-
-        /* ===== ลำดับความสำคัญของข้อมูล ===== */
-        .priority-customer {
-            display: grid;
-            grid-template-columns: minmax(0, 1.35fr) minmax(105px, .65fr);
-            gap: .55rem;
-            margin-bottom: .65rem;
-        }
-
-        .priority-box {
-            padding: .55rem .7rem;
-            border: 1px solid rgba(255, 212, 59, .22);
-            border-radius: 10px;
-            background: rgba(255, 212, 59, .035);
-        }
-
-        .priority-label {
+        .empty-orders i {
             display: block;
-            margin-bottom: .12rem;
-            color: var(--myorder-muted);
-            font-size: .62rem;
-            font-weight: 800;
+            color: var(--yellow);
+            font-size: 3rem;
+            margin-bottom: 15px;
         }
 
-        .priority-name {
-            color: #fff;
-            font-size: 1.12rem;
-            font-weight: 900;
-            line-height: 1.15;
-        }
-
-        .priority-room {
-            color: var(--myorder-yellow);
-            font-size: 1.15rem;
-            font-weight: 950;
-            line-height: 1.05;
-        }
-
-        .products-section {
-            margin-bottom: 1rem;
-            padding: 1rem;
-            border: 2px solid rgba(255, 212, 59, .38);
-            border-radius: 17px;
-            background:
-                linear-gradient(180deg, rgba(255, 212, 59, .055), rgba(255, 212, 59, .018)),
-                #101010;
-        }
-
-        .products-section-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: .8rem;
-            margin-bottom: .8rem;
-        }
-
-        .products-section-title {
-            margin: 0;
-            color: var(--myorder-yellow);
-            font-size: 1.12rem;
-            font-weight: 950;
-        }
-
-        .products-total-qty {
-            padding: .34rem .65rem;
-            border-radius: 999px;
-            background: rgba(255, 212, 59, .12);
-            color: var(--myorder-yellow);
-            font-size: .95rem;
-            font-weight: 900;
-            white-space: nowrap;
-        }
-
-        .product-list .list-group-item {
-            display: grid !important;
-            grid-template-columns: minmax(0, 1fr) auto auto;
-            align-items: center !important;
-            gap: .8rem !important;
-            padding: .85rem .9rem !important;
-        }
-
-        .product-name {
-            font-size: .96rem;
-            font-weight: 950;
-        }
-
-        .product-qty {
-            min-width: 58px;
-            padding: .38rem .55rem;
-            border: 1px solid #3a3a3a;
-            border-radius: 9px;
-            background: #0d0d0d;
-            color: #fff;
-            font-size: .8rem;
-            font-weight: 950;
-            text-align: center;
-            white-space: nowrap;
-        }
-
-        .line-total {
-            min-width: 95px;
-            font-size: 1.12rem;
-            text-align: right;
-        }
-
-
-        /* ===== เส้นแสดงขั้นตอนออเดอร์ ===== */
-        .order-progress {
-            position: relative;
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 0;
-            margin: 0 0 1rem;
-            padding: .9rem .45rem .75rem;
-            border: 1px solid #303030;
-            border-radius: 14px;
-            background: #101010;
-        }
-
-        .order-progress::before {
-            content: "";
-            position: absolute;
-            top: 25px;
-            left: 16.666%;
-            right: 16.666%;
-            height: 4px;
-            border-radius: 999px;
-            background: #343434;
-        }
-
-        .progress-fill {
-            position: absolute;
-            top: 25px;
-            left: 16.666%;
-            height: 4px;
-            border-radius: 999px;
-            background: var(--myorder-yellow);
-            transition: width .25s ease;
-        }
-
-        .progress-step {
-            position: relative;
-            z-index: 1;
-            text-align: center;
-        }
-
-        .progress-dot {
-            width: 26px;
-            height: 26px;
-            display: grid;
-            place-items: center;
-            margin: 0 auto .42rem;
-            border: 3px solid #404040;
-            border-radius: 50%;
-            background: #171717;
-            color: #777;
-            font-size: .67rem;
-            font-weight: 950;
-        }
-
-        .progress-step.done .progress-dot,
-        .progress-step.current .progress-dot {
-            border-color: var(--myorder-yellow);
-            background: var(--myorder-yellow);
-            color: #111;
-        }
-
-        .progress-step.current .progress-dot {
-            box-shadow: 0 0 0 5px rgba(255, 212, 59, .12);
-        }
-
-        .progress-step-label {
-            color: #777;
-            font-size: .7rem;
-            font-weight: 800;
-            line-height: 1.25;
-        }
-
-        .progress-step.done .progress-step-label,
-        .progress-step.current .progress-step-label {
-            color: #fff;
-        }
-
-        .progress-step.current .progress-step-label {
-            color: var(--myorder-yellow);
-            font-weight: 950;
-        }
-
-        .progress-cancelled {
-            margin-bottom: 1rem;
-            padding: .85rem 1rem;
-            border: 1px solid rgba(239, 68, 68, .45);
-            border-radius: 14px;
-            background: rgba(239, 68, 68, .08);
-            color: #ff9f9f;
-            font-weight: 900;
-            text-align: center;
-        }
-
-        .direct-action-note {
-            margin: -.15rem 0 .8rem;
-            color: var(--myorder-muted);
-            font-size: .82rem;
-        }
-
-        .upload-proof,
-        .cancel-reason {
-            margin-top: .7rem;
-        }
-
-        .hidden-file-input {
-            position: absolute !important;
-            width: 1px !important;
-            height: 1px !important;
-            padding: 0 !important;
-            margin: -1px !important;
-            overflow: hidden !important;
-            clip: rect(0, 0, 0, 0) !important;
-            white-space: nowrap !important;
-            border: 0 !important;
-        }
-
-        /* ===== เปลี่ยนสถานะด้วยปุ่ม ===== */
-        .status-actions {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: .75rem;
-            margin-bottom: .85rem;
-        }
-
-        .status-action-btn {
-            min-height: 52px;
-            border-radius: 13px;
-            font-size: .92rem;
-            font-weight: 950;
-            transition: .18s ease;
-        }
-
-        .status-action-btn.next {
-            border: 1px solid var(--myorder-yellow);
-            background: var(--myorder-yellow);
-            color: #111;
-        }
-
-        .status-action-btn.next:hover {
-            background: #ffe469;
-            border-color: #ffe469;
-            color: #000;
-        }
-
-        .status-action-btn.cancel {
-            min-width: 120px;
-            border: 1px solid rgba(239, 68, 68, .58);
-            background: rgba(239, 68, 68, .08);
-            color: #ff9f9f;
-        }
-
-        .status-action-btn.cancel:hover {
-            background: var(--myorder-danger);
-            border-color: var(--myorder-danger);
-            color: #fff;
-        }
-
-        .status-action-btn.selected {
-            outline: 3px solid rgba(255, 255, 255, .14);
-            outline-offset: 2px;
-        }
-
-        .current-status-big {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: .6rem;
-            padding: .6rem .75rem;
-            margin-bottom: .65rem;
-            border: 1px solid rgba(56, 189, 248, .28);
-            border-radius: 10px;
-            background: rgba(56, 189, 248, .06);
-        }
-
-        .current-status-big .status-text {
-            color: #7dd3fc;
-            font-size: .98rem;
-            font-weight: 900;
-        }
-
-        .selected-status-note {
-            min-height: 24px;
-            margin-bottom: .7rem;
-            color: var(--myorder-muted);
-            font-size: .76rem;
-        }
-
-
-        /* ===== Boarding-pass / ticket style ===== */
-        .tickets-wrap {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 1rem;
-            align-items: start;
-        }
-
-        .order-ticket {
-            position: relative;
-            overflow: visible;
-            margin-bottom: 0 !important;
-            border: 1px solid rgba(255, 212, 59, .30) !important;
-            border-radius: 16px !important;
-            background: #121212 !important;
-            box-shadow: 0 12px 28px rgba(0, 0, 0, .28) !important;
-        }
-
-        .order-ticket::before,
-        .order-ticket::after {
-            content: "";
-            position: absolute;
-            top: 116px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: var(--myorder-black);
-            z-index: 3;
-        }
-
-        .order-ticket::before {
-            left: -10px;
-        }
-
-        .order-ticket::after {
-            right: -10px;
-        }
-
-        .ticket-top {
-            padding: .9rem 1rem .85rem;
-            border-bottom: 1px dashed rgba(255, 212, 59, .35);
-            background:
-                linear-gradient(135deg, rgba(255, 212, 59, .10), transparent 55%),
-                #0f0f0f;
-            border-radius: 16px 16px 0 0;
-        }
-
-        .ticket-code-row {
-            display: flex;
-            justify-content: space-between;
-            gap: .8rem;
-            align-items: flex-start;
-        }
-
-        .ticket-code-label {
-            color: var(--myorder-muted);
-            font-size: .82rem;
-            font-weight: 850;
-            text-transform: uppercase;
-            letter-spacing: .08em;
-        }
-
-        .ticket-code {
-            margin-top: .15rem;
-            color: var(--myorder-yellow);
-            font-size: 1.4rem;
-            font-weight: 950;
-            line-height: 1.1;
-            word-break: break-word;
-        }
-
-        .ticket-date {
-            color: var(--myorder-muted);
-            font-size: .92rem;
-            text-align: right;
-            white-space: nowrap;
-        }
-
-        .ticket-passenger {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: .7rem;
-            align-items: end;
-            margin-top: .65rem;
-        }
-
-        .ticket-name-label,
-        .ticket-room-label {
-            color: var(--myorder-muted);
-            font-size: .82rem;
-            font-weight: 850;
-        }
-
-        .ticket-name {
-            color: #fff;
-            font-size: 1.8rem;
-            font-weight: 950;
-            line-height: 1.08;
-        }
-
-        .ticket-room {
-            color: var(--myorder-yellow);
-            font-size: 2.2rem;
-            font-weight: 950;
-            line-height: 1;
-            text-align: right;
-        }
-
-        .ticket-body {
-            padding: .8rem .9rem .9rem;
-        }
-
-        .ticket-mini-info {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: .45rem;
-            margin-bottom: .65rem;
-        }
-
-        .ticket-mini-box {
-            padding: .45rem .55rem;
-            border: 1px solid #292929;
-            border-radius: 8px;
-            background: #0e0e0e;
-        }
-
-        .ticket-mini-label {
-            color: var(--myorder-muted);
-            font-size: .78rem;
-            font-weight: 800;
-        }
-
-        .ticket-mini-value {
-            margin-top: .08rem;
-            color: #fff;
-            font-size: 1.12rem;
-            font-weight: 850;
-            word-break: break-word;
-        }
-
-        .ticket-status {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: .6rem;
-            padding: .45rem .55rem;
-            margin-bottom: .65rem;
-            border: 1px solid rgba(56, 189, 248, .26);
-            border-radius: 8px;
-            background: rgba(56, 189, 248, .055);
-        }
-
-        .ticket-status-label {
-            color: var(--myorder-muted);
-            font-size: .7rem;
-            font-weight: 800;
-        }
-
-        .ticket-status-value {
-            color: #7dd3fc;
-            font-size: 1.12rem;
-            font-weight: 950;
-        }
-
-        .ticket-products {
-            margin-bottom: .7rem;
-            border: 1px solid rgba(255, 212, 59, .32);
-            border-radius: 10px;
-            background: rgba(255, 212, 59, .035);
-        }
-
-        .ticket-products-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: .5rem .6rem;
-            border-bottom: 1px dashed rgba(255, 212, 59, .23);
-        }
-
-        .ticket-products-title {
-            color: var(--myorder-yellow);
-            font-size: 1.18rem;
-            font-weight: 950;
-        }
-
-        .ticket-products-count {
-            color: var(--myorder-yellow);
-            font-size: .95rem;
-            font-weight: 900;
-        }
-
-        .ticket-product-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto auto;
-            gap: .7rem;
-            align-items: center;
-            padding: .68rem .72rem;
-            border-bottom: 1px solid #262626;
-        }
-
-        .ticket-product-row:last-child {
-            border-bottom: 0;
-        }
-
-        .ticket-product-name {
-            color: #fff;
-            font-size: 1.18rem;
-            font-weight: 950;
-            line-height: 1.18;
-        }
-
-        .ticket-product-meta {
-            margin-top: .12rem;
-            color: var(--myorder-muted);
-            font-size: .98rem;
-        }
-
-        .ticket-product-qty {
-            min-width: 58px;
-            padding: .38rem .5rem;
-            border-radius: 8px;
-            background: #0b0b0b;
-            color: #fff;
-            font-size: 1.12rem;
-            font-weight: 950;
-            text-align: center;
-        }
-
-        .ticket-product-total {
-            min-width: 92px;
-            color: var(--myorder-yellow);
-            font-size: 1.08rem;
-            font-weight: 950;
-            text-align: right;
-        }
-
-        .ticket-total {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: .45rem .8rem;
-            padding: .7rem .75rem;
-            margin-bottom: .65rem;
-            border: 1px solid #2b2b2b;
-            border-radius: 9px;
-            background: #0d0d0d;
-            font-size: .98rem;
-        }
-
-        .ticket-total .label {
-            color: var(--myorder-muted);
-        }
-
-        .ticket-total .value {
-            color: #fff;
-            font-weight: 850;
-            text-align: right;
-        }
-
-        .ticket-total .final-label {
-            padding-top: .35rem;
-            border-top: 1px dashed #333;
-            color: #fff;
-            font-weight: 900;
-        }
-
-        .ticket-total .final-value {
-            padding-top: .35rem;
-            border-top: 1px dashed #333;
-            color: var(--myorder-yellow);
-            font-size: 1.35rem;
-            font-weight: 950;
-            text-align: right;
-        }
-
-        .order-ticket .order-progress {
-            margin-bottom: .65rem;
-            padding: .65rem .3rem .55rem;
-            border-radius: 9px;
-        }
-
-        .order-ticket .order-progress::before,
-        .order-ticket .progress-fill {
-            top: 20px;
-            height: 3px;
-        }
-
-        .order-ticket .progress-dot {
-            width: 22px;
-            height: 22px;
-            margin-bottom: .32rem;
-            border-width: 2px;
-            font-size: .58rem;
-        }
-
-        .order-ticket .progress-step-label {
-            font-size: .82rem;
-            font-weight: 850;
-        }
-
-        .order-ticket .status-panel {
-            padding: .65rem;
-            border-radius: 10px;
-        }
-
-        .order-ticket .direct-action-note {
-            margin-bottom: .5rem;
-            font-size: .95rem;
-        }
-
-        .order-ticket .status-actions {
-            gap: .5rem;
-            margin-bottom: .5rem;
-        }
-
-        .order-ticket .status-action-btn {
-            min-height: 46px;
-            border-radius: 9px;
-            font-size: 1.12rem;
-        }
-
-        .order-ticket .status-action-btn.cancel {
-            min-width: 90px;
-        }
-
-        .ticket-late {
-            margin-bottom: .65rem;
-            padding: .55rem .7rem;
-            border: 1px solid rgba(239, 68, 68, .32);
-            border-radius: 8px;
-            background: rgba(239, 68, 68, .07);
-            color: #ffaaaa;
-            font-size: .92rem;
-            font-weight: 800;
-        }
+        /* ===== Responsive ===== */
 
-        @media (max-width: 991.98px) {
-            .tickets-wrap {
+        @media(max-width: 900px) {
+            .orders-grid {
                 grid-template-columns: 1fr;
             }
         }
 
-        @media (max-width: 575.98px) {
-            .priority-customer {
-                grid-template-columns: 1fr;
+        @media(max-width: 575px) {
+            .orders-header {
+                padding: 18px;
+            }
+
+            .order-body {
+                padding: 11px;
+            }
+
+            .product-row {
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 7px;
+            }
+
+            .product-price {
+                grid-column: 1/-1;
+                text-align: left;
             }
 
             .status-actions {
                 grid-template-columns: 1fr;
             }
 
-            .status-action-btn.cancel {
+            .action-cancel {
                 width: 100%;
             }
 
-            .product-list .list-group-item {
-                grid-template-columns: minmax(0, 1fr) auto !important;
-            }
-
-            .line-total {
-                grid-column: 1 / -1;
-                min-width: 0;
-                text-align: left;
+            .order-date {
+                font-size: .7rem;
             }
         }
-
-        @media (max-width: 767.98px) {
-            .my-orders-hero {
-                padding: 1.2rem;
-                border-radius: 19px;
-            }
-
-            .order-card-header {
-                align-items: flex-start !important;
-                flex-direction: column;
-                gap: .5rem;
-            }
-
-            .order-info-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .grand-total {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-        }
-
-        /* ===== Larger text override ===== */
-        .ticket-name {
-            font-size: 1.8rem;
-        }
-
-        .ticket-room {
-            font-size: 2.2rem;
-        }
-
-        .ticket-products-title {
-            font-size: 1.18rem;
-        }
-
-        .ticket-product-name {
-            font-size: 1.18rem;
-        }
-
-        .ticket-product-qty {
-            font-size: 1rem;
-            min-width: 64px;
-        }
-
-        .ticket-product-total {
-            font-size: 1.08rem;
-            min-width: 100px;
-        }
-
-        .ticket-mini-value {
-            font-size: 1rem;
-        }
-
-        .ticket-status-value {
-            font-size: 1.12rem;
-        }
-
-        .ticket-total {
-            font-size: .98rem;
-        }
-
-        .ticket-total .final-value {
-            font-size: 1.35rem;
-        }
-
-        .order-ticket .status-action-btn {
-            font-size: 1rem;
-            min-height: 50px;
-        }
-
-        .order-ticket .progress-step-label {
-            font-size: .82rem;
-        }
-
     </style>
 
-    <div class="container py-4 my-orders-page">
-        <section class="my-orders-hero">
-            <div class="my-orders-hero-content">
-                <h3 class="my-orders-title">
-                    <i class="bi bi-person-check-fill me-2"></i>
-                    ออเดอร์ที่ฉันรับไว้ทั้งหมด
-                </h3>
-                <p class="my-orders-subtitle">
-                    ติดตามงานที่รับไว้ อัปเดตสถานะ และจัดการคำสั่งซื้อได้จากหน้านี้
-                </p>
-            </div>
+
+    <div class="container py-4 orders-page">
+
+        {{-- ===== Heading ===== --}}
+
+        <section class="orders-header">
+            <h3>
+                <i class="bi bi-clipboard-check-fill me-2"></i>
+                ออเดอร์ที่ฉันรับไว้
+            </h3>
+
+            <p>
+                จัดการคำสั่งซื้อ ตรวจสอบสินค้า และอัปเดตสถานะการจัดส่ง
+            </p>
         </section>
+
+
+        {{-- ===== Filters ===== --}}
 
         <div class="filter-panel">
 
-            <button type="button" class="filter-btn active" data-status="all">
+            <button class="filter-btn active" data-status="all" type="button">
                 <i class="bi bi-grid-fill me-1"></i>
                 ทั้งหมด
             </button>
-            <button type="button" class="filter-btn" data-status="กำลังจัดสินค้า">
+
+            <button class="filter-btn" data-status="กำลังจัดสินค้า" type="button">
                 <i class="bi bi-box-seam me-1"></i>
                 กำลังจัดสินค้า
             </button>
-            
-             <button type="button" class="filter-btn" data-status="กำลังจัดส่ง">
+
+            <button class="filter-btn" data-status="กำลังจัดส่ง" type="button">
                 <i class="bi bi-truck me-1"></i>
                 กำลังจัดส่ง
             </button>
-            <button type="button" class="filter-btn" data-status="late">
+
+            <button class="filter-btn" data-status="late" type="button">
                 <i class="bi bi-alarm-fill me-1"></i>
                 ล่าช้าเกิน 15 นาที
             </button>
 
-
-           
-
         </div>
 
+
+        {{-- ===== Alerts ===== --}}
+
         @if (session('success'))
-            <div class="alert alert-success rounded-4 shadow-sm">
+            <div class="alert alert-success rounded-3">
                 <i class="bi bi-check-circle-fill me-2"></i>
                 {{ session('success') }}
             </div>
         @endif
 
         @if (session('error'))
-            <div class="alert alert-danger rounded-4 shadow-sm">
+            <div class="alert alert-danger rounded-3">
                 <i class="bi bi-exclamation-circle-fill me-2"></i>
                 {{ session('error') }}
             </div>
         @endif
 
-        <div class="tickets-wrap">
-        @forelse ($orders as $order)
-            @php
-                $isLate =
-                    now()->greaterThan($order->updated_at->copy()->addMinutes(15)) &&
-                    !in_array($order->status, ['เสร็จสิ้น', 'ยกเลิก']);
 
-                $shippingFee = max(
-                    0,
-                    (float) ($order->shipping_fee ?? 0)
-                );
+        {{-- ===== Orders ===== --}}
 
-                $itemsSubtotal = $order->orderItems->sum(function ($item) {
-                    return (float) $item->price
-                        * (int) $item->quantity;
-                });
+        <div class="orders-grid">
 
-                $orderGrandTotal = (float) $order->total_amount;
+            @forelse ($orders as $order)
+                @php
+                    $isLate =
+                        now()->greaterThan($order->updated_at->copy()->addMinutes(15)) &&
+                        !in_array($order->status, ['เสร็จสิ้น', 'ยกเลิก'], true);
 
-                if ($orderGrandTotal <= 0) {
-                    $orderGrandTotal = $itemsSubtotal + $shippingFee;
-                }
+                    $shippingFee = max(0, (float) ($order->shipping_fee ?? 0));
 
-                $totalQty = $order->orderItems->sum(
-                    fn ($item) => (int) $item->quantity
-                );
-            @endphp
+                    $itemsSubtotal = $order->orderItems->sum(function ($item) {
+                        return (float) $item->price * (int) $item->quantity;
+                    });
 
-            <div class="card order-card order-ticket {{ $isLate ? 'is-late' : '' }}"
-                data-status="{{ $order->status }}"
-                data-late="{{ $isLate ? '1' : '0' }}">
+                    $orderGrandTotal = (float) $order->total_amount;
 
-                <div class="ticket-top">
-                    <div class="ticket-code-row">
-                        <div>
-                            <div class="ticket-code-label">ORDER / BOARDING PASS</div>
-                            <div class="ticket-code">
-                                <i class="bi bi-ticket-perforated-fill me-1"></i>
-                                #{{ $order->order_code }}
-                            </div>
-                        </div>
+                    if ($orderGrandTotal <= 0) {
+                        $orderGrandTotal = $itemsSubtotal + $shippingFee;
+                    }
 
-                        <div class="ticket-date">
-                            <i class="bi bi-calendar-event me-1"></i>
-                            {{ $order->created_at->format('d/m/Y H:i') }}
-                        </div>
-                    </div>
+                    $totalQty = $order->orderItems->sum(fn($item) => (int) $item->quantity);
 
-                    <div class="ticket-passenger">
-                        <div>
-                            <div class="ticket-name-label">ลูกค้า / PASSENGER</div>
-                            <div class="ticket-name">
-                                {{ $order->user->name ?? '-' }}
-                            </div>
-                        </div>
+                    $statusFlow = [
+                        'รอเจ้าหน้าที่รับคำสั่งซื้อ' => 'กำลังจัดสินค้า',
+                        'กำลังจัดสินค้า' => 'กำลังจัดส่ง',
+                        'กำลังจัดส่ง' => 'เสร็จสิ้น',
+                    ];
 
-                        <div>
-                            <div class="ticket-room-label">ห้อง / ROOM</div>
-                            <div class="ticket-room">
-                                {{ $order->user->room_number ?? '-' }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                    $nextStatus = $statusFlow[$order->status] ?? null;
 
-                <div class="ticket-body">
-                    @if ($isLate)
-                        <div class="ticket-late">
-                            <i class="bi bi-alarm-fill me-1"></i>
-                            เกิน 15 นาที — กรุณาดำเนินการโดยเร็ว
-                        </div>
-                    @endif
+                    $isFinalStatus = in_array($order->status, ['เสร็จสิ้น', 'ยกเลิก'], true);
 
-                    <div class="ticket-mini-info">
-                        <div class="ticket-mini-box">
-                            <div class="ticket-mini-label">เบอร์โทร</div>
-                            <div class="ticket-mini-value">
-                                {{ $order->tracking_number ?? '-' }}
-                            </div>
-                        </div>
+                    $progressSteps = ['กำลังจัดสินค้า', 'กำลังจัดส่ง', 'เสร็จสิ้น'];
 
-                        <div class="ticket-mini-box">
-                            <div class="ticket-mini-label">ชำระเงิน</div>
-                            <div class="ticket-mini-value">
-                                {{ $order->payment_method }}
-                            </div>
-                        </div>
-                    </div>
+                    $progressIndex = match ($order->status) {
+                        'กำลังจัดสินค้า' => 0,
+                        'กำลังจัดส่ง' => 1,
+                        'เสร็จสิ้น' => 2,
+                        default => -1,
+                    };
+
+                    $progressWidth = match ($progressIndex) {
+                        0 => '0%',
+                        1 => '33.334%',
+                        2 => '66.668%',
+                        default => '0%',
+                    };
+                @endphp
 
 
+                <article class="order-card {{ $isLate ? 'is-late' : '' }}" data-status="{{ $order->status }}"
+                    data-late="{{ $isLate ? '1' : '0' }}">
 
-                    <section class="ticket-products">
-                        <div class="ticket-products-head">
-                            <div class="ticket-products-title">
-                                <i class="bi bi-cart-check-fill me-1"></i>
-                                รายการสินค้า
-                            </div>
+                    {{-- Header --}}
 
-                            <div class="ticket-products-count">
-                                {{ number_format($totalQty) }} ชิ้น
-                            </div>
-                        </div>
+                    <div class="order-header">
 
-                        @foreach ($order->orderItems as $item)
-                            <div class="ticket-product-row">
-                                <div>
-                                    <div class="ticket-product-name">
-                                        {{ $item->product->name ?? '[ลบแล้ว]' }}
-                                    </div>
+                        <div class="order-header-top">
 
-                                    <div class="ticket-product-meta">
-                                        {{ $item->productUnit->unit_name ?? 'หน่วย' }}
-                                        · ฿{{ number_format($item->price, 2) }}/หน่วย
-                                    </div>
+                            <div>
+                                <div class="info-label">หมายเลขคำสั่งซื้อ</div>
 
-                                    @if (!empty($item->product->description))
-                                        <div class="gift-text mt-1">
-                                            <i class="bi bi-gift-fill me-1"></i>
-                                            ของแถม: {{ $item->product->description }}
-                                        </div>
-                                    @endif
-                                </div>
-
-                                <div class="ticket-product-qty">
-                                    × {{ number_format((int) $item->quantity) }}
-                                </div>
-
-                                <div class="ticket-product-total">
-                                    ฿{{ number_format($item->price * $item->quantity, 2) }}
+                                <div class="order-code">
+                                    <i class="bi bi-ticket-perforated-fill me-1"></i>
+                                    #{{ $order->order_code }}
                                 </div>
                             </div>
-                        @endforeach
-                    </section>
 
-                    <div class="ticket-total">
-                        <span class="label">ยอดรวมสินค้า</span>
-                        <span class="value">฿{{ number_format($itemsSubtotal, 2) }}</span>
+                            <div class="order-date">
+                                <i class="bi bi-calendar-event me-1"></i>
+                                {{ $order->created_at->format('d/m/Y H:i') }}
+                            </div>
 
-                        <span class="label">ค่าจัดส่ง</span>
-                        <span class="value">
-                            @if ($shippingFee > 0)
-                                ฿{{ number_format($shippingFee, 2) }}
-                            @else
-                                ฟรี
-                            @endif
-                        </span>
+                        </div>
 
-                        <span class="final-label">รวมทั้งหมด</span>
-                        <span class="final-value">
-                            ฿{{ number_format($orderGrandTotal, 2) }}
-                        </span>
+
+                        <div class="customer-info">
+
+                            <div>
+                                <span class="info-label">
+                                    <i class="bi bi-person-fill me-1"></i>
+                                    ชื่อลูกค้า
+                                </span>
+
+                                <div class="customer-name">
+                                    {{ $order->user->name ?? '-' }}
+                                </div>
+                            </div>
+
+                            <div>
+                                <span class="info-label">ห้อง / ROOM</span>
+
+                                <div class="room-number">
+                                    {{ $order->user->room_number ?? '-' }}
+                                </div>
+                            </div>
+
+                        </div>
+
                     </div>
 
-                    @php
-                        /*
-                        |--------------------------------------------------------------------------
-                        | ลำดับสถานะ
-                        |--------------------------------------------------------------------------
-                        | อนุญาตให้เปลี่ยนไปข้างหน้าได้ครั้งละ 1 ขั้นเท่านั้น
-                        */
-                        $statusFlow = [
-                            'รอเจ้าหน้าที่รับคำสั่งซื้อ' => 'กำลังจัดสินค้า',
-                            'กำลังจัดสินค้า' => 'กำลังจัดส่ง',
-                            'กำลังจัดส่ง' => 'เสร็จสิ้น',
-                        ];
 
-                        $nextStatus = $statusFlow[$order->status] ?? null;
-                        $isFinalStatus = in_array($order->status, ['เสร็จสิ้น', 'ยกเลิก'], true);
+                    {{-- Body --}}
 
-                        $progressSteps = [
-                            'กำลังจัดสินค้า',
-                            'กำลังจัดส่ง',
-                            'เสร็จสิ้น',
-                        ];
+                    <div class="order-body">
 
-                        $progressIndex = match ($order->status) {
-                            'รอเจ้าหน้าที่รับคำสั่งซื้อ' => -1,
-                            'กำลังจัดสินค้า' => 0,
-                            'กำลังจัดส่ง' => 1,
-                            'เสร็จสิ้น' => 2,
-                            default => -1,
-                        };
-
-                        $progressWidth = match ($progressIndex) {
-                            0 => '0%',
-                            1 => '33.334%',
-                            2 => '66.668%',
-                            default => '0%',
-                        };
-                    @endphp
-
-                    @if ($order->status === 'ยกเลิก')
-                        <div class="progress-cancelled">
-                            <i class="bi bi-x-circle-fill me-1"></i>
-                            ออเดอร์นี้ถูกยกเลิกแล้ว
-                        </div>
-                    @else
-                        <div class="order-progress">
-                            <div
-                                class="progress-fill"
-                                style="width: {{ $progressWidth }};"
-                            ></div>
-
-                            @foreach ($progressSteps as $index => $step)
-                                <div
-                                    class="progress-step
-                                        {{ $index < $progressIndex ? 'done' : '' }}
-                                        {{ $index === $progressIndex ? 'current' : '' }}"
-                                >
-                                    <div class="progress-dot">
-                                        @if ($index < $progressIndex)
-                                            <i class="bi bi-check-lg"></i>
-                                        @else
-                                            {{ $index + 1 }}
-                                        @endif
-                                    </div>
-
-                                    <div class="progress-step-label">
-                                        {{ $step }}
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-
-                    <form action="{{ route('orders.updateStatus', $order->id) }}"
-                        method="POST"
-                        enctype="multipart/form-data"
-                        class="status-form status-panel">
-                        @csrf
-                        @method('PATCH')
-
-                        @if ($isFinalStatus)
-                            <div class="text-muted small">
-                                <i class="bi bi-lock-fill me-1"></i>
-                                ออเดอร์นี้อยู่ในสถานะสุดท้ายแล้ว
-                            </div>
-                        @else
-                            <input
-                                type="hidden"
-                                name="status"
-                                class="status-input"
-                                value=""
-                            >
-
-                            <div class="direct-action-note">
-                                กดปุ่มเพื่อเปลี่ยนสถานะได้ทันที
-                            </div>
-
-                            <div class="status-actions">
-                                @if ($nextStatus)
-                                    <button
-                                        type="button"
-                                        class="btn status-action-btn next direct-status-btn"
-                                        data-status-value="{{ $nextStatus }}"
-                                    >
-                                        <i class="bi bi-arrow-right-circle-fill me-1"></i>
-                                        {{ $nextStatus }}
-                                    </button>
-                                @endif
-
-                                <button
-                                    type="button"
-                                    class="btn status-action-btn cancel direct-status-btn"
-                                    data-status-value="ยกเลิก"
-                                >
-                                    <i class="bi bi-x-circle-fill me-1"></i>
-                                    ยกเลิก
-                                </button>
-                            </div>
-
-                            <div class="upload-proof" style="display: none;">
-                                <label class="form-label">
-                                    <i class="bi bi-camera-fill me-1"></i>
-                                    เลือกรูปหลักฐานเพื่อจบออเดอร์
-                                </label>
-
-                                <input
-                                    type="file"
-                                    name="proof_image"
-                                    accept="image/*"
-                                    class="form-control proof-input"
-                                >
-                            </div>
-
-                            <div class="cancel-reason" style="display: none;">
-                                <label class="form-label">
-                                    <i class="bi bi-chat-left-text-fill me-1"></i>
-                                    เหตุผลการยกเลิก
-                                </label>
-
-                                <textarea
-                                    name="cancel_reason"
-                                    rows="3"
-                                    class="form-control cancel-textarea"
-                                    placeholder="พิมพ์เหตุผล แล้วกดปุ่มยกเลิกอีกครั้ง"
-                                ></textarea>
-
-                                <button
-                                    type="button"
-                                    class="btn btn-danger w-100 mt-2 confirm-cancel-btn"
-                                >
-                                    <i class="bi bi-x-circle-fill me-1"></i>
-                                    ยกเลิกออเดอร์
-                                </button>
+                        @if ($isLate)
+                            <div class="late-alert">
+                                <i class="bi bi-alarm-fill me-1"></i>
+                                ออเดอร์นี้ล่าช้าเกิน 15 นาที กรุณาดำเนินการ
                             </div>
                         @endif
-                    </form>
-                </div>
-            </div>
-        @empty
-            <div class="empty-orders">
-                <div class="empty-orders-icon">
-                    <i class="bi bi-inbox-fill"></i>
-                </div>
 
-                <h4 class="text-white fw-bold">ยังไม่มีออเดอร์ที่รับไว้</h4>
-                <p class="text-muted mb-0">
-                    เมื่อคุณรับออเดอร์ รายการจะแสดงในหน้านี้
-                </p>
-            </div>
-        @endforelse
+
+                        {{-- Customer details --}}
+
+                        <div class="order-details">
+
+                            <div class="detail-box">
+                                <span class="info-label">เบอร์โทร / Tracking</span>
+
+                                <div class="detail-value">
+                                    {{ $order->tracking_number ?? '-' }}
+                                </div>
+                            </div>
+
+                            <div class="detail-box">
+                                <span class="info-label">วิธีชำระเงิน</span>
+
+                                <div class="detail-value">
+                                    {{ $order->payment_method ?? '-' }}
+                                </div>
+                            </div>
+
+                        </div>
+
+
+                        {{-- Products --}}
+
+                        <section class="products-box">
+
+                            <div class="products-header">
+
+                                <strong>
+                                    <i class="bi bi-cart-check-fill me-1"></i>
+                                    รายการสินค้า
+                                </strong>
+
+                                <span class="products-count">
+                                    {{ number_format($totalQty) }} ชิ้น
+                                </span>
+
+                            </div>
+
+
+                            @foreach ($order->orderItems as $item)
+                                <div class="product-row">
+
+                                    <div>
+
+                                        <div class="product-name">
+                                            {{ $item->product->name ?? '[ลบแล้ว]' }}
+                                        </div>
+
+                                        <div class="product-meta">
+                                            {{ $item->productUnit->unit_name ?? 'หน่วย' }}
+                                            · ฿{{ number_format($item->price, 2) }}/หน่วย
+                                        </div>
+
+                                        @if (!empty($item->product->description))
+                                            <div class="gift-text">
+                                                <i class="bi bi-gift-fill me-1"></i>
+                                                ของแถม: {{ $item->product->description }}
+                                            </div>
+                                        @endif
+
+                                    </div>
+
+                                    <div class="product-qty">
+                                        × {{ number_format((int) $item->quantity) }}
+                                    </div>
+
+                                    <div class="product-price">
+                                        ฿{{ number_format($item->price * $item->quantity, 2) }}
+                                    </div>
+
+                                </div>
+                            @endforeach
+
+                        </section>
+
+
+                        {{-- Total --}}
+
+                        <div class="total-box">
+
+                            <span class="total-label">ยอดรวมสินค้า</span>
+
+                            <span class="total-value">
+                                ฿{{ number_format($itemsSubtotal, 2) }}
+                            </span>
+
+
+                            <span class="total-label">ค่าจัดส่ง</span>
+
+                            <span class="total-value">
+                                {{ $shippingFee > 0 ? '฿' . number_format($shippingFee, 2) : 'ฟรี' }}
+                            </span>
+
+
+                            <span class="final-label">ยอดสุทธิ</span>
+
+                            <span class="final-value">
+                                ฿{{ number_format($orderGrandTotal, 2) }}
+                            </span>
+
+                        </div>
+
+
+                        {{-- Progress --}}
+
+                        <div class="status-heading">
+                            <i class="bi bi-diagram-3-fill me-1"></i>
+                            ความคืบหน้าของออเดอร์
+                        </div>
+
+
+                        @if ($order->status === 'ยกเลิก')
+                            <div class="progress-cancelled">
+                                <i class="bi bi-x-circle-fill me-1"></i>
+                                ออเดอร์นี้ถูกยกเลิกแล้ว
+                            </div>
+                        @else
+                            <div class="order-progress">
+
+                                <div class="progress-fill" style="width: {{ $progressWidth }}"></div>
+
+                                @foreach ($progressSteps as $index => $step)
+                                    <div
+                                        class="progress-step
+                                    {{ $index < $progressIndex ? 'done' : '' }}
+                                    {{ $index === $progressIndex ? 'current' : '' }}">
+
+                                        <div class="progress-dot">
+
+                                            @if ($index < $progressIndex)
+                                                <i class="bi bi-check-lg"></i>
+                                            @else
+                                                {{ $index + 1 }}
+                                            @endif
+
+                                        </div>
+
+                                        <div class="progress-label">
+                                            {{ $step }}
+                                        </div>
+
+                                    </div>
+                                @endforeach
+
+                            </div>
+                        @endif
+
+
+                        {{-- Actions --}}
+
+                        <form action="{{ route('orders.updateStatus', $order->id) }}" method="POST"
+                            enctype="multipart/form-data" class="status-form status-panel">
+
+                            @csrf
+                            @method('PATCH')
+
+
+                            @if ($isFinalStatus)
+                                <div class="locked-status">
+                                    <i class="bi bi-lock-fill me-1"></i>
+                                    ออเดอร์นี้ดำเนินการเสร็จแล้ว ไม่สามารถเปลี่ยนสถานะได้
+                                </div>
+                            @else
+                                <input type="hidden" name="status" class="status-input" value="">
+
+                                <div class="action-note">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    เลือกการดำเนินการสำหรับออเดอร์นี้
+                                </div>
+
+
+                                <div class="status-actions">
+
+                                    @if ($nextStatus)
+                                        <button type="button" class="btn action-btn action-next direct-status-btn"
+                                            data-status-value="{{ $nextStatus }}">
+
+                                            <i class="bi bi-arrow-right-circle-fill me-1"></i>
+
+                                            {{ $nextStatus }}
+
+                                        </button>
+                                    @endif
+
+
+                                    <button type="button" class="btn action-btn action-cancel direct-status-btn"
+                                        data-status-value="ยกเลิก">
+
+                                        <i class="bi bi-x-circle-fill me-1"></i>
+                                        ยกเลิก
+
+                                    </button>
+
+                                </div>
+
+
+                                {{-- Upload proof --}}
+
+                                <div class="upload-proof">
+
+                                    <label class="form-label">
+                                        <i class="bi bi-camera-fill me-1"></i>
+                                        รูปหลักฐานการจัดส่ง
+                                    </label>
+
+                                    <input type="file" name="proof_image" accept="image/*"
+                                        class="form-control proof-input">
+
+                                    <small class="text-secondary">
+                                        กรุณาเลือกรูปหลักฐานก่อนปิดออเดอร์
+                                    </small>
+
+                                </div>
+
+
+                                {{-- Cancel reason --}}
+
+                                <div class="cancel-reason">
+
+                                    <label class="form-label">
+                                        <i class="bi bi-chat-left-text-fill me-1"></i>
+                                        เหตุผลการยกเลิก
+                                    </label>
+
+                                    <textarea name="cancel_reason" rows="3" class="form-control cancel-textarea"
+                                        placeholder="ระบุเหตุผลการยกเลิก..."></textarea>
+
+                                    <button type="button" class="btn btn-danger w-100 mt-2 confirm-cancel-btn">
+                                        <i class="bi bi-x-circle-fill me-1"></i>
+                                        ยืนยันยกเลิกออเดอร์
+                                    </button>
+
+                                </div>
+                            @endif
+
+                        </form>
+
+                    </div>
+
+                </article>
+
+            @empty
+
+                <div class="empty-orders">
+
+                    <i class="bi bi-inbox-fill"></i>
+
+                    <h4 class="text-white fw-bold">
+                        ยังไม่มีออเดอร์ที่รับไว้
+                    </h4>
+
+                    <p class="text-secondary mb-0">
+                        เมื่อมีการรับออเดอร์ รายการจะแสดงที่นี่
+                    </p>
+
+                </div>
+            @endforelse
+
         </div>
+
     </div>
 
+
+    {{-- ===== JavaScript ===== --}}
+
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
+
+            /* ===== Update order status ===== */
+
             document.querySelectorAll('.status-form').forEach(form => {
+
                 const statusInput = form.querySelector('.status-input');
+
                 const proofWrap = form.querySelector('.upload-proof');
                 const proofInput = form.querySelector('.proof-input');
+
                 const cancelWrap = form.querySelector('.cancel-reason');
                 const cancelTextarea = form.querySelector('.cancel-textarea');
+
                 const cancelConfirm = form.querySelector('.confirm-cancel-btn');
 
-                const submitForm = (status) => {
-                    if (!statusInput) return;
+                let submitting = false;
+
+                function submitForm(status) {
+
+                    if (!statusInput || submitting) return;
 
                     statusInput.value = status;
+                    submitting = true;
 
                     form.querySelectorAll('button').forEach(button => {
                         button.disabled = true;
                     });
 
                     form.submit();
-                };
+                }
+
+
+                /* Click status buttons */
 
                 form.querySelectorAll('.direct-status-btn').forEach(button => {
-                    button.addEventListener('click', function () {
+
+                    button.addEventListener('click', function() {
+
                         const status = this.dataset.statusValue || '';
 
+                        if (!status) return;
+
+
+                        /* Finish order: require proof image */
+
                         if (status === 'เสร็จสิ้น') {
-                            if (cancelWrap) cancelWrap.style.display = 'none';
-                            if (proofWrap) proofWrap.style.display = 'block';
+
+                            if (cancelWrap) {
+                                cancelWrap.style.display = 'none';
+                            }
+
+                            if (proofWrap) {
+                                proofWrap.style.display = 'block';
+                            }
 
                             if (proofInput && proofInput.files.length === 0) {
+
                                 proofInput.click();
+
                                 return;
                             }
 
                             submitForm(status);
+
                             return;
                         }
+
+
+                        /* Cancel order: require reason */
 
                         if (status === 'ยกเลิก') {
-                            if (proofWrap) proofWrap.style.display = 'none';
-                            if (cancelWrap) cancelWrap.style.display = 'block';
+
+                            if (proofWrap) {
+                                proofWrap.style.display = 'none';
+                            }
+
+                            if (cancelWrap) {
+                                cancelWrap.style.display = 'block';
+                            }
 
                             cancelTextarea?.focus();
+
                             return;
                         }
 
+
+                        /* Other status */
+
                         submitForm(status);
+
                     });
+
                 });
 
-                proofInput?.addEventListener('change', function () {
+
+                /* Upload proof */
+
+                proofInput?.addEventListener('change', function() {
+
                     if (this.files.length > 0) {
                         submitForm('เสร็จสิ้น');
                     }
+
                 });
 
-                cancelConfirm?.addEventListener('click', function () {
+
+                /* Confirm cancellation */
+
+                cancelConfirm?.addEventListener('click', function() {
+
                     const reason = cancelTextarea?.value.trim() || '';
 
-                    if (reason === '') {
+                    if (!reason) {
+
                         if (typeof Swal !== 'undefined') {
+
                             Swal.fire({
                                 icon: 'warning',
                                 title: 'กรุณากรอกเหตุผล',
                                 text: 'ระบุเหตุผลก่อนยกเลิกออเดอร์',
                                 confirmButtonColor: '#ffd43b'
                             });
+
                         } else {
+
                             alert('กรุณากรอกเหตุผลก่อนยกเลิกออเดอร์');
+
                         }
+
                         return;
                     }
 
                     submitForm('ยกเลิก');
+
                 });
+
             });
 
-            document.querySelectorAll('.filter-btn').forEach(button => {
-                button.addEventListener('click', function () {
-                    const status = this.dataset.status;
 
-                    document.querySelectorAll('.filter-btn').forEach(btn => {
+            /* ===== Filter orders ===== */
+
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            const orderCards = document.querySelectorAll('.order-card');
+
+            filterButtons.forEach(button => {
+
+                button.addEventListener('click', function() {
+
+                    const selectedStatus = this.dataset.status;
+
+                    filterButtons.forEach(btn => {
                         btn.classList.remove('active');
                     });
 
                     this.classList.add('active');
 
-                    document.querySelectorAll('.order-card').forEach(card => {
+
+                    orderCards.forEach(card => {
+
                         const cardStatus = card.dataset.status;
                         const isLate = card.dataset.late === '1';
 
-                        if (status === 'all') {
-                            card.style.display = '';
-                        } else if (status === 'late') {
-                            card.style.display = isLate ? '' : 'none';
+                        let show = false;
+
+                        if (selectedStatus === 'all') {
+
+                            show = true;
+
+                        } else if (selectedStatus === 'late') {
+
+                            show = isLate;
+
                         } else {
-                            card.style.display =
-                                cardStatus === status ? '' : 'none';
+
+                            show = cardStatus === selectedStatus;
+
                         }
+
+                        card.style.display = show ? '' : 'none';
+
                     });
+
                 });
+
             });
+
         });
     </script>
+
 @endsection

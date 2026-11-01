@@ -68,38 +68,27 @@ class ShiftController extends Controller
     }
 
     public function create()
-    {
-        $shift = Shift::query()
-            ->where('user_id', auth()->id())
-            ->where('status', 'open')
-            ->first();
+{
+    $shift = Shift::query()
+        ->where('user_id', auth()->id())
+        ->where('status', 'open')
+        ->first();
 
-        if ($shift) {
-            return redirect('/online/pos');
-        }
-
-        $openingCash = (float) Setting::query()
-            ->where('key', 'opening_cash')
-            ->value('value');
-
-        $shiftTypes = ShiftType::query()
-            ->where('active', 1)
-            ->get();
-
-        return view('shift.open', compact(
-            'openingCash',
-            'shiftTypes'
-        ));
+    if ($shift) {
+        return redirect()->route('sale');
     }
+
+    $openingCash = (float) Setting::query()
+        ->where('key', 'opening_cash')
+        ->value('value');
+
+    return view('shift.open', compact('openingCash'));
+}
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'shift_type_id' => [
-                'required',
-                'integer',
-                'exists:shift_types,id',
-            ],
+       
         ]);
 
         $alreadyOpen = Shift::query()
@@ -119,7 +108,7 @@ class ShiftController extends Controller
 
         Shift::create([
             'user_id' => auth()->id(),
-            'shift_type_id' => $validated['shift_type_id'],
+            'shift_type_id' => null,
             'opening_cash' => $openingCash,
             'opened_at' => now(),
             'status' => 'open',

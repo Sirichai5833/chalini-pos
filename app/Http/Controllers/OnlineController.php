@@ -128,7 +128,7 @@ class OnlineController extends Controller
 
     $products = $query
         ->orderBy('name')
-        ->simplePaginate(10)
+        ->simplePaginate(12)
         ->withQueryString();
 
     $this->hydrateProductStockTotals($products);
@@ -261,68 +261,75 @@ class OnlineController extends Controller
 
 // 1. อัปเดตจำนวนสินค้า (แก้ไขแล้ว)
     public function updateQuantity(Request $request, $id)
-    {
-        $cart = session()->get('cart', []);
-        $this->assertCartOwnership($cart);
+{
+    $cart = session()->get('cart', []);
+    $this->assertCartOwnership($cart);
 
-        $validated = $request->validate([
-            'quantity' => 'required|integer|min:1',
-        ]);
+    $validated = $request->validate([
+        'quantity' => 'required|integer|min:1',
+    ]);
 
-        if (!isset($cart[$id])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'ไม่พบสินค้าในตะกร้า',
-            ], 404);
-        }
-
-        $item = $cart[$id];
-        $requestedQty = (int) $validated['quantity'];
-
-        // รวมสต็อกของสินค้าตัวเดียวกันจากทุกหน่วย
-        $currentStock = $this->availableStockForUnit(
-            (int) $item['product_id'],
-            (int) $item['product_unit_id']
-        );
-
-        if ($requestedQty > $currentStock) {
-            return response()->json([
-                'success' => false,
-                'message' =>
-                    "สินค้ารวมทุกหน่วยมีคงเหลือเทียบเท่า {$currentStock} {$item['unit_name']}",
-                'stock' => $currentStock,
-            ], 400);
-        }
-
-        $cart[$id]['quantity'] = $requestedQty;
-        $cart[$id]['stock'] = $currentStock;
-        $cart[$id]['available_stock'] = $currentStock;
-
-        session()->put('cart', $cart);
-
-        $itemTotal =
-            (float) $cart[$id]['price'] * $requestedQty;
-
-        $total = 0;
-        $totalItems = 0;
-
-        foreach ($cart as $cItem) {
-            $total +=
-                (float) $cItem['price']
-                * (int) $cItem['quantity'];
-
-            $totalItems += (int) $cItem['quantity'];
-        }
-
+    if (!isset($cart[$id])) {
         return response()->json([
-            'success' => true,
-            'quantity' => $requestedQty,
-            'stock' => $currentStock,
-            'item_total' => number_format($itemTotal, 2),
-            'total' => number_format($total, 2),
-            'total_items' => $totalItems,
-        ]);
+            'success' => false,
+            'message' => 'ไม่พบสินค้าในตะกร้า',
+        ], 404);
     }
+
+    $item = $cart[$id];
+    $requestedQty = (int) $validated['quantity'];
+
+    // รวมสต็อกของสินค้าตัวเดียวกันจากทุกหน่วย
+    $currentStock = $this->availableStockForUnit(
+        (int) $item['product_id'],
+        (int) $item['product_unit_id']
+    );
+
+    if ($requestedQty > $currentStock) {
+        return response()->json([
+            'success' => false,
+            'message' => "สินค้ารวมทุกหน่วยมีคงเหลือเทียบเท่า {$currentStock} {$item['unit_name']}",
+            'stock' => $currentStock,
+        ], 400);
+    }
+
+    // อัปเดตจำนวนสินค้า
+    $cart[$id]['quantity'] = $requestedQty;
+    $cart[$id]['stock'] = $currentStock;
+    $cart[$id]['available_stock'] = $currentStock;
+
+    session()->put('cart', $cart);
+
+    // คำนวณยอดสินค้าใหม่
+    $itemTotal = (float) $cart[$id]['price'] * $requestedQty;
+
+    $total = 0;
+    $totalItems = 0;
+
+    foreach ($cart as $cItem) {
+        $total += (float) $cItem['price'] * (int) $cItem['quantity'];
+        $totalItems += (int) $cItem['quantity'];
+    }
+
+    // คำนวณค่าจัดส่งและเงื่อนไขส่งฟรี
+    $shipping = $this->calculateShipping($total);
+
+    return response()->json([
+        'success' => true,
+        'quantity' => $requestedQty,
+        'stock' => $currentStock,
+        'item_total' => number_format($itemTotal, 2, '.', ''),
+        'total' => number_format($total, 2, '.', ''),
+        'total_items' => $totalItems,
+
+        // ข้อมูลค่าจัดส่ง
+        'shipping_fee' => number_format($shipping['shippingFee'], 2, '.', ''),
+        'regular_shipping_fee' => number_format($shipping['regularShippingFee'], 2, '.', ''),
+        'is_free_shipping' => $shipping['isFreeShipping'],
+        'remaining_for_free_shipping' => number_format($shipping['remainingForFreeShipping'], 2, '.', ''),
+        'grand_total' => number_format($shipping['grandTotal'], 2, '.', ''),
+    ]);
+}
 
     // 2. แสดงหน้าตะกร้าสินค้า (แก้ไขแล้ว)
    public function cart()
@@ -363,16 +370,15 @@ class OnlineController extends Controller
 
     session()->put('cart', $cart);
 
-    $shippingFee = $this->shippingFee();
-    $grandTotal = round($total + $shippingFee, 2);
+    $shipping = $this->calculateShipping($total);
 
-    return view('online.cart', compact(
-        'cart',
-        'total',
-        'shippingFee',
-        'grandTotal',
-        'outOfStockItems'
-    ));
+$shippingFee = $shipping['shippingFee'];
+$grandTotal = $shipping['grandTotal'];
+
+    return view('online.cart', array_merge(
+    compact('cart', 'total', 'shippingFee', 'grandTotal', 'outOfStockItems'),
+    $shipping
+));
 }
 
     public function showCheckoutForm()
@@ -388,8 +394,10 @@ class OnlineController extends Controller
                 * (int) ($item['quantity'] ?? 0);
         });
 
-        $shippingFee = $this->shippingFee();
-        $grandTotal = round($total + $shippingFee, 2);
+        $shipping = $this->calculateShipping($total);
+
+$shippingFee = $shipping['shippingFee'];
+$grandTotal = $shipping['grandTotal'];
         $smallestUnitId = null;
 
         if (!empty($cart)) {
@@ -406,15 +414,10 @@ class OnlineController extends Controller
             }
         }
 
-        return view('online.checkout', compact(
-            'cart',
-            'member',
-            'total',
-            'shippingFee',
-            'grandTotal',
-            'smallestUnitId',
-            'productUnit'
-        ));
+        return view('online.checkout', array_merge(
+    compact('cart', 'member', 'total', 'shippingFee', 'grandTotal', 'smallestUnitId', 'productUnit'),
+    $shipping
+));
     }
 
 
@@ -493,8 +496,10 @@ class OnlineController extends Controller
 
                 $items = $this->checkoutItems($cartItems);
                 $itemsTotal = round($items->sum('subtotal'), 2);
-                $shippingFee = $this->shippingFee();
-                $totalAmount = round($itemsTotal + $shippingFee, 2);
+                $shipping = $this->calculateShipping($itemsTotal);
+
+$shippingFee = $shipping['shippingFee'];
+$totalAmount = $shipping['grandTotal'];
 
                 if ($itemsTotal <= 0) {
                     throw ValidationException::withMessages([
@@ -757,18 +762,7 @@ class OnlineController extends Controller
         })->values();
     }
 
-    private function shippingFee(): float
-    {
-        $value = DB::table('settings')
-            ->where('key', 'shipping_fee')
-            ->value('value');
-
-        if (!is_numeric($value)) {
-            return 0.0;
-        }
-
-        return round(max(0, (float) $value), 2);
-    }
+ 
 
 
     public function generateQRCode(Request $request)
@@ -820,11 +814,64 @@ class OnlineController extends Controller
 
     $totalItems = collect($cart)->sum('quantity');
 
-    return response()->json([
-        'success' => true,
-        'total' => number_format($total, 2),
-        'total_items' => $totalItems,
-    ]);
+   $shipping = $this->calculateShipping($total);
+
+return response()->json([
+    'success' => true,
+    'total' => number_format($total, 2, '.', ''),
+    'total_items' => $totalItems,
+
+    'shipping_fee' => number_format($shipping['shippingFee'], 2, '.', ''),
+    'regular_shipping_fee' => number_format($shipping['regularShippingFee'], 2, '.', ''),
+    'is_free_shipping' => $shipping['isFreeShipping'],
+    'remaining_for_free_shipping' => number_format(
+        $shipping['remainingForFreeShipping'],
+        2,
+        '.',
+        ''
+    ),
+    'grand_total' => number_format($shipping['grandTotal'], 2, '.', ''),
+]);
+}
+
+private function calculateShipping(float $subtotal): array
+{
+    $settings = DB::table('settings')
+        ->whereIn('key', [
+            'shipping_fee',
+            'shipping_free_enabled',
+            'shipping_free_minimum',
+        ])
+        ->pluck('value', 'key');
+
+    $regularFee = max(0, (float) $settings->get('shipping_fee', 0));
+
+    $freeEnabled = in_array(
+        strtolower((string) $settings->get('shipping_free_enabled', '0')),
+        ['1', 'true', 'yes', 'on'],
+        true
+    );
+
+    $minimum = max(
+        0,
+        (float) $settings->get('shipping_free_minimum', 300)
+    );
+
+    $isFree = $freeEnabled && $subtotal >= $minimum;
+
+    $fee = $isFree ? 0 : $regularFee;
+
+    return [
+        'shippingFee' => $fee,
+        'regularShippingFee' => $regularFee,
+        'isFreeShipping' => $isFree,
+        'freeShippingEnabled' => $freeEnabled,
+        'freeShippingMinimum' => $minimum,
+        'remainingForFreeShipping' => $freeEnabled && !$isFree
+            ? max(0, $minimum - $subtotal)
+            : 0,
+        'grandTotal' => round($subtotal + $fee, 2),
+    ];
 }
 
 private function assertCartOwnership(array $cart): void

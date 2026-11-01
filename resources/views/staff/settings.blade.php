@@ -553,16 +553,131 @@
                                     </div>
 
                                     <small class="field-help">
-                                        ค่าจัดส่งสำหรับคำสั่งซื้อออนไลน์ หากจัดส่งฟรีให้ระบุ 0
+                                        ค่าจัดส่งสำหรับคำสั่งซื้อออนไลน์
                                     </small>
 
                                     @error('shipping_fee')
                                         <div class="error-text">{{ $message }}</div>
                                     @enderror
                                 </div>
+                                {{-- เปิดใช้งานส่งฟรี --}}
+<div class="col-md-6">
+    <label class="form-label">โปรโมชั่นจัดส่งฟรี</label>
+
+    <div class="form-check form-switch mt-2">
+        <input
+            type="hidden"
+            name="shipping_free_enabled"
+            value="0"
+        >
+
+        <input
+            class="form-check-input"
+            type="checkbox"
+            name="shipping_free_enabled"
+            id="shipping_free_enabled"
+            value="1"
+            {{ old(
+                'shipping_free_enabled',
+                $settings['shipping_free_enabled'] ?? 0
+            ) ? 'checked' : '' }}
+        >
+
+        <label class="form-check-label" for="shipping_free_enabled">
+            เปิดใช้งานซื้อครบส่งฟรี
+        </label>
+    </div>
+</div>
+
+{{-- ยอดซื้อขั้นต่ำ --}}
+<div class="col-md-6">
+    <label for="shipping_free_minimum" class="form-label">
+        ยอดซื้อขั้นต่ำสำหรับส่งฟรี (บาท)
+    </label>
+
+    <div class="input-icon-group">
+        <i class="bi bi-gift-fill input-icon"></i>
+
+        <input
+            type="number"
+            name="shipping_free_minimum"
+            id="shipping_free_minimum"
+            class="form-control"
+            min="0"
+            step="0.01"
+            value="{{ old(
+                'shipping_free_minimum',
+                $settings['shipping_free_minimum'] ?? 300
+            ) }}"
+            placeholder="เช่น 300"
+        >
+    </div>
+
+    <small class="field-help">
+        เมื่อลูกค้าซื้อสินค้าครบยอดที่กำหนด จะได้รับสิทธิ์จัดส่งฟรี
+    </small>
+</div>
                             </div>
                         </section>
+{{-- การตั้งค่าการขายส่ง --}}
+<section class="setting-section">
+    <h4 class="setting-section-title">
+        <i class="bi bi-box-seam-fill"></i>
+        การตั้งค่าการขายส่ง
+    </h4>
 
+
+    <div class="row g-3">
+
+        <div class="col-md-6">
+            <label for="wholesale_minimum_amount" class="form-label">
+                ยอดซื้อขั้นต่ำสำหรับขายส่ง (บาท)
+                <span class="required-star">*</span>
+            </label>
+
+            <div class="input-icon-group">
+                <i class="bi bi-cash-stack input-icon"></i>
+
+                <input
+                    type="number"
+                    name="wholesale_minimum_amount"
+                    id="wholesale_minimum_amount"
+                    class="form-control @error('wholesale_minimum_amount') is-invalid @enderror"
+                    min="0"
+                    step="0.01"
+                    value="{{ old(
+                        'wholesale_minimum_amount',
+                        $settings['wholesale_minimum_amount'] ?? 500
+                    ) }}"
+                    placeholder="เช่น 500"
+                    required
+                >
+            </div>
+
+
+
+            @error('wholesale_minimum_amount')
+                <div class="error-text">{{ $message }}</div>
+            @enderror
+        </div>
+
+    </div>
+
+    <div class="time-preview">
+        <i class="bi bi-info-circle-fill"></i>
+
+        <span id="wholesalePreview">
+            ยอดซื้อขั้นต่ำสำหรับขายส่ง:
+            ฿{{ number_format(
+                old(
+                    'wholesale_minimum_amount',
+                    $settings['wholesale_minimum_amount'] ?? 500
+                ),
+                2
+            ) }}
+        </span>
+    </div>
+</section>
                         <section class="setting-section">
                             <h4 class="setting-section-title">
                                 <i class="bi bi-clock-fill"></i>
@@ -784,6 +899,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 `เวลาทำการ: ${openTime} ถึง ${closeTime}`;
         }
     }
+    const wholesaleMinimumInput = document.getElementById(
+    'wholesale_minimum_amount'
+);
+
+const wholesalePreview = document.getElementById(
+    'wholesalePreview'
+);
+
+function updateWholesalePreview() {
+    const amount = parseFloat(wholesaleMinimumInput?.value) || 0;
+
+    if (wholesalePreview) {
+        wholesalePreview.textContent =
+            `ยอดซื้อขั้นต่ำสำหรับขายส่ง: ฿${amount.toLocaleString('th-TH', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            })}`;
+    }
+}
+
+wholesaleMinimumInput?.addEventListener(
+    'input',
+    updateWholesalePreview
+);
+
+updateWholesalePreview();
 
     function updateBuildingPreview() {
         const floors = floorsInput?.value || '-';

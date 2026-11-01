@@ -563,15 +563,7 @@
                                 </a>
                             @endif
 
-                            @if ($member->email)
-                                <a
-                                    href="mailto:{{ $member->email }}"
-                                    class="btn-contact"
-                                >
-                                    <i class="bi bi-envelope-fill"></i>
-                                    ส่งอีเมล
-                                </a>
-                            @endif
+                           
                         </div>
 
                         <div class="action-group">

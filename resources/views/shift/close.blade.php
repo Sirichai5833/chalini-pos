@@ -472,15 +472,7 @@
                                         </span>
                                     </div>
 
-                                    <div class="summary-item">
-                                        <span class="summary-label">
-                                            ประเภทกะ
-                                        </span>
-
-                                        <span class="summary-value">
-                                            {{ $shift->shiftType->name ?? '-' }}
-                                        </span>
-                                    </div>
+                                    
 
                                     <div class="summary-item">
                                         <span class="summary-label">

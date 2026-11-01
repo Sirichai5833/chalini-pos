@@ -1,946 +1,1047 @@
 @extends('layouts.layout')
 
 @section('content')
-<div class="container-fluid py-4 stock-in-history-page">
-    <section class="stock-in-hero">
-        <div class="stock-in-hero-content">
-            <div class="stock-in-hero-icon">
-                <i class="bi bi-box-arrow-in-down"></i>
-            </div>
+<div class="container-fluid py-4 stock-history">
 
-            <div class="flex-grow-1">
-                <div class="stock-in-kicker">STOCK IN HISTORY</div>
-                <h2 class="stock-in-title">ประวัติการนำสินค้าเข้า</h2>
-                <p class="stock-in-subtitle">
-                    แสดงเฉพาะการรับสินค้าเข้า พร้อมค้นหาตามเอกสาร ผู้จำหน่าย สินค้า และช่วงวันที่
-                </p>
-            </div>
-
-            <div class="stock-in-summary-badge">
-                <i class="bi bi-list-check me-1"></i>
-                {{ number_format($movements->count()) }} รายการ
+    {{-- HEADER --}}
+    <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div>
+            <div class="page-eyebrow">INVENTORY MANAGEMENT</div>
+            <h3>ประวัติการรับสินค้าเข้า</h3>
+            <div class="page-subtitle">
+                ตรวจสอบเอกสารรับสินค้าและรายละเอียดสินค้าแต่ละใบรับ
             </div>
         </div>
-    </section>
 
-    <div class="stock-in-card mb-4">
-        <div class="stock-in-card-header">
-            <div>
-                <div class="stock-in-card-kicker">FILTER</div>
-                <h5 class="stock-in-card-title">
-                    <i class="bi bi-funnel-fill me-2"></i>
-                    ตัวกรองการค้นหา
-                </h5>
-            </div>
-
-            @if (
-                request()->filled('search') ||
-                request()->filled('receipt_number') ||
-                request()->filled('reference_number') ||
-                request()->filled('supplier_id') ||
-                request()->filled('location') ||
-                request()->filled('is_free') ||
-                request()->filled('from') ||
-                request()->filled('to')
-            )
-                <a
-                    href="{{ route('product.stock-in-history') }}"
-                    class="btn btn-clear-filter"
-                >
-                    <i class="bi bi-arrow-counterclockwise me-1"></i>
-                    ล้างตัวกรอง
+        @if(!$isPrint)
+            <div class="d-flex gap-2">
+                <a href="{{ route('product.stock-in-history', array_merge(request()->query(), ['print' => 1])) }}"
+                   target="_blank"
+                   class="btn btn-outline-light">
+                    <i class="bi bi-printer"></i> พิมพ์
                 </a>
-            @endif
-        </div>
 
-        <div class="stock-in-card-body">
-            <form
-                method="GET"
-                action="{{ route('product.stock-in-history') }}"
-                class="row g-3 align-items-end"
-            >
-                <div class="col-xl-4 col-md-6">
-                    <label for="search" class="form-label">
-                        สินค้า / บาร์โค้ด / หน่วย
-                    </label>
+                <button type="button"
+                        class="btn btn-warning fw-bold"
+                        onclick="exportExcel()">
+                    <i class="bi bi-file-earmark-excel"></i> Excel
+                </button>
+            </div>
+        @endif
+    </div>
 
-                    <div class="input-group">
-                        <span class="input-group-text">
-                            <i class="bi bi-search"></i>
-                        </span>
+    {{-- SUMMARY --}}
+    <div class="summary-card mb-4">
+        <div class="summary-label">จำนวนใบรับสินค้าที่พบ</div>
 
-                        <input
-                            type="text"
-                            name="search"
-                            id="search"
-                            class="form-control"
-                            placeholder="ชื่อสินค้า บาร์โค้ด หรือหน่วย"
-                            value="{{ $search }}"
-                        >
-                    </div>
-                </div>
-
-                <div class="col-xl-2 col-md-6">
-                    <label for="receipt_number" class="form-label">
-                        เลขที่รับสินค้า
-                    </label>
-
-                    <input
-                        type="text"
-                        name="receipt_number"
-                        id="receipt_number"
-                        class="form-control"
-                        placeholder="REC-..."
-                        value="{{ $receiptNumber }}"
-                    >
-                </div>
-
-                <div class="col-xl-2 col-md-6">
-                    <label for="reference_number" class="form-label">
-                        เอกสารอ้างอิง
-                    </label>
-
-                    <input
-                        type="text"
-                        name="reference_number"
-                        id="reference_number"
-                        class="form-control"
-                        placeholder="PO / ใบส่งของ"
-                        value="{{ $referenceNumber }}"
-                    >
-                </div>
-
-                <div class="col-xl-4 col-md-6">
-                    <label for="supplier_id" class="form-label">
-                        ผู้จำหน่าย
-                    </label>
-
-                    <select
-                        name="supplier_id"
-                        id="supplier_id"
-                        class="form-select"
-                    >
-                        <option value="">ผู้จำหน่ายทั้งหมด</option>
-
-                        @foreach ($suppliers as $supplier)
-                            <option
-                                value="{{ $supplier->id }}"
-                                @selected(
-                                    (string) $supplierId ===
-                                    (string) $supplier->id
-                                )
-                            >
-                                {{ $supplier->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="col-xl-2 col-md-6">
-                    <label for="location" class="form-label">
-                        เพิ่มเข้าที่
-                    </label>
-
-                    <select
-                        name="location"
-                        id="location"
-                        class="form-select"
-                    >
-                        <option value="">ทุกสถานที่</option>
-                        <option
-                            value="warehouse"
-                            @selected($location === 'warehouse')
-                        >
-                            คลัง
-                        </option>
-                        <option
-                            value="store"
-                            @selected($location === 'store')
-                        >
-                            หน้าร้าน
-                        </option>
-                    </select>
-                </div>
-
-                <div class="col-xl-2 col-md-6">
-                    <label for="is_free" class="form-label">
-                        ประเภทรายการ
-                    </label>
-
-                    <select
-                        name="is_free"
-                        id="is_free"
-                        class="form-select"
-                    >
-                        <option value="">ทั้งหมด</option>
-                        <option
-                            value="0"
-                            @selected((string) $isFree === '0')
-                        >
-                            สินค้าปกติ
-                        </option>
-                        <option
-                            value="1"
-                            @selected((string) $isFree === '1')
-                        >
-                            ของแถม
-                        </option>
-                    </select>
-                </div>
-
-                <div class="col-xl-2 col-md-6">
-                    <label for="from" class="form-label">
-                        วันที่รับเริ่มต้น
-                    </label>
-
-                    <input
-                        type="date"
-                        name="from"
-                        id="from"
-                        class="form-control"
-                        value="{{ $from }}"
-                    >
-                </div>
-
-                <div class="col-xl-2 col-md-6">
-                    <label for="to" class="form-label">
-                        วันที่รับสิ้นสุด
-                    </label>
-
-                    <input
-                        type="date"
-                        name="to"
-                        id="to"
-                        class="form-control"
-                        value="{{ $to }}"
-                    >
-                </div>
-
-                <div class="col-xl-2 col-md-6">
-                    <button
-                        type="submit"
-                        class="btn btn-stock-search w-100"
-                    >
-                        <i class="bi bi-search me-2"></i>
-                        ค้นหา
-                    </button>
-                </div>
-            </form>
+        <div class="summary-number">
+            {{ $isPrint ? $receipts->count() : $receipts->total() }}
+            <span>ใบรับสินค้า</span>
         </div>
     </div>
 
-    @if ($movements->count() > 0)
-        <div class="stock-in-toolbar">
-            <div class="toolbar-info">
-                <i class="bi bi-info-circle me-1"></i>
-                แสดงรายการรับสินค้าเข้าตามเงื่อนไขที่เลือก
+    {{-- FILTER --}}
+    @if(!$isPrint)
+    <form method="GET"
+          action="{{ route('product.stock-in-history') }}"
+          class="filter-card mb-4">
+
+        <div class="filter-heading">
+            <i class="bi bi-funnel"></i>
+            ตัวกรองข้อมูล
+        </div>
+
+        <div class="row g-3">
+
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label">ค้นหาสินค้า / บาร์โค้ด / หน่วยสินค้า</label>
+                <input type="text"
+                       name="search"
+                       class="form-control"
+                       value="{{ $search }}"
+                       placeholder="พิมพ์ชื่อสินค้าหรือบาร์โค้ด">
             </div>
 
-            <div class="toolbar-actions">
-                <button
-                    type="button"
-                    class="btn btn-export-excel"
-                    onclick="exportToExcel()"
-                >
-                    <i class="bi bi-file-earmark-excel-fill me-2"></i>
-                    Export Excel
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label">เลขที่ใบรับสินค้า</label>
+                <input type="text"
+                       name="receipt_number"
+                       class="form-control"
+                       value="{{ $receiptNumber }}"
+                       placeholder="REC-...">
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label">เลขที่อ้างอิง</label>
+                <input type="text"
+                       name="reference_number"
+                       class="form-control"
+                       value="{{ $referenceNumber }}"
+                       placeholder="เลขที่เอกสารอ้างอิง">
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label">ผู้จำหน่าย</label>
+                <select name="supplier_id" class="form-select">
+                    <option value="">ผู้จำหน่ายทั้งหมด</option>
+
+                    @foreach($suppliers as $supplier)
+                        <option value="{{ $supplier->id }}"
+                            @selected((string)$supplierId === (string)$supplier->id)>
+                            {{ $supplier->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label">ผู้รับสินค้า</label>
+                <select name="received_by" class="form-select">
+                    <option value="">ผู้รับสินค้าทั้งหมด</option>
+
+                    @foreach($receivers as $receiver)
+                        <option value="{{ $receiver->id }}"
+                            @selected((string)$receivedBy === (string)$receiver->id)>
+                            {{ $receiver->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="col-lg-2 col-md-6">
+                <label class="form-label">สถานที่จัดเก็บ</label>
+                <select name="location" class="form-select">
+                    <option value="">ทั้งหมด</option>
+                    <option value="warehouse" @selected($location === 'warehouse')>
+                        คลังสินค้า
+                    </option>
+                    <option value="store" @selected($location === 'store')>
+                        หน้าร้าน
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-lg-2 col-md-6">
+                <label class="form-label">ประเภทสินค้า</label>
+                <select name="is_free" class="form-select">
+                    <option value="">ทั้งหมด</option>
+                    <option value="0" @selected($isFree === '0')>
+                        สินค้าปกติ
+                    </option>
+                    <option value="1" @selected($isFree === '1')>
+                        สินค้าแถม
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-lg-2 col-md-6">
+                <label class="form-label">ตั้งแต่วันที่</label>
+                <input type="date"
+                       name="from"
+                       class="form-control"
+                       value="{{ $from }}">
+            </div>
+
+            <div class="col-lg-2 col-md-6">
+                <label class="form-label">ถึงวันที่</label>
+                <input type="date"
+                       name="to"
+                       class="form-control"
+                       value="{{ $to }}">
+            </div>
+
+            <div class="col-12 d-flex flex-wrap gap-2 mt-3">
+                <button type="submit" class="btn btn-warning fw-bold">
+                    <i class="bi bi-search"></i> ค้นหาข้อมูล
                 </button>
 
-                <a
-                    href="{{ route('product.stock-in-history', array_merge(request()->all(), ['print' => 1])) }}"
-                    class="btn btn-print-report"
-                    target="_blank"
-                >
-                    <i class="bi bi-printer-fill me-2"></i>
-                    พิมพ์รายการ
+                <a href="{{ route('product.stock-in-history') }}"
+                   class="btn btn-reset">
+                    <i class="bi bi-arrow-counterclockwise"></i> ล้างตัวกรอง
                 </a>
             </div>
+
         </div>
+    </form>
+    @endif
 
-        <div class="stock-in-card">
-            <div class="stock-in-card-header">
-                <div>
-                    <div class="stock-in-card-kicker">HISTORY</div>
-                    <h5 class="stock-in-card-title">
-                        <i class="bi bi-clock-history me-2"></i>
-                        รายการนำสินค้าเข้า
-                    </h5>
-                </div>
-            </div>
+    {{-- RECEIPT LIST --}}
+    <div class="receipt-list">
 
-            <div class="table-responsive stock-in-table-wrap printable-area">
-                <div class="print-report-header">
-                    <h2>รายงานประวัติการนำสินค้าเข้า</h2>
-                    <div>
-                        ช่วงวันที่:
-                        {{ $from ?: 'ทั้งหมด' }}
-                        ถึง
-                        {{ $to ?: 'ทั้งหมด' }}
+        @forelse($receipts as $receipt)
+
+            <div class="receipt-card mb-3">
+
+                {{-- RECEIPT HEADER --}}
+                <div class="receipt-main">
+
+                    <div class="receipt-info">
+
+                        <div class="receipt-label">
+                            เลขที่ใบรับสินค้า
+                        </div>
+
+                        <div class="receipt-number">
+                            {{ $receipt->receipt_number }}
+                        </div>
+
+                        <div class="receipt-meta">
+
+                            <span>
+                                <i class="bi bi-calendar3"></i>
+                                {{ \Carbon\Carbon::parse($receipt->received_date)->format('d/m/Y') }}
+                            </span>
+
+                            <span>
+                                <i class="bi bi-truck"></i>
+                                {{ $receipt->supplier_name ?: 'ไม่ระบุผู้จำหน่าย' }}
+                            </span>
+
+                            <span>
+                                <i class="bi bi-person"></i>
+                                {{ $receipt->received_by_name ?: 'ไม่ระบุผู้รับ' }}
+                            </span>
+
+                        </div>
                     </div>
 
-                    @if ($search)
-                        <div>คำค้นหา: {{ $search }}</div>
+                    <div class="receipt-stats">
+
+                        <div class="stat-item">
+                            <strong>{{ number_format($receipt->item_count) }}</strong>
+                            <small>รายการสินค้า</small>
+                        </div>
+
+                        <div class="stat-item">
+                            <strong>{{ number_format($receipt->total_quantity) }}</strong>
+                            <small>จำนวนรวม</small>
+                        </div>
+
+                    </div>
+
+                    @if(!$isPrint)
+                    <button class="btn btn-outline-warning detail-toggle"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#receipt-{{ $receipt->id }}"
+                            aria-expanded="false">
+
+                        <i class="bi bi-chevron-down"></i>
+                        ดูรายละเอียด
+
+                    </button>
                     @endif
 
-                    @if ($receiptNumber)
-                        <div>เลขที่รับสินค้า: {{ $receiptNumber }}</div>
-                    @endif
-
-                    @if ($referenceNumber)
-                        <div>เอกสารอ้างอิง: {{ $referenceNumber }}</div>
-                    @endif
                 </div>
 
-                <table
-                    id="stockHistoryTable"
-                    class="table stock-in-table align-middle mb-0"
-                >
-                    <thead>
-                        <tr>
-                            <th>วันที่รับ</th>
-                            <th>เลขที่รับสินค้า</th>
-                            <th>เอกสารอ้างอิง</th>
-                            <th>ผู้จำหน่าย</th>
-                            <th>สินค้า</th>
-                            <th class="text-end">จำนวน</th>
-                            <th>หน่วย</th>
-                            <th class="text-center">สถานที่</th>
-                            <th class="text-center">ประเภท</th>
-                            <th>หมายเหตุ</th>
-                        </tr>
-                    </thead>
+                {{-- RECEIPT FOOTER --}}
+                <div class="receipt-extra">
 
-                    <tbody>
-                        @foreach ($movements as $move)
-                            <tr>
-                                <td>
-                                    <div class="stock-date">
-                                        {{ \Illuminate\Support\Carbon::parse(
-                                            $move->received_date
-                                        )->format('d/m/Y') }}
-                                    </div>
+                    <span>
+                        <i class="bi bi-file-text"></i>
+                        เลขอ้างอิง:
+                        {{ $receipt->reference_number ?: '-' }}
+                    </span>
 
-                                    <small class="stock-time">
-                                        บันทึก
-                                        {{ $move->created_at->format('H:i') }} น.
-                                    </small>
-                                </td>
+                    <span class="status-completed">
+                        <i class="bi bi-check-circle-fill"></i>
+                        รับสินค้าแล้ว
+                    </span>
 
-                                <td>
-                                    <strong class="text-warning">
-                                        {{ $move->receipt_number }}
-                                    </strong>
-                                </td>
+                </div>
 
-                                <td>
-                                    {{ $move->reference_number ?: '-' }}
-                                </td>
+                {{-- DETAIL --}}
+                <div class="{{ $isPrint ? '' : 'collapse' }}"
+                     id="receipt-{{ $receipt->id }}">
 
-                                <td>
-                                    {{ $move->supplier_name ?: '-' }}
-                                </td>
+                    <div class="detail-area">
 
-                                <td>
-                                    <div class="stock-product-name">
-                                        {{ $move->product->name ?? '-' }}
-                                    </div>
+                        <div class="detail-heading">
+                            <i class="bi bi-box-seam"></i>
+                            รายการสินค้าในใบรับนี้
+                        </div>
 
-                                    @if (!empty($move->product->barcode))
-                                        <small class="stock-barcode">
-                                            <i class="bi bi-upc-scan me-1"></i>
-                                            {{ $move->product->barcode }}
-                                        </small>
-                                    @endif
-                                </td>
+                        <div class="table-responsive">
 
-                                <td class="text-end">
-                                    <span class="stock-quantity">
-                                        +{{ number_format($move->quantity) }}
-                                    </span>
-                                </td>
+                            <table class="table detail-table">
 
-                                <td>
-                                    <span class="stock-unit">
-                                        {{ $move->unit ?? '-' }}
-                                    </span>
-                                </td>
+                                <thead>
+                                    <tr>
+                                        <th width="50">ลำดับ</th>
+                                        <th>ชื่อสินค้า</th>
+                                        <th>บาร์โค้ด</th>
+                                        <th class="text-end">จำนวน</th>
+                                        <th>หน่วย</th>
+                                        <th>สถานที่จัดเก็บ</th>
+                                        <th>ประเภท</th>
+                                        <th>เลขล็อต</th>
+                                        <th>วันหมดอายุ</th>
+                                    </tr>
+                                </thead>
 
-                                <td class="text-center">
-                                    @if ($move->location === 'warehouse')
-                                        <span class="stock-location stock-location-warehouse">
-                                            <i class="bi bi-building me-1"></i>
-                                            คลัง
-                                        </span>
-                                    @elseif ($move->location === 'store')
-                                        <span class="stock-location stock-location-store">
-                                            <i class="bi bi-shop me-1"></i>
-                                            หน้าร้าน
-                                        </span>
-                                    @else
-                                        <span class="stock-location stock-location-other">
-                                            {{ $move->location ?: '-' }}
-                                        </span>
-                                    @endif
-                                </td>
+                                <tbody>
 
-                                <td class="text-center">
-                                    @if ((int) $move->is_free === 1)
-                                        <span class="badge text-bg-success">
-                                            ของแถม
-                                        </span>
-                                    @else
-                                        <span class="badge text-bg-secondary">
-                                            สินค้าปกติ
-                                        </span>
-                                    @endif
-                                </td>
+                                    @forelse($receipt->items as $index => $item)
 
-                                <td>
-                                    <div class="stock-note">
-                                        {{ $move->note ?? '-' }}
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                                        <tr>
+                                            <td>{{ $index + 1 }}</td>
+
+                                            <td class="product-name">
+                                                {{ $item->product_name }}
+                                            </td>
+
+                                            <td>
+                                                {{ $item->unit_barcode ?: $item->product_barcode ?: '-' }}
+                                            </td>
+
+                                            <td class="text-end quantity-cell">
+                                                {{ number_format($item->quantity) }}
+                                            </td>
+
+                                            <td>
+                                                {{ $item->unit_name ?: '-' }}
+                                            </td>
+
+                                            <td>
+                                                @if($item->location === 'warehouse')
+                                                    <span class="location-label warehouse">
+                                                        <i class="bi bi-box"></i>
+                                                        คลังสินค้า
+                                                    </span>
+                                                @else
+                                                    <span class="location-label store">
+                                                        <i class="bi bi-shop"></i>
+                                                        หน้าร้าน
+                                                    </span>
+                                                @endif
+                                            </td>
+
+                                            <td>
+                                                @if($item->is_free)
+                                                    <span class="free-label">
+                                                        สินค้าแถม
+                                                    </span>
+                                                @else
+                                                    <span class="normal-label">
+                                                        ปกติ
+                                                    </span>
+                                                @endif
+                                            </td>
+
+                                            <td>
+                                                {{ $item->lot_number ?: '-' }}
+                                            </td>
+
+                                            <td>
+                                                {{ $item->expiry_date
+                                                    ? \Carbon\Carbon::parse($item->expiry_date)->format('d/m/Y')
+                                                    : '-' }}
+                                            </td>
+                                        </tr>
+
+                                    @empty
+
+                                        <tr>
+                                            <td colspan="9" class="text-center empty-row">
+                                                ไม่พบรายการสินค้าในใบรับนี้
+                                            </td>
+                                        </tr>
+
+                                    @endforelse
+
+                                </tbody>
+                            </table>
+
+                        </div>
+
+                        @if($receipt->note)
+                            <div class="receipt-note">
+                                <i class="bi bi-chat-left-text"></i>
+                                <strong>หมายเหตุ:</strong>
+                                {{ $receipt->note }}
+                            </div>
+                        @endif
+
+                    </div>
+                </div>
+
             </div>
 
-            @if (
-                !$isPrint &&
-                $movements instanceof \Illuminate\Pagination\LengthAwarePaginator &&
-                $movements->hasPages()
-            )
-                <div class="stock-in-pagination">
-                    {{ $movements->withQueryString()->links() }}
-                </div>
-            @endif
-        </div>
-    @else
-        <div class="stock-in-empty">
-            <div class="stock-in-empty-icon">
+        @empty
+
+            <div class="empty-state">
                 <i class="bi bi-inbox"></i>
+                <h5>ไม่พบประวัติการรับสินค้า</h5>
+                <p>ลองเปลี่ยนเงื่อนไขการค้นหาอีกครั้ง</p>
             </div>
 
-            <h4>ไม่พบรายการนำสินค้าเข้า</h4>
+        @endforelse
 
-            <p>
-                ลองเปลี่ยนชื่อสินค้า บาร์โค้ด หรือช่วงวันที่ใหม่
-            </p>
+    </div>
+
+    {{-- PAGINATION --}}
+    @if(!$isPrint)
+        <div class="pagination-wrapper mt-4">
+            {{ $receipts->links() }}
         </div>
     @endif
+
 </div>
 
 <style>
-    :root {
-        --stock-yellow: #ffd43b;
-        --stock-yellow-soft: #ffe978;
-        --stock-black: #080808;
-        --stock-panel: #151515;
-        --stock-border: rgba(255, 212, 59, .22);
-        --stock-text: #f7f7f7;
-        --stock-muted: #a8a8a8;
+/* =========================================
+   CHALINI POS - STOCK HISTORY
+   Modern Dashboard / Black & Yellow
+========================================= */
+
+.stock-history {
+    font-family: "Leelawadee UI", "Noto Sans Thai", Tahoma, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+    color: #eeeeee;
+}
+
+/* HEADER */
+.stock-history .page-eyebrow {
+    color: #ffc107;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
+.stock-history .page-header h3 {
+    color: #ffffff;
+    font-size: 25px;
+    font-weight: 750;
+    line-height: 1.4;
+    margin: 0 0 5px;
+    letter-spacing: -.3px;
+}
+
+.stock-history .page-subtitle {
+    color: #b8b8b8;
+    font-size: 14px;
+}
+
+/* SUMMARY */
+.stock-history .summary-card {
+    display: inline-block;
+    min-width: 245px;
+    padding: 19px 24px;
+    background: #171717;
+    border: 1px solid #343434;
+    border-radius: 12px;
+}
+
+.stock-history .summary-label {
+    color: #c4c4c4;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.stock-history .summary-number {
+    color: #ffc107;
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.4;
+    margin-top: 3px;
+}
+
+.stock-history .summary-number span {
+    color: #bdbdbd;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* FILTER */
+.stock-history .filter-card {
+    padding: 23px;
+    background: #171717;
+    border: 1px solid #343434;
+    border-radius: 12px;
+}
+
+.stock-history .filter-heading {
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.stock-history .filter-heading i {
+    color: #ffc107;
+    margin-right: 6px;
+}
+
+.stock-history .form-label {
+    display: block;
+    color: #dedede;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.stock-history .form-control,
+.stock-history .form-select {
+    min-height: 43px;
+    background-color: #222222;
+    border: 1px solid #444444;
+    border-radius: 7px;
+    color: #f5f5f5;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    padding: 9px 12px;
+}
+
+.stock-history .form-control::placeholder {
+    color: #929292;
+    opacity: 1;
+}
+
+.stock-history .form-control:focus,
+.stock-history .form-select:focus {
+    background-color: #222222;
+    color: #ffffff;
+    border-color: #ffc107;
+    box-shadow: 0 0 0 .18rem rgba(255,193,7,.12);
+}
+
+.stock-history .form-select option {
+    background: #222222;
+    color: #ffffff;
+}
+
+/* BUTTONS */
+.stock-history .btn {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 7px;
+    padding: 9px 16px;
+}
+
+.stock-history .btn-warning {
+    color: #171717;
+    background: #ffc107;
+    border-color: #ffc107;
+}
+
+.stock-history .btn-warning:hover {
+    background: #ffcf3f;
+    border-color: #ffcf3f;
+}
+
+.stock-history .btn-reset {
+    color: #dddddd;
+    background: #292929;
+    border: 1px solid #484848;
+}
+
+.stock-history .btn-reset:hover {
+    color: #ffffff;
+    background: #383838;
+}
+
+/* RECEIPT CARD */
+.stock-history .receipt-card {
+    overflow: hidden;
+    background: #171717;
+    border: 1px solid #353535;
+    border-radius: 12px;
+    transition: border-color .2s ease;
+}
+
+.stock-history .receipt-card:hover {
+    border-color: #555555;
+}
+
+/* RECEIPT MAIN */
+.stock-history .receipt-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 21px 22px;
+    flex-wrap: wrap;
+}
+
+.stock-history .receipt-label {
+    color: #aaaaaa;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 3px;
+}
+
+.stock-history .receipt-number {
+    color: #ffd04a;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.5;
+    letter-spacing: .2px;
+    margin-bottom: 10px;
+    overflow-wrap: anywhere;
+}
+
+.stock-history .receipt-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px 20px;
+    flex-wrap: wrap;
+    color: #c6c6c6;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.stock-history .receipt-meta i {
+    color: #ffc107;
+    margin-right: 5px;
+}
+
+/* RECEIPT STATS */
+.stock-history .receipt-stats {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+}
+
+.stock-history .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 75px;
+}
+
+.stock-history .receipt-stats strong {
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.stock-history .receipt-stats small {
+    color: #aaaaaa;
+    font-size: 12px;
+    font-weight: 500;
+    margin-top: 5px;
+}
+
+.stock-history .detail-toggle {
+    white-space: nowrap;
+    border-radius: 7px;
+    font-size: 13px;
+}
+
+/* RECEIPT FOOTER */
+.stock-history .receipt-extra {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 11px 22px;
+    background: #202020;
+    border-top: 1px solid #303030;
+    color: #c1c1c1;
+    font-size: 13px;
+}
+
+.stock-history .receipt-extra i {
+    margin-right: 5px;
+}
+
+.stock-history .status-completed {
+    color: #65d99a;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+/* DETAIL */
+.stock-history .detail-area {
+    padding: 21px;
+    border-top: 1px solid #353535;
+}
+
+.stock-history .detail-heading {
+    color: #ffd04a;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+.stock-history .detail-heading i {
+    margin-right: 6px;
+}
+
+/* TABLE */
+.stock-history .detail-table {
+    width: 100%;
+    margin-bottom: 0;
+    color: #eeeeee;
+    font-family: inherit;
+    font-size: 13px;
+    vertical-align: middle;
+}
+
+.stock-history .detail-table thead th {
+    padding: 13px 12px;
+    background: #292929;
+    border-color: #444444;
+    color: #ffd04a;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.stock-history .detail-table tbody td {
+    padding: 13px 12px;
+    background: #191919;
+    border-color: #353535;
+    color: #dddddd;
+    font-size: 13px;
+    font-weight: 400;
+    vertical-align: middle;
+}
+
+.stock-history .detail-table tbody tr:hover td {
+    background: #242424;
+}
+
+.stock-history .detail-table .product-name {
+    color: #ffffff;
+    font-weight: 600;
+    min-width: 150px;
+}
+
+.stock-history .quantity-cell {
+    color: #ffffff;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+/* LABELS */
+.stock-history .location-label,
+.stock-history .free-label,
+.stock-history .normal-label {
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.stock-history .location-label.warehouse {
+    color: #8fcaff;
+    background: #173047;
+}
+
+.stock-history .location-label.store {
+    color: #a9e6bd;
+    background: #193b29;
+}
+
+.stock-history .free-label {
+    color: #ffd04a;
+    background: #443711;
+}
+
+.stock-history .normal-label {
+    color: #cccccc;
+    background: #303030;
+}
+
+.stock-history .empty-row {
+    color: #aaaaaa !important;
+    padding: 25px !important;
+}
+
+/* NOTE */
+.stock-history .receipt-note {
+    color: #cccccc;
+    border-top: 1px solid #353535;
+    margin-top: 15px;
+    padding-top: 13px;
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.stock-history .receipt-note i {
+    color: #ffc107;
+    margin-right: 5px;
+}
+
+/* EMPTY STATE */
+.stock-history .empty-state {
+    text-align: center;
+    padding: 55px 15px;
+    background: #171717;
+    border: 1px dashed #444444;
+    border-radius: 12px;
+    color: #aaaaaa;
+}
+
+.stock-history .empty-state i {
+    display: block;
+    color: #ffc107;
+    font-size: 42px;
+    margin-bottom: 12px;
+}
+
+.stock-history .empty-state h5 {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.stock-history .empty-state p {
+    color: #aaaaaa;
+    font-size: 14px;
+    margin-bottom: 0;
+}
+
+/* PAGINATION */
+.stock-history .pagination-wrapper {
+    font-size: 14px;
+}
+
+.stock-history .pagination .page-link {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+
+    .stock-history .page-header h3 {
+        font-size: 21px;
+    }
+
+    .stock-history .page-subtitle {
+        font-size: 13px;
+    }
+
+    .stock-history .filter-card {
+        padding: 16px;
+    }
+
+    .stock-history .receipt-main {
+        align-items: flex-start;
+        padding: 17px;
+        gap: 15px;
+    }
+
+    .stock-history .receipt-number {
+        font-size: 16px;
+    }
+
+    .stock-history .receipt-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        font-size: 13px;
+    }
+
+    .stock-history .receipt-stats {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 25px;
+    }
+
+    .stock-history .receipt-stats strong {
+        font-size: 21px;
+    }
+
+    .stock-history .receipt-extra {
+        padding: 11px 17px;
+    }
+
+    .stock-history .detail-area {
+        padding: 15px;
+    }
+
+    .stock-history .detail-table tbody td {
+        font-size: 12px;
+    }
+}
+
+/* PRINT */
+@media print {
+
+    @page {
+        size: A4 landscape;
+        margin: 12mm;
     }
 
     body {
-        background:
-            radial-gradient(circle at top right, rgba(255, 212, 59, .08), transparent 28%),
-            var(--stock-black);
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-family: "Leelawadee UI", Tahoma, sans-serif !important;
     }
 
-    .stock-in-history-page {
-        max-width: 1500px;
-        color: var(--stock-text);
+    .stock-history {
+        color: #000000 !important;
+        font-size: 12px;
     }
 
-    .stock-in-hero {
-        position: relative;
-        overflow: hidden;
-        margin-bottom: 1.25rem;
-        padding: 1.5rem;
-        border: 1px solid var(--stock-border);
-        border-radius: 24px;
-        background:
-            radial-gradient(circle at 92% 12%, rgba(255, 212, 59, .22), transparent 26%),
-            linear-gradient(135deg, #0b0b0b 0%, #181818 68%, #2b2300 100%);
-        box-shadow: 0 20px 48px rgba(0,0,0,.38);
+    .stock-history .page-header .btn,
+    .stock-history form,
+    .stock-history .detail-toggle,
+    .stock-history .pagination-wrapper,
+    .stock-history nav {
+        display: none !important;
     }
 
-    .stock-in-hero::after {
-        content: "";
-        position: absolute;
-        right: -90px;
-        bottom: -150px;
-        width: 300px;
-        height: 300px;
-        border-radius: 50%;
-        background: rgba(255, 212, 59, .08);
+    .stock-history .page-header h3,
+    .stock-history .page-subtitle,
+    .stock-history .receipt-number,
+    .stock-history .receipt-label,
+    .stock-history .receipt-meta,
+    .stock-history .receipt-extra,
+    .stock-history .receipt-stats strong,
+    .stock-history .receipt-stats small,
+    .stock-history .detail-heading,
+    .stock-history .receipt-note {
+        color: #000000 !important;
     }
 
-    .stock-in-hero-content {
-        position: relative;
-        z-index: 1;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
+    .stock-history .summary-card,
+    .stock-history .receipt-card {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #aaaaaa !important;
+        box-shadow: none !important;
+        break-inside: avoid;
     }
 
-    .stock-in-hero-icon {
-        width: 64px;
-        height: 64px;
-        display: grid;
-        place-items: center;
-        flex: none;
-        border-radius: 18px;
-        background: linear-gradient(135deg, var(--stock-yellow), var(--stock-yellow-soft));
-        color: #111;
-        font-size: 1.45rem;
-        box-shadow: 0 12px 28px rgba(255, 212, 59, .2);
+    .stock-history .receipt-extra,
+    .stock-history .detail-table thead th,
+    .stock-history .detail-table tbody td {
+        background: #ffffff !important;
+        color: #000000 !important;
     }
 
-    .stock-in-kicker,
-    .stock-in-card-kicker {
-        color: var(--stock-yellow);
-        font-size: .7rem;
-        font-weight: 900;
-        letter-spacing: .16em;
+    .stock-history .detail-table th,
+    .stock-history .detail-table td {
+        border: 1px solid #bbbbbb !important;
+        font-size: 10px !important;
+        padding: 7px !important;
     }
 
-    .stock-in-title {
-        margin: .1rem 0 0;
-        color: #fff;
-        font-size: clamp(1.45rem, 2.8vw, 2rem);
-        font-weight: 950;
+    .stock-history .status-completed,
+    .stock-history .free-label,
+    .stock-history .location-label {
+        color: #000000 !important;
+        background: #eeeeee !important;
     }
 
-    .stock-in-subtitle {
-        margin: .35rem 0 0;
-        color: #c7c7c7;
-        font-size: .9rem;
+    .stock-history .collapse {
+        display: block !important;
+        height: auto !important;
     }
 
-    .stock-in-summary-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: .45rem;
-        flex: none;
-        padding: .65rem .9rem;
-        border: 1px solid rgba(255, 212, 59, .32);
-        border-radius: 999px;
-        background: rgba(255, 212, 59, .09);
-        color: var(--stock-yellow);
-        font-size: .78rem;
-        font-weight: 900;
+    .stock-history .detail-area {
+        display: block !important;
     }
-
-    .stock-in-card {
-        overflow: hidden;
-        border: 1px solid #2e2e2e;
-        border-radius: 22px;
-        background: linear-gradient(180deg, #181818, #101010);
-        box-shadow: 0 18px 44px rgba(0,0,0,.32);
-    }
-
-    .stock-in-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        padding: 1rem 1.25rem;
-        border-bottom: 1px solid var(--stock-border);
-        background: linear-gradient(135deg, #202020, #111);
-    }
-
-    .stock-in-card-title {
-        margin: .1rem 0 0;
-        color: #fff;
-        font-size: 1rem;
-        font-weight: 900;
-    }
-
-    .stock-in-card-body {
-        padding: 1.25rem;
-    }
-
-    .stock-in-history-page .form-label {
-        color: #ddd;
-        font-size: .78rem;
-        font-weight: 850;
-    }
-
-    .stock-in-history-page .form-control,
-    .stock-in-history-page .form-select,
-    .stock-in-history-page .input-group-text {
-        min-height: 46px;
-        border: 1px solid #3b3b3b;
-        background: #0d0d0d;
-        color: #fff;
-        box-shadow: none;
-    }
-
-    .stock-in-history-page .input-group-text {
-        border-right: 0;
-        color: var(--stock-yellow);
-    }
-
-    .stock-in-history-page .input-group .form-control {
-        border-left: 0;
-    }
-
-    .stock-in-history-page .form-control:focus,
-    .stock-in-history-page .form-select:focus {
-        border-color: var(--stock-yellow);
-        background: #0b0b0b;
-        color: #fff;
-        box-shadow: 0 0 0 .2rem rgba(255, 212, 59, .12);
-    }
-
-    .stock-in-history-page .form-select option {
-        background: #151515;
-        color: #fff;
-    }
-
-    .stock-in-history-page input[type="date"]::-webkit-calendar-picker-indicator {
-        filter: invert(1);
-    }
-
-    .btn-stock-search,
-    .btn-clear-filter,
-    .btn-export-excel,
-    .btn-print-report {
-        min-height: 44px;
-        border-radius: 12px;
-        font-weight: 900;
-    }
-
-    .btn-stock-search {
-        border: 1px solid var(--stock-yellow);
-        background: linear-gradient(135deg, var(--stock-yellow), var(--stock-yellow-soft));
-        color: #111;
-    }
-
-    .btn-clear-filter {
-        border: 1px solid #454545;
-        background: #181818;
-        color: #ddd;
-    }
-
-    .btn-export-excel {
-        border: 1px solid rgba(34, 197, 94, .4);
-        background: rgba(34, 197, 94, .1);
-        color: #86efac;
-    }
-
-    .btn-print-report {
-        border: 1px solid rgba(255, 212, 59, .36);
-        background: rgba(255, 212, 59, .08);
-        color: var(--stock-yellow);
-    }
-
-    .stock-in-toolbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
-        padding: .9rem 1rem;
-        border: 1px solid #2e2e2e;
-        border-radius: 16px;
-        background: #121212;
-    }
-
-    .toolbar-info {
-        color: var(--stock-muted);
-        font-size: .82rem;
-    }
-
-    .toolbar-actions {
-        display: flex;
-        gap: .6rem;
-    }
-
-    .print-report-header {
-        display: none;
-    }
-
-    .stock-in-table {
-        --bs-table-bg: transparent;
-        --bs-table-color: #eee;
-        --bs-table-border-color: #303030;
-        --bs-table-hover-bg: rgba(255, 212, 59, .045);
-        --bs-table-hover-color: #fff;
-    }
-
-    .stock-in-table thead th {
-        padding: .9rem .85rem;
-        border-bottom: 1px solid #343434;
-        background: #0c0c0c !important;
-        color: var(--stock-yellow) !important;
-        font-size: .72rem;
-        font-weight: 900;
-        white-space: nowrap;
-    }
-
-    .stock-in-table td {
-        padding: .9rem .85rem;
-        border-color: #303030;
-        color: #ececec;
-    }
-
-    .stock-date,
-    .stock-product-name {
-        color: #fff;
-        font-weight: 900;
-    }
-
-    .stock-time,
-    .stock-barcode {
-        color: var(--stock-muted);
-    }
-
-    .stock-quantity {
-        color: #86efac;
-        font-size: .95rem;
-        font-weight: 950;
-    }
-
-    .stock-unit {
-        color: #ddd;
-        font-weight: 800;
-    }
-
-    .stock-location {
-        display: inline-flex;
-        align-items: center;
-        padding: .42rem .68rem;
-        border-radius: 999px;
-        font-size: .72rem;
-        font-weight: 850;
-        white-space: nowrap;
-    }
-
-    .stock-location-warehouse {
-        border: 1px solid rgba(59, 130, 246, .36);
-        background: rgba(59, 130, 246, .1);
-        color: #93c5fd;
-    }
-
-    .stock-location-store {
-        border: 1px solid rgba(255, 212, 59, .34);
-        background: rgba(255, 212, 59, .09);
-        color: var(--stock-yellow);
-    }
-
-    .stock-location-other {
-        border: 1px solid #454545;
-        background: #202020;
-        color: #ccc;
-    }
-
-    .stock-note {
-        max-width: 420px;
-        color: #d3d3d3;
-        line-height: 1.5;
-    }
-
-    .stock-in-pagination {
-        padding: 1rem 1.25rem;
-        border-top: 1px solid #303030;
-        background: #111;
-    }
-
-    .stock-in-empty {
-        padding: 3rem 1rem;
-        border: 1px dashed #3b3b3b;
-        border-radius: 20px;
-        background: #111;
-        text-align: center;
-    }
-
-    .stock-in-empty-icon {
-        color: var(--stock-yellow);
-        font-size: 2.5rem;
-    }
-
-    .stock-in-empty h4 {
-        margin-top: .7rem;
-        color: #fff;
-        font-weight: 900;
-    }
-
-    .stock-in-empty p {
-        margin: .3rem 0 0;
-        color: var(--stock-muted);
-    }
-
-    @media (max-width: 767.98px) {
-        .stock-in-history-page {
-            padding-left: .75rem !important;
-            padding-right: .75rem !important;
-        }
-
-        .stock-in-hero {
-            padding: 1.2rem;
-            border-radius: 19px;
-        }
-
-        .stock-in-hero-content {
-            align-items: flex-start;
-            flex-wrap: wrap;
-        }
-
-        .stock-in-hero-icon {
-            width: 52px;
-            height: 52px;
-        }
-
-        .stock-in-summary-badge {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .stock-in-toolbar {
-            align-items: stretch;
-            flex-direction: column;
-        }
-
-        .toolbar-actions {
-            display: grid;
-            grid-template-columns: 1fr;
-        }
-
-        .toolbar-actions .btn {
-            width: 100%;
-        }
-    }
-
-    @media print {
-        body * {
-            visibility: hidden !important;
-        }
-
-        .printable-area,
-        .printable-area * {
-            visibility: visible !important;
-        }
-
-        .printable-area {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            color: #000 !important;
-            background: #fff !important;
-        }
-
-        .print-report-header {
-            display: block;
-            margin-bottom: 20px;
-            text-align: center;
-            color: #000 !important;
-        }
-
-        .print-report-header h2 {
-            font-size: 20px;
-            font-weight: 700;
-        }
-
-        .stock-in-table {
-            color: #000 !important;
-        }
-
-        .stock-in-table thead th,
-        .stock-in-table td {
-            border: 1px solid #bbb !important;
-            color: #000 !important;
-            background: #fff !important;
-        }
-
-        .stock-location,
-        .stock-quantity,
-        .stock-unit,
-        .stock-date,
-        .stock-product-name,
-        .stock-time,
-        .stock-note {
-            color: #000 !important;
-        }
-
-        thead {
-            display: table-header-group;
-        }
-
-        tr,
-        td,
-        th {
-            page-break-inside: avoid;
-        }
-    }
+}
 </style>
 
-<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+{{-- PRINT SCRIPT --}}
+@if($isPrint)
+<script>
+window.addEventListener('load', function () {
+    window.print();
+});
+</script>
+@endif
+
+{{-- EXCEL EXPORT --}}
+@if(!$isPrint)
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
-function exportToExcel() {
-    const table = document.getElementById('stockHistoryTable');
+function exportExcel() {
 
-    if (!table || typeof XLSX === 'undefined') {
-        alert('ไม่สามารถส่งออกไฟล์ Excel ได้');
-        return;
-    }
+    const rows = [[
+        'เลขที่ใบรับ',
+        'วันที่รับ',
+        'ผู้จำหน่าย',
+        'ผู้รับสินค้า',
+        'จำนวนรายการ',
+        'จำนวนรวม',
+        'เลขที่อ้างอิง',
+        'หมายเหตุ',
+        'สินค้า',
+        'บาร์โค้ด',
+        'จำนวน',
+        'หน่วย',
+        'สถานที่จัดเก็บ',
+        'ประเภทสินค้า',
+        'เลขล็อต',
+        'วันหมดอายุ'
+    ]];
+
+    @foreach($receipts as $receipt)
+        @foreach($receipt->items as $item)
+
+            rows.push([
+                @json($receipt->receipt_number),
+                @json($receipt->received_date),
+                @json($receipt->supplier_name),
+                @json($receipt->received_by_name),
+                @json($receipt->item_count),
+                @json($receipt->total_quantity),
+                @json($receipt->reference_number),
+                @json($receipt->note),
+                @json($item->product_name),
+                @json($item->unit_barcode ?: $item->product_barcode),
+                @json($item->quantity),
+                @json($item->unit_name),
+                @json($item->location === 'warehouse' ? 'คลังสินค้า' : 'หน้าร้าน'),
+                @json($item->is_free ? 'สินค้าแถม' : 'ปกติ'),
+                @json($item->lot_number),
+                @json($item->expiry_date)
+            ]);
+
+        @endforeach
+    @endforeach
 
     const workbook = XLSX.utils.book_new();
-
-    const worksheet = XLSX.utils.aoa_to_sheet([
-        ['ประวัติการนำสินค้าเข้า'],
-        ['ค้นหา', @json($search ?: 'ทั้งหมด')],
-        ['เลขที่รับสินค้า', @json($receiptNumber ?: 'ทั้งหมด')],
-        ['เอกสารอ้างอิง', @json($referenceNumber ?: 'ทั้งหมด')],
-        ['วันที่เริ่ม', @json($from ?: 'ทั้งหมด')],
-        ['วันที่สิ้นสุด', @json($to ?: 'ทั้งหมด')],
-        []
-    ]);
-
-    XLSX.utils.sheet_add_dom(
-        worksheet,
-        table,
-        {
-            origin: 'A8'
-        }
-    );
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
 
     worksheet['!cols'] = [
-        { wch: 16 },
-        { wch: 24 },
-        { wch: 22 },
-        { wch: 26 },
         { wch: 30 },
+        { wch: 15 },
+        { wch: 25 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 30 },
+        { wch: 30 },
+        { wch: 20 },
         { wch: 12 },
         { wch: 15 },
+        { wch: 18 },
         { wch: 15 },
-        { wch: 14 },
-        { wch: 40 }
+        { wch: 20 },
+        { wch: 15 }
     ];
 
     XLSX.utils.book_append_sheet(
         workbook,
         worksheet,
-        'ประวัตินำสินค้าเข้า'
+        'ประวัติรับสินค้า'
     );
-
-    const today = new Date().toISOString().slice(0, 10);
 
     XLSX.writeFile(
         workbook,
-        `stock-in-history-${today}.xlsx`
+        'stock-in-history.xlsx'
     );
 }
 </script>
-
-@if ($isPrint)
-    <script>
-        window.addEventListener('load', function () {
-            window.print();
-        });
-    </script>
 @endif
+
 @endsection

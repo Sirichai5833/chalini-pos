@@ -2,6 +2,60 @@
 
 @push('styles')
 <style>
+    /* ตัวหนังสือภายใน Modal เป็นสีขาวทั้งหมด */
+#addProductModal,
+#addCategoryModal {
+    color: #fff !important;
+}
+
+/* หัวข้อและข้อความทั่วไป */
+#addProductModal h5,
+#addProductModal h6,
+#addProductModal label,
+#addProductModal p,
+#addProductModal small,
+#addCategoryModal h5,
+#addCategoryModal h6,
+#addCategoryModal label,
+#addCategoryModal p,
+#addCategoryModal small {
+    color: #fff !important;
+}
+
+/* ข้อความใน Input และ Textarea */
+#addProductModal .form-control,
+#addProductModal .form-select,
+#addCategoryModal .form-control,
+#addCategoryModal .form-select {
+    color: #fff !important;
+}
+
+/* Placeholder */
+#addProductModal input::placeholder,
+#addProductModal textarea::placeholder,
+#addCategoryModal input::placeholder {
+    color: rgba(255, 255, 255, 0.65) !important;
+}
+
+/* ข้อความใน Option */
+#addProductModal select option,
+#addCategoryModal select option {
+    color: #fff;
+    background-color: #212529;
+}
+
+/* ข้อความแจ้งเตือนและข้อความรอง */
+#addProductModal .text-muted,
+#addProductModal .text-secondary,
+#addCategoryModal .text-muted,
+#addCategoryModal .text-secondary {
+    color: #fff !important;
+}
+
+/* ข้อความแสดงตัวอย่าง Barcode */
+#addProductModal .barcode-value {
+    color: #fff !important;
+}
 [data-product-list]{
     --bg:#080808;--panel:#151515;--panel2:#1e1e1e;--yellow:#ffc107;
     --yellow2:#ffe27a;--text:#f6f6f6;--muted:#9c9c9c;
@@ -396,13 +450,13 @@
                 </div>
             </article>
 
-            <article class="metric-card">
+            {{-- <article class="metric-card">
                 <span class="metric-icon"><i class="bi bi-cash-stack"></i></span>
                 <div>
                     <div class="metric-label">มูลค่าต้นทุนสต็อก</div>
                     <div class="metric-value">{{ number_format($totalInventoryCost, 2) }} ฿</div>
                 </div>
-            </article>
+            </article> --}}
         </section>
 
         <section class="control-panel">
@@ -453,7 +507,7 @@
                             name="search"
                             value="{{ request('search') }}"
                             class="form-control border-start-0"
-                            placeholder="ค้นหาจากชื่อสินค้า หรือรหัสสินค้า"
+                            placeholder="ค้นหาชื่อสินค้า รหัสสินค้า หรือบาร์โค้ด"
                             autocomplete="off"
                         >
                     </div>
@@ -541,11 +595,12 @@
                         $firstImage = $product->images->first();
                     @endphp
 
-                    <article
-                        class="product-item inventory-row"
-                        data-name="{{ strtolower($product->name) }}"
-                        data-id="{{ strtolower((string) $product->id) }}"
-                    >
+                   <article
+    class="product-item inventory-row"
+    data-name="{{ strtolower($product->name) }}"
+    data-id="{{ strtolower((string) $product->id) }}"
+    data-barcode="{{ $units->pluck('barcode')->filter()->implode(' ') }}"
+>
                         <div class="product-main">
                             <div class="product-thumb">
                                 @if ($firstImage)
@@ -1634,33 +1689,36 @@ document.addEventListener('DOMContentLoaded', function () {
         form.submit();
     });
 
-    searchInput?.addEventListener('input', function () {
-        const keyword = normalizeText(searchInput.value);
-        let visibleCount = 0;
+  // ค้นหาสินค้าด้วยชื่อ รหัสสินค้า และบาร์โค้ด
+searchInput?.addEventListener('input', function () {
+    const keyword = normalizeText(searchInput.value);
+    let visibleCount = 0;
 
-        document.querySelectorAll('.product-item').forEach(item => {
-            const productName = normalizeText(item.dataset.name);
-            const productId = normalizeText(item.dataset.id);
+    document.querySelectorAll('.product-item').forEach(item => {
+        const productName = normalizeText(item.dataset.name);
+        const productId = normalizeText(item.dataset.id);
+        const productBarcodes = normalizeText(item.dataset.barcode);
 
-            const visible =
-                !keyword ||
-                productName.includes(keyword) ||
-                productId.includes(keyword);
+        const visible =
+            !keyword ||
+            productName.includes(keyword) ||
+            productId.includes(keyword) ||
+            productBarcodes.includes(keyword);
 
-            item.style.display = visible ? '' : 'none';
+        item.style.display = visible ? '' : 'none';
 
-            if (visible) {
-                visibleCount++;
-            }
-        });
-
-        const emptyState = document.getElementById('clientSearchEmpty');
-
-        if (emptyState) {
-            emptyState.style.display =
-                keyword && visibleCount === 0 ? 'block' : 'none';
+        if (visible) {
+            visibleCount++;
         }
     });
+
+    const emptyState = document.getElementById('clientSearchEmpty');
+
+    if (emptyState) {
+        emptyState.style.display =
+            keyword && visibleCount === 0 ? 'block' : 'none';
+    }
+});
 
     if (root.dataset.showCategoryModal === 'true') {
         const modal = document.getElementById('addProductModal');

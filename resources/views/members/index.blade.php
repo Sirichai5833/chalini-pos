@@ -1,3 +1,4 @@
+@extends('layouts.layout')
 
 @php
     use App\Models\Setting;
@@ -7,18 +8,13 @@
 
     $totalRooms = 0;
 
-    for ($floorIndex = 0; $floorIndex < $totalFloors; $floorIndex++) {
-        $totalRooms += $roomsPerFloor[$floorIndex] ?? 24;
+    for ($i = 0; $i < $totalFloors; $i++) {
+        $totalRooms += $roomsPerFloor[$i] ?? 24;
     }
 
-    $occupiedRooms = $members->filter(function ($member) {
-        return $member !== null;
-    })->count();
-
+    $occupiedRooms = $members->filter(fn($member) => $member !== null)->count();
     $availableRooms = max(0, $totalRooms - $occupiedRooms);
 @endphp
-
-@extends('layouts.layout')
 
 @section('flash-messages')
     @include('layouts.partials.flash-messages', [
@@ -29,1067 +25,851 @@
 @endsection
 
 @push('styles')
-<style>
-    .member-room-page {
-        --member-black: #0a0a0a;
-        --member-panel: #171717;
-        --member-panel-soft: #202020;
-        --member-yellow: #ffc107;
-        --member-yellow-soft: #ffdc68;
-        --member-border: #393939;
-        --member-text: #f5f5f5;
-        --member-muted: #ababab;
-        --member-danger: #dc3545;
-        color: var(--member-text);
-    }
-
-    .member-room-page .page-shell {
-        max-width: 1500px;
-        margin: 0 auto;
-    }
-
-    .member-room-page .member-hero {
-        position: relative;
-        overflow: hidden;
-        margin-bottom: 1.25rem;
-        padding: 1.5rem;
-        border: 1px solid rgba(255, 193, 7, 0.25);
-        border-radius: 24px;
-        background:
-            radial-gradient(
-                circle at 92% 10%,
-                rgba(255, 193, 7, 0.2),
-                transparent 25%
-            ),
-            linear-gradient(135deg, #1d1d1d, #0b0b0b);
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
-    }
-
-    .member-room-page .member-hero::after {
-        content: "";
-        position: absolute;
-        right: -80px;
-        bottom: -110px;
-        width: 240px;
-        height: 240px;
-        border-radius: 50%;
-        background: rgba(255, 193, 7, 0.07);
-    }
-
-    .member-room-page .hero-content {
-        position: relative;
-        z-index: 2;
-    }
-
-    .member-room-page .hero-icon {
-        width: 62px;
-        height: 62px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        border-radius: 19px;
-        background: linear-gradient(
-            135deg,
-            var(--member-yellow),
-            var(--member-yellow-soft)
-        );
-        color: #111;
-        font-size: 1.65rem;
-        box-shadow: 0 10px 25px rgba(255, 193, 7, 0.22);
-    }
-
-    .member-room-page .hero-title {
-        margin: 0;
-        color: #fff;
-        font-weight: 850;
-        letter-spacing: 0.2px;
-    }
-
-    .member-room-page .hero-subtitle {
-        margin: 0.4rem 0 0;
-        color: var(--member-muted);
-        font-size: 0.93rem;
-    }
-
-    .member-room-page .hero-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.7rem;
-    }
-
-    .member-room-page .btn-yellow {
-        min-height: 44px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        padding: 0.65rem 1.1rem;
-        border: 1px solid var(--member-yellow);
-        border-radius: 12px;
-        background: linear-gradient(
-            135deg,
-            var(--member-yellow),
-            var(--member-yellow-soft)
-        );
-        color: #111;
-        font-weight: 800;
-        text-decoration: none;
-        transition: 0.2s ease;
-    }
-
-    .member-room-page .btn-yellow:hover {
-        color: #000;
-        transform: translateY(-2px);
-        box-shadow: 0 9px 22px rgba(255, 193, 7, 0.22);
-    }
-
-    .member-room-page .btn-dark-outline {
-        min-height: 44px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        padding: 0.65rem 1.1rem;
-        border: 1px solid #494949;
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.035);
-        color: #e3e3e3;
-        font-weight: 700;
-        text-decoration: none;
-        transition: 0.2s ease;
-    }
-
-    .member-room-page .btn-dark-outline:hover {
-        border-color: var(--member-yellow);
-        color: var(--member-yellow);
-        background: rgba(255, 193, 7, 0.07);
-    }
-
-    .member-room-page .summary-card {
-        height: 100%;
-        padding: 1rem;
-        border: 1px solid var(--member-border);
-        border-radius: 18px;
-        background: var(--member-panel);
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
-    }
-
-    .member-room-page .summary-icon {
-        width: 46px;
-        height: 46px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        border-radius: 14px;
-        background: rgba(255, 193, 7, 0.12);
-        color: var(--member-yellow);
-        font-size: 1.2rem;
-    }
-
-    .member-room-page .summary-label {
-        color: var(--member-muted);
-        font-size: 0.78rem;
-        font-weight: 650;
-    }
-
-    .member-room-page .summary-value {
-        margin-top: 0.15rem;
-        color: #fff;
-        font-size: 1.45rem;
-        font-weight: 850;
-        line-height: 1;
-    }
-
-    .member-room-page .control-panel {
-        margin: 1.25rem 0;
-        padding: 1rem;
-        border: 1px solid var(--member-border);
-        border-radius: 18px;
-        background: var(--member-panel);
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
-    }
-
-    .member-room-page .search-group {
-        position: relative;
-    }
-
-    .member-room-page .search-icon {
-        position: absolute;
-        top: 50%;
-        left: 1rem;
-        z-index: 2;
-        transform: translateY(-50%);
-        color: var(--member-yellow);
-    }
-
-    .member-room-page .search-input {
-        min-height: 48px;
-        padding-left: 2.75rem;
-        border: 1px solid #454545;
-        border-radius: 13px;
-        background: #101010;
-        color: #fff;
-    }
-
-    .member-room-page .search-input::placeholder {
-        color: #747474;
-    }
-
-    .member-room-page .search-input:focus {
-        border-color: var(--member-yellow);
-        background: #0d0d0d;
-        color: #fff;
-        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.13);
-    }
-
-    .member-room-page .floor-section {
-        margin-top: 1.6rem;
-    }
-
-    .member-room-page .floor-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        margin-bottom: 0.85rem;
-        padding: 0.9rem 1.05rem;
-        border-left: 4px solid var(--member-yellow);
-        border-radius: 0 14px 14px 0;
-        background: linear-gradient(
-            90deg,
-            rgba(255, 193, 7, 0.12),
-            transparent
-        );
-    }
-
-    .member-room-page .floor-title {
-        display: flex;
-        align-items: center;
-        gap: 0.65rem;
-        margin: 0;
-        color: #fff;
-        font-size: 1.1rem;
-        font-weight: 850;
-    }
-
-    .member-room-page .floor-title i {
-        color: var(--member-yellow);
-    }
-
-    .member-room-page .floor-count {
-        padding: 0.35rem 0.65rem;
-        border: 1px solid rgba(255, 193, 7, 0.28);
-        border-radius: 999px;
-        background: rgba(255, 193, 7, 0.08);
-        color: var(--member-yellow);
-        font-size: 0.75rem;
-        font-weight: 750;
-    }
-
-    .member-room-page .room-card {
-        position: relative;
-        height: 100%;
-        overflow: hidden;
-        border: 1px solid var(--member-border);
-        border-radius: 18px;
-        background: var(--member-panel);
-        color: var(--member-text);
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
-        transition: 0.22s ease;
-    }
-
-    .member-room-page .room-card:hover {
-        border-color: var(--member-yellow);
-        transform: translateY(-5px);
-        box-shadow: 0 18px 38px rgba(0, 0, 0, 0.32);
-    }
-
-    .member-room-page .room-card.occupied::before,
-    .member-room-page .room-card.available::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-    }
-
-    .member-room-page .room-card.occupied::before {
-        background: var(--member-yellow);
-    }
-
-    .member-room-page .room-card.available::before {
-        background: #4b4b4b;
-    }
-
-    .member-room-page .room-card .card-body {
-        display: flex;
-        flex-direction: column;
-        padding: 1.1rem;
-    }
-
-    .member-room-page .room-card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        margin-bottom: 1rem;
-    }
-
-    .member-room-page .room-number {
-        display: flex;
-        align-items: center;
-        gap: 0.55rem;
-        margin: 0;
-        color: #fff;
-        font-size: 1.05rem;
-        font-weight: 850;
-    }
-
-    .member-room-page .room-number i {
-        color: var(--member-yellow);
-    }
-
-    .member-room-page .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.32rem 0.58rem;
-        border-radius: 999px;
-        font-size: 0.7rem;
-        font-weight: 800;
-    }
-
-    .member-room-page .status-occupied {
-        border: 1px solid rgba(255, 193, 7, 0.35);
-        background: rgba(255, 193, 7, 0.12);
-        color: var(--member-yellow);
-    }
-
-    .member-room-page .status-available {
-        border: 1px solid #444;
-        background: rgba(255, 255, 255, 0.04);
-        color: #999;
-    }
-
-    .member-room-page .member-avatar {
-        width: 52px;
-        height: 52px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        border-radius: 16px;
-        background: linear-gradient(
-            135deg,
-            var(--member-yellow),
-            var(--member-yellow-soft)
-        );
-        color: #111;
-        font-size: 1.15rem;
-        font-weight: 900;
-    }
-
-    .member-room-page .member-name {
-        margin: 0;
-        overflow: hidden;
-        color: #fff;
-        font-size: 0.95rem;
-        font-weight: 800;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .member-room-page .member-email {
-        margin-top: 0.25rem;
-        overflow: hidden;
-        color: var(--member-muted);
-        font-size: 0.78rem;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .member-room-page .empty-room {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 92px;
-        color: #777;
-        text-align: center;
-    }
-
-    .member-room-page .empty-room i {
-        display: block;
-        margin-bottom: 0.45rem;
-        color: #555;
-        font-size: 1.6rem;
-    }
-
-    .member-room-page .room-actions {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.45rem;
-        margin-top: auto;
-        padding-top: 1rem;
-    }
-
-    .member-room-page .room-action-btn {
-        min-height: 37px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.3rem;
-        padding: 0.45rem;
-        border-radius: 10px;
-        font-size: 0.76rem;
-        font-weight: 750;
-        text-decoration: none;
-        transition: 0.18s ease;
-    }
-
-    .member-room-page .btn-view {
-        border: 1px solid var(--member-yellow);
-        background: rgba(255, 193, 7, 0.08);
-        color: var(--member-yellow);
-    }
-
-    .member-room-page .btn-view:hover {
-        background: var(--member-yellow);
-        color: #111;
-    }
-
-    .member-room-page .btn-edit {
-        border: 1px solid #606060;
-        background: rgba(255, 255, 255, 0.04);
-        color: #ddd;
-    }
-
-    .member-room-page .btn-edit:hover {
-        border-color: #fff;
-        background: #fff;
-        color: #111;
-    }
-
-    .member-room-page .btn-delete {
-        width: 100%;
-        border: 1px solid rgba(220, 53, 69, 0.7);
-        background: rgba(220, 53, 69, 0.08);
-        color: #ff8792;
-    }
-
-    .member-room-page .btn-delete:hover {
-        border-color: var(--member-danger);
-        background: var(--member-danger);
-        color: #fff;
-    }
-
-    .member-room-page .staff-section {
-        margin-top: 2rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid var(--member-border);
-    }
-
-    .member-room-page .staff-card {
-        max-width: 420px;
-    }
-
-    .member-room-page .no-result {
-        display: none;
-        margin-top: 1.2rem;
-        padding: 2rem;
-        border: 1px dashed #484848;
-        border-radius: 18px;
-        background: var(--member-panel);
-        color: var(--member-muted);
-        text-align: center;
-    }
-
-    @media (max-width: 767.98px) {
-        .member-room-page .member-hero {
-            padding: 1rem;
+    <style>
+        .member-page {
+            --yellow: #ffc107;
+            --dark: #171717;
+            --dark-soft: #202020;
+            --border: #383838;
+            --text: #f5f5f5;
+            --muted: #aaa;
+            color: var(--text);
         }
 
-        .member-room-page .hero-icon {
-            width: 51px;
-            height: 51px;
-            border-radius: 16px;
+        .member-page .page-container {
+            max-width: 1450px;
+            margin: auto;
         }
 
-        .member-room-page .hero-title {
-            font-size: 1.25rem;
+        /* ส่วนหัว */
+        .member-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 22px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--yellow);
+            border-radius: 14px;
+            background: var(--dark);
         }
 
-        .member-room-page .hero-actions {
-            width: 100%;
+        .member-title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
         }
 
-        .member-room-page .hero-actions .btn-yellow,
-        .member-room-page .hero-actions .btn-dark-outline {
+        .member-title-icon {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: rgba(255, 193, 7, .13);
+            color: var(--yellow);
+            font-size: 24px;
+        }
+
+        .member-title h2 {
+            margin: 0;
+            color: #fff;
+            font-size: 1.35rem;
+            font-weight: 800;
+        }
+
+        .member-title p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: .88rem;
+        }
+
+        .member-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .member-buttons .btn {
+            min-height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            border-radius: 9px;
+            font-weight: 700;
+        }
+
+        .btn-add {
+            border: 1px solid var(--yellow);
+            background: var(--yellow);
+            color: #111;
+        }
+
+        .btn-add:hover {
+            background: #e5ac00;
+            color: #111;
+        }
+
+        .btn-reset {
+            border: 1px solid #555;
+            background: transparent;
+            color: #ddd;
+        }
+
+        .btn-reset:hover {
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
+
+        /* กล่องสรุปข้อมูล */
+        .summary-card {
+            height: 100%;
+            padding: 17px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--dark);
+        }
+
+        .summary-card .summary-label {
+            color: var(--muted);
+            font-size: .85rem;
+        }
+
+        .summary-card .summary-value {
+            margin-top: 5px;
+            color: #fff;
+            font-size: 1.6rem;
+            font-weight: 800;
+        }
+
+        .summary-card .summary-icon {
+            width: 43px;
+            height: 43px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(255, 193, 7, .12);
+            color: var(--yellow);
+            font-size: 20px;
+        }
+
+        /* ค้นหาและตัวกรอง */
+        .filter-panel {
+            padding: 18px;
+            margin: 22px 0;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--dark);
+        }
+
+        .filter-panel label {
+            margin-bottom: 7px;
+            color: #ddd;
+            font-size: .85rem;
+            font-weight: 700;
+        }
+
+        .filter-control {
+            min-height: 44px;
+            border: 1px solid #484848;
+            border-radius: 9px;
+            background: #101010;
+            color: #fff;
+        }
+
+        .filter-control:focus {
+            border-color: var(--yellow);
+            background: #101010;
+            color: #fff;
+            box-shadow: 0 0 0 3px rgba(255, 193, 7, .12);
+        }
+
+        .filter-control option {
+            background: #171717;
+            color: #fff;
+        }
+
+        /* หัวข้อแต่ละชั้น */
+        .floor-section {
+            margin-top: 25px;
+        }
+
+        .floor-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 12px 15px;
+            margin-bottom: 14px;
+            border-radius: 9px;
+            background: #202020;
+            border-left: 4px solid var(--yellow);
+        }
+
+        .floor-title {
+            margin: 0;
+            color: #fff;
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+
+        .floor-title i {
+            margin-right: 7px;
+            color: var(--yellow);
+        }
+
+        .floor-count {
+            color: var(--muted);
+            font-size: .82rem;
+        }
+
+        /* การ์ดห้อง */
+        .room-card {
+            height: 100%;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: var(--dark);
+            color: var(--text);
+            transition: .2s;
+        }
+
+        .room-card:hover {
+            border-color: var(--yellow);
+            transform: translateY(-3px);
+        }
+
+        .room-card .card-body {
+            padding: 15px;
+        }
+
+        .room-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding-bottom: 12px;
+            margin-bottom: 13px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .room-number {
+            margin: 0;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 800;
+        }
+
+        .room-number i {
+            margin-right: 5px;
+            color: var(--yellow);
+        }
+
+        .room-status {
+            padding: 5px 9px;
+            border-radius: 20px;
+            font-size: .72rem;
+            font-weight: 700;
+        }
+
+        .status-occupied {
+            background: rgba(255, 193, 7, .13);
+            color: var(--yellow);
+        }
+
+        .status-available {
+            background: #303030;
+            color: #aaa;
+        }
+
+        /* ข้อมูลสมาชิก */
+        .member-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+            min-height: 55px;
+        }
+
+        .member-avatar {
+            width: 45px;
+            height: 45px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: var(--yellow);
+            color: #111;
+            font-size: 1.1rem;
+            font-weight: 800;
+        }
+
+        .member-detail {
+            min-width: 0;
+        }
+
+        .member-name {
+            overflow: hidden;
+            margin: 0;
+            color: #fff;
+            font-size: .9rem;
+            font-weight: 700;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .member-email {
+            overflow: hidden;
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: .76rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .empty-room {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 55px;
+            color: #777;
+            font-size: .85rem;
+        }
+
+        /* ปุ่มจัดการ */
+        .room-actions {
+            display: flex;
+            gap: 7px;
+            margin-top: 15px;
+        }
+
+        .room-action-btn {
+            min-height: 36px;
             flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 6px;
+            border-radius: 8px;
+            font-size: .78rem;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
         }
 
-        .member-room-page .room-actions {
-            grid-template-columns: 1fr;
+        .btn-view {
+            border: 1px solid var(--yellow);
+            background: rgba(255, 193, 7, .08);
+            color: var(--yellow);
         }
 
-        .member-room-page .room-action-btn {
-            min-height: 40px;
+        .btn-view:hover {
+            background: var(--yellow);
+            color: #111;
         }
-    }
-</style>
+
+        .btn-edit {
+            border: 1px solid #666;
+            background: transparent;
+            color: #ddd;
+        }
+
+        .btn-edit:hover {
+            background: #fff;
+            color: #111;
+        }
+
+        .btn-delete {
+            border: 1px solid #dc3545;
+            background: rgba(220, 53, 69, .08);
+            color: #ff8792;
+        }
+
+        .btn-delete:hover {
+            background: #dc3545;
+            color: #fff;
+        }
+
+        /* ห้องพนักงาน */
+        .staff-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .staff-card {
+            max-width: 380px;
+        }
+
+        .no-result {
+            display: none;
+            padding: 35px 15px;
+            margin-top: 20px;
+            border: 1px dashed #555;
+            border-radius: 12px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        @media (max-width: 575px) {
+            .member-header {
+                padding: 15px;
+            }
+
+            .member-title {
+                align-items: flex-start;
+            }
+
+            .member-title h2 {
+                font-size: 1.1rem;
+            }
+
+            .member-buttons {
+                width: 100%;
+            }
+
+            .member-buttons .btn {
+                flex: 1;
+            }
+
+            .room-actions {
+                gap: 5px;
+            }
+
+            .room-action-btn {
+                font-size: .73rem;
+            }
+        }
+    </style>
 @endpush
 
 @section('content')
-<div class="member-room-page py-4">
-    <div class="container-fluid">
-        <div class="page-shell">
+    <div class="member-page py-4">
+        <div class="container-fluid">
+            <div class="page-container">
 
-            <section class="member-hero">
-                <div class="hero-content">
-                    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="hero-icon">
-                                <i class="bi bi-building"></i>
-                            </span>
-
-                            <div>
-                                <h2 class="hero-title">
-                                    รายชื่อสมาชิกตามห้อง
-                                </h2>
-
-                                <p class="hero-subtitle">
-                                    ตรวจสอบห้องว่าง ดูข้อมูลสมาชิก และจัดการข้อมูลสมาชิกแต่ละห้อง
-                                </p>
-                            </div>
+                {{-- หัวข้อหน้า --}}
+                <div class="member-header">
+                    <div class="member-title">
+                        <div class="member-title-icon">
+                            <i class="bi bi-building"></i>
                         </div>
 
-                        <div class="hero-actions">
-                            <a
-                                href="{{ route('members.create') }}"
-                                class="btn-yellow"
-                            >
-                                <i class="bi bi-person-plus-fill"></i>
-                                เพิ่มสมาชิก
-                            </a>
-
-                            <button
-                                type="button"
-                                class="btn-dark-outline"
-                                id="clearMemberSearch"
-                            >
-                                <i class="bi bi-arrow-clockwise"></i>
-                                ล้างการค้นหา
-                            </button>
+                        <div>
+                            <h2>รายชื่อสมาชิกตามห้อง</h2>
+                            <p>ตรวจสอบห้องพักและจัดการข้อมูลสมาชิก</p>
                         </div>
                     </div>
+
+                    <div class="member-buttons">
+                        <a href="{{ route('members.create') }}" class="btn btn-add">
+                            <i class="bi bi-person-plus-fill"></i>
+                            เพิ่มสมาชิก
+                        </a>
+
+                        <button type="button" class="btn btn-reset" id="clearMemberSearch">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            ล้างการค้นหา
+                        </button>
+                    </div>
                 </div>
-            </section>
 
-            <div class="row g-3">
-                <div class="col-6 col-lg-3">
-                    <div class="summary-card">
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="summary-icon">
-                                <i class="bi bi-buildings"></i>
-                            </span>
+                {{-- สรุปข้อมูล --}}
+                <div class="row g-3">
+                    <div class="col-6 col-lg-3">
+                        <div class="summary-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="summary-icon">
+                                    <i class="bi bi-buildings"></i>
+                                </div>
+                                <div>
+                                    <div class="summary-label">จำนวนชั้น</div>
+                                    <div class="summary-value">{{ number_format($totalFloors) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-                            <div>
-                                <div class="summary-label">จำนวนชั้น</div>
-                                <div class="summary-value">
-                                    {{ number_format($totalFloors) }}
+                    <div class="col-6 col-lg-3">
+                        <div class="summary-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="summary-icon">
+                                    <i class="bi bi-door-open"></i>
+                                </div>
+                                <div>
+                                    <div class="summary-label">ห้องทั้งหมด</div>
+                                    <div class="summary-value">{{ number_format($totalRooms) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-lg-3">
+                        <div class="summary-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="summary-icon">
+                                    <i class="bi bi-people"></i>
+                                </div>
+                                <div>
+                                    <div class="summary-label">มีสมาชิก</div>
+                                    <div class="summary-value">{{ number_format($occupiedRooms) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-lg-3">
+                        <div class="summary-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="summary-icon">
+                                    <i class="bi bi-check-circle"></i>
+                                </div>
+                                <div>
+                                    <div class="summary-label">ห้องว่าง</div>
+                                    <div class="summary-value">{{ number_format($availableRooms) }}</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="col-6 col-lg-3">
-                    <div class="summary-card">
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="summary-icon">
-                                <i class="bi bi-door-open-fill"></i>
-                            </span>
+                {{-- ค้นหาและกรอง --}}
+                <div class="filter-panel">
+                    <div class="row g-3">
+                        <div class="col-lg-8">
+                            <label for="memberRoomSearch">ค้นหาสมาชิกหรือหมายเลขห้อง</label>
+                            <input type="search" id="memberRoomSearch" class="form-control filter-control"
+                                placeholder="ค้นหาจากชื่อ อีเมล หรือเลขห้อง...">
+                        </div>
 
-                            <div>
-                                <div class="summary-label">ห้องทั้งหมด</div>
-                                <div class="summary-value">
-                                    {{ number_format($totalRooms) }}
-                                </div>
-                            </div>
+                        <div class="col-lg-4">
+                            <label for="roomStatusFilter">สถานะห้อง</label>
+                            <select id="roomStatusFilter" class="form-select filter-control">
+                                <option value="all">แสดงทุกห้อง</option>
+                                <option value="occupied">ห้องที่มีสมาชิก</option>
+                                <option value="available">ห้องว่าง</option>
+                            </select>
                         </div>
                     </div>
                 </div>
 
-                <div class="col-6 col-lg-3">
-                    <div class="summary-card">
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="summary-icon">
-                                <i class="bi bi-people-fill"></i>
-                            </span>
+                {{-- รายการห้องแต่ละชั้น --}}
+                <div id="roomSections">
+                    @for ($floor = 1; $floor <= $totalFloors; $floor++)
+                        @php
+                            $roomCount = $roomsPerFloor[$floor - 1] ?? 24;
+                            $occupiedOnFloor = 0;
 
-                            <div>
-                                <div class="summary-label">มีสมาชิก</div>
-                                <div class="summary-value">
-                                    {{ number_format($occupiedRooms) }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                            for ($i = 1; $i <= $roomCount; $i++) {
+                                $number = $floor . str_pad($i, 2, '0', STR_PAD_LEFT);
 
-                <div class="col-6 col-lg-3">
-                    <div class="summary-card">
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="summary-icon">
-                                <i class="bi bi-check-circle-fill"></i>
-                            </span>
-
-                            <div>
-                                <div class="summary-label">ห้องว่าง</div>
-                                <div class="summary-value">
-                                    {{ number_format($availableRooms) }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <section class="control-panel">
-                <div class="row g-3 align-items-center">
-                    <div class="col-lg-8">
-                        <label
-                            for="memberRoomSearch"
-                            class="form-label small fw-bold text-light"
-                        >
-                            ค้นหาสมาชิกหรือหมายเลขห้อง
-                        </label>
-
-                        <div class="search-group">
-                            <i class="bi bi-search search-icon"></i>
-
-                            <input
-                                type="search"
-                                id="memberRoomSearch"
-                                class="form-control search-input"
-                                placeholder="ค้นหาจากชื่อ อีเมล หรือเลขห้อง..."
-                            >
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4">
-                        <label
-                            for="roomStatusFilter"
-                            class="form-label small fw-bold text-light"
-                        >
-                            สถานะห้อง
-                        </label>
-
-                        <select
-                            id="roomStatusFilter"
-                            class="form-select search-input"
-                        >
-                            <option value="all">แสดงทั้งหมด</option>
-                            <option value="occupied">ห้องที่มีสมาชิก</option>
-                            <option value="available">ห้องว่าง</option>
-                        </select>
-                    </div>
-                </div>
-            </section>
-
-            <div id="roomSections">
-                @for ($floor = 1; $floor <= $totalFloors; $floor++)
-                    @php
-                        $roomCount = $roomsPerFloor[$floor - 1] ?? 24;
-
-                        $occupiedOnFloor = 0;
-
-                        for ($roomIndex = 1; $roomIndex <= $roomCount; $roomIndex++) {
-                            $currentRoomNumber =
-                                $floor . str_pad($roomIndex, 2, '0', STR_PAD_LEFT);
-
-                            if ($members->get($currentRoomNumber)) {
-                                $occupiedOnFloor++;
+                                if ($members->get($number)) {
+                                    $occupiedOnFloor++;
+                                }
                             }
-                        }
-                    @endphp
+                        @endphp
 
-                    <section
-                        class="floor-section"
-                        data-floor-section
-                    >
-                        <div class="floor-header">
-                            <h3 class="floor-title">
-                                <i class="bi bi-layers-fill"></i>
-                                ชั้น {{ $floor }}
-                            </h3>
+                        <section class="floor-section" data-floor-section>
+                            <div class="floor-header">
+                                <h3 class="floor-title">
+                                    <i class="bi bi-layers-fill"></i>
+                                    ชั้น {{ $floor }}
+                                </h3>
 
-                            <span class="floor-count">
-                                {{ $occupiedOnFloor }}/{{ $roomCount }} ห้องมีสมาชิก
-                            </span>
-                        </div>
+                                <span class="floor-count">
+                                    มีสมาชิก {{ $occupiedOnFloor }} / {{ $roomCount }} ห้อง
+                                </span>
+                            </div>
 
-                        <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 row-cols-xxl-4 g-3">
-                            @for ($room = 1; $room <= $roomCount; $room++)
-                                @php
-                                    $roomNumber =
-                                        $floor . str_pad($room, 2, '0', STR_PAD_LEFT);
+                            <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 row-cols-xxl-4 g-3">
+                                @for ($room = 1; $room <= $roomCount; $room++)
+                                    @php
+                                        $roomNumber = $floor . str_pad($room, 2, '0', STR_PAD_LEFT);
+                                        $member = $members->get($roomNumber);
 
-                                    $member = $members->get($roomNumber);
+                                        $searchText = strtolower(
+                                            $roomNumber . ' ' . ($member?->name ?? '') . ' ' . ($member?->email ?? ''),
+                                        );
+                                    @endphp
 
-                                    $searchText = strtolower(
-                                        $roomNumber . ' ' .
-                                        ($member?->name ?? '') . ' ' .
-                                        ($member?->email ?? '')
-                                    );
-                                @endphp
+                                    <div class="col" data-room-card
+                                        data-status="{{ $member ? 'occupied' : 'available' }}"
+                                        data-search="{{ $searchText }}">
+                                        <article class="card room-card">
+                                            <div class="card-body">
 
-                                <div
-                                    class="col room-column"
-                                    data-room-card
-                                    data-status="{{ $member ? 'occupied' : 'available' }}"
-                                    data-search="{{ $searchText }}"
-                                >
-                                    <article
-                                        class="card room-card {{ $member ? 'occupied' : 'available' }}"
-                                    >
-                                        <div class="card-body">
-                                            <div class="room-card-header">
-                                                <h4 class="room-number">
-                                                    <i class="bi bi-door-closed-fill"></i>
-                                                    ห้อง {{ $roomNumber }}
-                                                </h4>
+                                                <div class="room-card-header">
+                                                    <h4 class="room-number">
+                                                        <i class="bi bi-door-closed"></i>
+                                                        ห้อง {{ $roomNumber }}
+                                                    </h4>
 
-                                                @if ($member)
-                                                    <span class="status-badge status-occupied">
-                                                        <i class="bi bi-person-check-fill"></i>
-                                                        มีสมาชิก
-                                                    </span>
-                                                @else
-                                                    <span class="status-badge status-available">
-                                                        <i class="bi bi-house-dash"></i>
-                                                        ห้องว่าง
-                                                    </span>
-                                                @endif
-                                            </div>
-
-                                            @if ($member)
-                                                <div class="d-flex align-items-center gap-3 mb-3">
-                                                    <span class="member-avatar">
-                                                        {{ mb_strtoupper(
-                                                            mb_substr($member->name, 0, 1)
-                                                        ) }}
-                                                    </span>
-
-                                                    <div class="min-w-0 flex-grow-1">
-                                                        <h5
-                                                            class="member-name"
-                                                            title="{{ $member->name }}"
-                                                        >
-                                                            {{ $member->name }}
-                                                        </h5>
-
-                                                        <div
-                                                            class="member-email"
-                                                            title="{{ $member->email }}"
-                                                        >
-                                                            <i class="bi bi-envelope me-1"></i>
-                                                            {{ $member->email ?: 'ไม่ได้ระบุอีเมล' }}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="room-actions">
-                                                    <a
-                                                        href="{{ route('members.show', $member->id) }}"
-                                                        class="room-action-btn btn-view"
-                                                    >
-                                                        <i class="bi bi-eye-fill"></i>
-                                                        ดู
-                                                    </a>
-
-                                                    @if (auth()->user()?->role === 'admin')
-                                                        <a
-                                                            href="{{ route('members.edit', $member->id) }}"
-                                                            class="room-action-btn btn-edit"
-                                                        >
-                                                            <i class="bi bi-pencil-square"></i>
-                                                            แก้ไข
-                                                        </a>
-
-                                                        <form
-                                                            action="{{ route('members.destroy', $member->id) }}"
-                                                            method="POST"
-                                                            class="member-delete-form"
-                                                        >
-                                                            @csrf
-                                                            @method('DELETE')
-
-                                                            <button
-                                                                type="submit"
-                                                                class="room-action-btn btn-delete"
-                                                                data-member-name="{{ $member->name }}"
-                                                                data-room-number="{{ $roomNumber }}"
-                                                            >
-                                                                <i class="bi bi-trash-fill"></i>
-                                                                ลบ
-                                                            </button>
-                                                        </form>
+                                                    @if ($member)
+                                                        <span class="room-status status-occupied">
+                                                            <i class="bi bi-person-check"></i>
+                                                            มีสมาชิก
+                                                        </span>
+                                                    @else
+                                                        <span class="room-status status-available">
+                                                            <i class="bi bi-house"></i>
+                                                            ห้องว่าง
+                                                        </span>
                                                     @endif
                                                 </div>
-                                            @else
-                                                <div class="empty-room">
-                                                    <div>
-                                                        <i class="bi bi-person-dash"></i>
-                                                        ยังไม่มีสมาชิกในห้องนี้
+
+                                                @if ($member)
+                                                    <div class="member-info">
+                                                        <div class="member-avatar">
+                                                            {{ mb_strtoupper(mb_substr($member->name, 0, 1)) }}
+                                                        </div>
+
+                                                        <div class="member-detail">
+                                                            <h5 class="member-name" title="{{ $member->name }}">
+                                                                {{ $member->name }}
+                                                            </h5>
+
+                                                            <div class="member-email" title="{{ $member->email }}">
+                                                                <i class="bi bi-envelope"></i>
+                                                                {{ $member->email ?: 'ไม่ได้ระบุอีเมล' }}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
+
+                                                    <div class="room-actions">
+                                                        <a href="{{ route('members.show', $member->id) }}"
+                                                            class="room-action-btn btn-view">
+                                                            <i class="bi bi-eye"></i> ดู
+                                                        </a>
+
+                                                        
+                                                            <a href="{{ route('members.edit', $member->id) }}"
+                                                                class="room-action-btn btn-edit">
+                                                                <i class="bi bi-pencil"></i> แก้ไข
+                                                            </a>
+
+                                                            <form action="{{ route('members.destroy', $member->id) }}"
+                                                                method="POST" class="member-delete-form flex-fill">
+                                                                @csrf
+                                                                @method('DELETE')
+
+                                                                <button type="submit"
+                                                                    class="room-action-btn btn-delete w-100"
+                                                                    data-member-name="{{ $member->name }}"
+                                                                    data-room-number="{{ $roomNumber }}">
+                                                                    <i class="bi bi-trash"></i> ลบ
+                                                                </button>
+                                                            </form>
+                                                        
+                                                    </div>
+                                                @else
+                                                    <div class="empty-room">
+                                                        <i class="bi bi-person-dash me-2"></i>
+                                                        ยังไม่มีสมาชิก
+                                                    </div>
+                                                @endif
+
+                                            </div>
+                                        </article>
+                                    </div>
+                                @endfor
+                            </div>
+                        </section>
+                    @endfor
+
+                    {{-- ห้องพนักงาน --}}
+                    @php
+                        $staffRoomNumber = '601';
+                        $staffMember = $members->get($staffRoomNumber);
+
+                        $staffSearch = strtolower(
+                            '601 ห้องพนักงาน ' . ($staffMember?->name ?? '') . ' ' . ($staffMember?->email ?? ''),
+                        );
+                    @endphp
+
+                    <section class="staff-section" data-floor-section>
+                        <div class="floor-header">
+                            <h3 class="floor-title">
+                                <i class="bi bi-person-badge-fill"></i>
+                                ห้อง Admin / Staff
+                            </h3>
+
+                            <span class="floor-count">ห้องพนักงาน</span>
+                        </div>
+
+                        <div class="staff-card">
+                            <div data-room-card data-status="{{ $staffMember ? 'occupied' : 'available' }}"
+                                data-search="{{ $staffSearch }}">
+                                <article class="card room-card">
+                                    <div class="card-body">
+                                        <div class="room-card-header">
+                                            <h4 class="room-number">
+                                                <i class="bi bi-shield-lock-fill"></i>
+                                                ห้องพนักงาน
+                                            </h4>
+
+                                            @if ($staffMember)
+                                                <span class="room-status status-occupied">
+                                                    <i class="bi bi-person-check"></i>
+                                                    มีผู้ใช้งาน
+                                                </span>
+                                            @else
+                                                <span class="room-status status-available">
+                                                    ไม่มีผู้ใช้งาน
+                                                </span>
                                             @endif
                                         </div>
-                                    </article>
-                                </div>
-                            @endfor
-                        </div>
-                    </section>
-                @endfor
-
-                @php
-                    $staffRoomNumber = '601';
-                    $staffMember = $members->get($staffRoomNumber);
-                @endphp
-
-                <section
-                    class="staff-section"
-                    data-floor-section
-                >
-                    <div class="floor-header">
-                        <h3 class="floor-title">
-                            <i class="bi bi-person-badge-fill"></i>
-                            สำหรับ Admin / Staff
-                        </h3>
-
-                        <span class="floor-count">
-                            ห้องพนักงาน
-                        </span>
-                    </div>
-
-                    <div class="staff-card">
-                        <div
-                            class="room-column"
-                            data-room-card
-                            data-status="{{ $staffMember ? 'occupied' : 'available' }}"
-                            data-search="{{
-                                strtolower(
-                                    '601 ห้องพนักงาน ' .
-                                    ($staffMember?->name ?? '') . ' ' .
-                                    ($staffMember?->email ?? '')
-                                )
-                            }}"
-                        >
-                            <article
-                                class="card room-card {{ $staffMember ? 'occupied' : 'available' }}"
-                            >
-                                <div class="card-body">
-                                    <div class="room-card-header">
-                                        <h4 class="room-number">
-                                            <i class="bi bi-shield-lock-fill"></i>
-                                            ห้องพนักงาน
-                                        </h4>
 
                                         @if ($staffMember)
-                                            <span class="status-badge status-occupied">
-                                                <i class="bi bi-person-check-fill"></i>
-                                                มีผู้ใช้งาน
-                                            </span>
-                                        @else
-                                            <span class="status-badge status-available">
-                                                <i class="bi bi-person-dash"></i>
-                                                ไม่มีผู้ใช้งาน
-                                            </span>
-                                        @endif
-                                    </div>
+                                            <div class="member-info">
+                                                <div class="member-avatar">
+                                                    {{ mb_strtoupper(mb_substr($staffMember->name, 0, 1)) }}
+                                                </div>
 
-                                    @if ($staffMember)
-                                        <div class="d-flex align-items-center gap-3">
-                                            <span class="member-avatar">
-                                                {{ mb_strtoupper(
-                                                    mb_substr($staffMember->name, 0, 1)
-                                                ) }}
-                                            </span>
+                                                <div class="member-detail">
+                                                    <h5 class="member-name">
+                                                        {{ $staffMember->name }}
+                                                    </h5>
 
-                                            <div class="min-w-0 flex-grow-1">
-                                                <h5 class="member-name">
-                                                    {{ $staffMember->name }}
-                                                </h5>
-
-                                                <div class="member-email">
-                                                    <i class="bi bi-envelope me-1"></i>
-                                                    {{ $staffMember->email ?: 'ไม่ได้ระบุอีเมล' }}
+                                                    <div class="member-email">
+                                                        <i class="bi bi-envelope"></i>
+                                                        {{ $staffMember->email ?: 'ไม่ได้ระบุอีเมล' }}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    @else
-                                        <div class="empty-room">
-                                            <div>
-                                                <i class="bi bi-person-dash"></i>
+                                        @else
+                                            <div class="empty-room">
+                                                <i class="bi bi-person-dash me-2"></i>
                                                 ไม่มีข้อมูลพนักงาน
                                             </div>
-                                        </div>
-                                    @endif
-                                </div>
-                            </article>
+                                        @endif
+                                    </div>
+                                </article>
+                            </div>
                         </div>
-                    </div>
-                </section>
-            </div>
+                    </section>
+                </div>
 
-            <div class="no-result" id="memberNoResult">
-                <i class="bi bi-search fs-2 d-block mb-2 text-warning"></i>
-                ไม่พบสมาชิกหรือห้องที่ตรงกับการค้นหา
-            </div>
+                <div class="no-result" id="memberNoResult">
+                    <i class="bi bi-search fs-2 d-block mb-2"></i>
+                    ไม่พบสมาชิกหรือห้องที่ตรงกับการค้นหา
+                </div>
 
+            </div>
         </div>
     </div>
-</div>
 @endsection
 
 @push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.getElementById('memberRoomSearch');
-    const statusFilter = document.getElementById('roomStatusFilter');
-    const clearButton = document.getElementById('clearMemberSearch');
-    const noResult = document.getElementById('memberNoResult');
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('memberRoomSearch');
+            const statusFilter = document.getElementById('roomStatusFilter');
+            const clearButton = document.getElementById('clearMemberSearch');
+            const noResult = document.getElementById('memberNoResult');
 
-    function filterRooms() {
-        const searchValue = (
-            searchInput?.value ?? ''
-        ).trim().toLowerCase();
+            // ค้นหาและกรองห้อง
+            function filterRooms() {
+                const searchValue = (searchInput?.value ?? '').trim().toLowerCase();
+                const statusValue = statusFilter?.value ?? 'all';
 
-        const statusValue = statusFilter?.value ?? 'all';
+                let visibleRooms = 0;
 
-        let visibleRooms = 0;
+                document.querySelectorAll('[data-room-card]').forEach(function(room) {
+                    const roomSearch = (room.dataset.search ?? '').toLowerCase();
+                    const roomStatus = room.dataset.status ?? 'available';
 
-        document.querySelectorAll('[data-room-card]').forEach(function (room) {
-            const roomSearch = (
-                room.dataset.search ?? ''
-            ).toLowerCase();
+                    const matchesSearch =
+                        searchValue === '' || roomSearch.includes(searchValue);
 
-            const roomStatus = room.dataset.status ?? 'available';
+                    const matchesStatus =
+                        statusValue === 'all' || roomStatus === statusValue;
 
-            const matchesSearch =
-                searchValue === '' ||
-                roomSearch.includes(searchValue);
+                    const shouldShow = matchesSearch && matchesStatus;
 
-            const matchesStatus =
-                statusValue === 'all' ||
-                roomStatus === statusValue;
+                    room.style.display = shouldShow ? '' : 'none';
 
-            const shouldShow = matchesSearch && matchesStatus;
+                    if (shouldShow) {
+                        visibleRooms++;
+                    }
+                });
 
-            room.style.display = shouldShow ? '' : 'none';
+                // ซ่อนชั้นที่ไม่มีห้องตรงกับเงื่อนไข
+                document.querySelectorAll('[data-floor-section]').forEach(function(section) {
+                    const hasVisibleRoom = Array.from(
+                        section.querySelectorAll('[data-room-card]')
+                    ).some(room => room.style.display !== 'none');
 
-            if (shouldShow) {
-                visibleRooms++;
-            }
-        });
+                    section.style.display = hasVisibleRoom ? '' : 'none';
+                });
 
-        document.querySelectorAll('[data-floor-section]').forEach(function (section) {
-            const visibleCards = Array.from(
-                section.querySelectorAll('[data-room-card]')
-            ).some(function (card) {
-                return card.style.display !== 'none';
-            });
-
-            section.style.display = visibleCards ? '' : 'none';
-        });
-
-        if (noResult) {
-            noResult.style.display = visibleRooms === 0 ? 'block' : 'none';
-        }
-    }
-
-    searchInput?.addEventListener('input', filterRooms);
-    statusFilter?.addEventListener('change', filterRooms);
-
-    clearButton?.addEventListener('click', function () {
-        if (searchInput) {
-            searchInput.value = '';
-        }
-
-        if (statusFilter) {
-            statusFilter.value = 'all';
-        }
-
-        filterRooms();
-        searchInput?.focus();
-    });
-
-    document.querySelectorAll('.member-delete-form').forEach(function (form) {
-        form.addEventListener('submit', function (event) {
-            event.preventDefault();
-
-            const deleteButton = form.querySelector('.btn-delete');
-
-            const memberName =
-                deleteButton?.dataset.memberName ?? 'สมาชิกนี้';
-
-            const roomNumber =
-                deleteButton?.dataset.roomNumber ?? '-';
-
-            if (typeof Swal === 'undefined') {
-                if (
-                    window.confirm(
-                        `ยืนยันการลบ ${memberName} ออกจากห้อง ${roomNumber}?`
-                    )
-                ) {
-                    form.submit();
+                if (noResult) {
+                    noResult.style.display = visibleRooms === 0 ? 'block' : 'none';
                 }
-
-                return;
             }
 
-            Swal.fire({
-                title: 'ยืนยันการลบสมาชิก?',
-                html: `
-                    <p class="mb-1">คุณกำลังลบ</p>
-                    <strong style="color:#ffc107;">
-                        ${memberName}
-                    </strong>
-                    <p class="mt-2 mb-0">
-                        ห้อง ${roomNumber}
-                    </p>
-                `,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'ลบสมาชิก',
-                cancelButtonText: 'ยกเลิก',
-                reverseButtons: true,
-                background: '#171717',
-                color: '#ffffff',
-                confirmButtonColor: '#dc3545',
-                cancelButtonColor: '#555555'
-            }).then(function (result) {
-                if (!result.isConfirmed) {
-                    return;
-                }
+            searchInput?.addEventListener('input', filterRooms);
+            statusFilter?.addEventListener('change', filterRooms);
 
-                deleteButton.disabled = true;
-                deleteButton.innerHTML = `
-                    <span class="spinner-border spinner-border-sm"></span>
-                    กำลังลบ
-                `;
+            // ล้างการค้นหา
+            clearButton?.addEventListener('click', function() {
+                if (searchInput) searchInput.value = '';
+                if (statusFilter) statusFilter.value = 'all';
 
-                form.submit();
+                filterRooms();
+                searchInput?.focus();
             });
-        });
-    });
 
-    filterRooms();
-});
-</script>
+            // ยืนยันก่อนลบสมาชิก
+            document.querySelectorAll('.member-delete-form').forEach(function(form) {
+                form.addEventListener('submit', function(event) {
+                    event.preventDefault();
+
+                    const button = form.querySelector('.btn-delete');
+                    const memberName = button?.dataset.memberName ?? 'สมาชิกนี้';
+                    const roomNumber = button?.dataset.roomNumber ?? '-';
+
+                    if (typeof Swal === 'undefined') {
+                        if (confirm(`ยืนยันการลบ ${memberName} จากห้อง ${roomNumber} หรือไม่?`)) {
+                            form.submit();
+                        }
+                        return;
+                    }
+
+                    Swal.fire({
+                        title: 'ยืนยันการลบสมาชิก?',
+                        text: `${memberName} จากห้อง ${roomNumber}`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'ยืนยันการลบ',
+                        cancelButtonText: 'ยกเลิก',
+                        reverseButtons: true,
+                        background: '#171717',
+                        color: '#fff',
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#555'
+                    }).then(function(result) {
+                        if (result.isConfirmed) {
+                            button.disabled = true;
+                            button.innerHTML = `
+                        <span class="spinner-border spinner-border-sm"></span>
+                        กำลังลบ
+                    `;
+
+                            form.submit();
+                        }
+                    });
+                });
+            });
+
+            filterRooms();
+        });
+    </script>
 @endpush
-

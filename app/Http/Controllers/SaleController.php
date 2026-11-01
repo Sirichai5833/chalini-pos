@@ -38,6 +38,10 @@ class SaleController extends Controller
                     'id' => $product->id,
                     'barcode' => $unit->barcode,
                     'name' => $product->name,
+                        // รูปภาพสินค้า
+    'image' => $product->images->first()
+    ? asset('storage/' . $product->images->first()->image_path)
+    : null,
                     'unit' => $unit->unit_name,
                     'product_unit_id' => $unit->id,
                     'unit_id' => $unit->id,
@@ -46,6 +50,7 @@ class SaleController extends Controller
                     'freebie' => $product->description,
                     'cost_price' => $unit->unit_quantity,
                     'is_active' => $product->is_active, // ✅ เพิ่มตรงนี้
+
                 ];
             }
         }
@@ -632,6 +637,7 @@ $units = ProductUnit::select(
                         $sale->id .
                         ' เหตุผล: ' .
                         $validated['cancel_reason'],
+                    'user_id' => Auth::id(),
                 ]);
             }
 

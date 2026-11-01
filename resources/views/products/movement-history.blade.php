@@ -119,7 +119,8 @@
                         <th class="text-center">ประเภท</th>
                         <th class="text-end">จำนวน</th>
                         <th class="text-center">คลัง/ตำแหน่ง</th>
-                        <th>หมายเหตุ</th>
+<th class="text-center">ผู้ทำรายการ</th>
+<th>หมายเหตุ</th>
                     </tr>
                 </thead>
 
@@ -189,6 +190,12 @@
                                     {{ $m->location ?: '-' }}
                                 </span>
                             </td>
+                            <td class="text-center">
+    <div class="movement-user">
+        <i class="bi bi-person-circle me-1"></i>
+        {{ $m->user->name ?? 'ไม่พบข้อมูล' }}
+    </div>
+</td>
 
                             <td>
                                 <div class="movement-note">
@@ -202,7 +209,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center py-5">
+                            <td colspan="7" class="text-center py-5">
                                 <div class="movement-empty-icon">
                                     <i class="bi bi-inbox"></i>
                                 </div>
@@ -527,6 +534,19 @@
         color: #fff;
         font-weight: 900;
     }
+    .movement-user {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .4rem .65rem;
+    border: 1px solid rgba(255, 212, 59, .25);
+    border-radius: 999px;
+    background: rgba(255, 212, 59, .07);
+    color: var(--movement-yellow);
+    font-size: .75rem;
+    font-weight: 850;
+    white-space: nowrap;
+}
 
     .movement-empty-subtitle {
         margin-top: .2rem;

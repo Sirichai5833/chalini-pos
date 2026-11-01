@@ -9,7 +9,7 @@
                 <div>
                     <div class="sales-kicker">SALES REPORT</div>
                     <h2 class="sales-title">ประวัติการขาย</h2>
-                    <p class="sales-subtitle">ตรวจสอบรายการขายย้อนหลัง กรองข้อมูล และส่งออกรายงานได้ในหน้าเดียว</p>
+                   
                 </div>
             </div>
         </section>
@@ -60,9 +60,7 @@
                         <button type="submit" class="btn btn-sales-primary px-4">
                             <i class="bi bi-search me-2"></i> ค้นหา
                         </button>
-                        <button type="button" onclick="printTable()" class="btn btn-sales-outline px-4">
-                            <i class="bi bi-printer-fill me-2"></i> พิมพ์รายงาน
-                        </button>
+                       
                         <button type="button" onclick="exportToExcel()" class="btn btn-sales-excel px-4">
                             <i class="bi bi-file-earmark-excel-fill me-2"></i> ส่งออก Excel
                         </button>

@@ -240,33 +240,23 @@
         {{-- ส่วนด้านซ้าย --}}
         <div class="topbar-left">
 
-            <button
-                type="button"
-                class="btn topbar-action menu-button"
-                id="sidebarToggle"
-                title="เปิดหรือปิดเมนู"
-                aria-label="เปิดหรือปิดเมนูด้านข้าง"
-            >
+            <button type="button" class="btn topbar-action menu-button" id="sidebarToggle" title="เปิดหรือปิดเมนู"
+                aria-label="เปิดหรือปิดเมนูด้านข้าง">
                 <i class="bi bi-list fs-5"></i>
             </button>
 
-            <a href="{{ url('/') }}" class="navbar-brand shop-brand">
+            <div class="navbar-brand shop-brand">
                 <span class="shop-icon">
                     <i class="bi bi-shop"></i>
                 </span>
 
                 <span class="shop-name">
-                    {{ $shopName ?? 'POS System' }}
+                    {{ $shopSettings->shop_name ?: 'ชาลินี' }}
                 </span>
-            </a>
+            </div>
 
-            <button
-                type="button"
-                class="btn topbar-action"
-                id="themeToggle"
-                title="เปลี่ยนธีม"
-                aria-label="เปลี่ยนธีม"
-            >
+            <button type="button" class="btn topbar-action" id="themeToggle" title="เปลี่ยนธีม"
+                aria-label="เปลี่ยนธีม">
                 <i class="bi bi-moon-fill"></i>
                 <span class="theme-text d-none d-lg-inline">
                     เปลี่ยนธีม
@@ -281,9 +271,10 @@
                 @php
                     $user = Auth::user();
 
-                    $profileUrl = $user->role === 'member'
-                        ? route('online.edit', ['member' => $user->id])
-                        : route('staff.edit', ['member' => $user->id]);
+                    $profileUrl =
+                        $user->role === 'member'
+                            ? route('online.edit', ['member' => $user->id])
+                            : route('staff.edit', ['member' => $user->id]);
 
                     $roleLabels = [
                         'admin' => 'ผู้ดูแลระบบ',
@@ -294,9 +285,7 @@
                     ];
 
                     $roleLabel = $roleLabels[$user->role] ?? $user->role;
-                    $firstLetter = mb_strtoupper(
-                        mb_substr($user->name ?: 'U', 0, 1)
-                    );
+                    $firstLetter = mb_strtoupper(mb_substr($user->name ?: 'U', 0, 1));
 
                     /*
                     |--------------------------------------------------------------------------
@@ -306,13 +295,10 @@
                     | ทั้ง profiles/user.jpg, storage/profiles/user.jpg,
                     | public/storage/profiles/user.jpg และ URL ภายนอก
                     */
-                    $profileImage = $user->profile_image
-                        ?? $user->profile_photo
-                        ?? $user->profile_photo_path
-                        ?? $user->avatar
-                        ?? $user->image
-                        ?? $user->photo
-                        ?? null;
+                    $profileImage =
+                        $user->profile_image ??
+                        ($user->profile_photo ??
+                            ($user->profile_photo_path ?? ($user->avatar ?? ($user->image ?? ($user->photo ?? null)))));
 
                     $profileImageUrl = null;
 
@@ -331,37 +317,25 @@
                             $profileImage = preg_replace(
                                 '#^(public/storage/|storage/app/public/|public/|storage/)#',
                                 '',
-                                $profileImage
+                                $profileImage,
                             );
 
                             if (
                                 filled($profileImage) &&
-                                \Illuminate\Support\Facades\Storage::disk('public')
-                                    ->exists($profileImage)
+                                \Illuminate\Support\Facades\Storage::disk('public')->exists($profileImage)
                             ) {
-                                $profileImageUrl = asset(
-                                    'storage/' . $profileImage
-                                );
+                                $profileImageUrl = asset('storage/' . $profileImage);
                             }
                         }
                     }
                 @endphp
 
-                <a
-                    href="{{ $profileUrl }}"
-                    class="btn topbar-action profile-button"
-                    title="ข้อมูลส่วนตัว"
-                >
+                <a href="{{ $profileUrl }}" class="btn topbar-action profile-button" title="ข้อมูลส่วนตัว">
                     <span class="profile-avatar">
                         @if ($profileImageUrl)
-                            <img
-                                src="{{ $profileImageUrl }}"
-                                alt="รูปโปรไฟล์ของ {{ $user->name }}"
-                                width="36"
-                                height="36"
-                                loading="eager"
-                                onerror="this.remove(); this.parentElement.textContent='{{ $firstLetter }}';"
-                            >
+                            <img src="{{ $profileImageUrl }}" alt="รูปโปรไฟล์ของ {{ $user->name }}" width="36"
+                                height="36" loading="eager"
+                                onerror="this.remove(); this.parentElement.textContent='{{ $firstLetter }}';">
                         @else
                             {{ $firstLetter }}
                         @endif
@@ -378,22 +352,12 @@
                     </span>
                 </a>
 
-                <button
-                    type="button"
-                    class="btn topbar-action logout-button"
-                    onclick="confirmLogout()"
-                    title="ออกจากระบบ"
-                >
+                <button type="button" class="btn topbar-action logout-button" onclick="confirmLogout()" title="ออกจากระบบ">
                     <i class="bi bi-box-arrow-right"></i>
                     <span class="logout-text">ออกจากระบบ</span>
                 </button>
 
-                <form
-                    id="logout-form"
-                    action="{{ route('logout') }}"
-                    method="POST"
-                    class="d-none"
-                >
+                <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
                     @csrf
                 </form>
             @endauth
@@ -426,7 +390,7 @@
                 customClass: {
                     cancelButton: 'text-dark'
                 }
-            }).then(function (result) {
+            }).then(function(result) {
                 if (result.isConfirmed) {
                     logoutForm.submit();
                 }

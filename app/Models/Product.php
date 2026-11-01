@@ -17,8 +17,8 @@ class Product extends Model
     ];
     
     protected static $logName = 'product';
-    protected static $logAttributes = ['name', 'quantity'];
-    protected static $logOnlyDirty = true;
+    // protected static $logAttributes = ['name', 'quantity'];
+    // protected static $logOnlyDirty = true;
 
     public function category()
     {

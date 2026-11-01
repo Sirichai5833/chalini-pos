@@ -1,3 +1,4 @@
+
 @extends('layouts.layout')
 
 @section('content')
@@ -28,16 +29,12 @@
             <a href="{{ route('staff.stock.check.report') }}">
                 รายงานตรวจนับ
             </a>
-
             <i class="bi bi-chevron-right"></i>
-
             <span>รอบที่ {{ $check->cycle }}</span>
         </div>
 
-        <a
-            href="{{ route('staff.stock.check.report') }}"
-            class="btn btn-detail-back"
-        >
+        <a href="{{ route('staff.stock.check.report') }}"
+           class="btn btn-detail-back">
             <i class="bi bi-arrow-left me-1"></i>
             กลับหน้ารายงาน
         </a>
@@ -48,7 +45,6 @@
             <div class="summary-icon">
                 <i class="bi bi-calendar-event"></i>
             </div>
-
             <div>
                 <div class="summary-label">วันที่ตรวจสอบ</div>
                 <div class="summary-value">
@@ -61,7 +57,6 @@
             <div class="summary-icon">
                 <i class="bi bi-arrow-repeat"></i>
             </div>
-
             <div>
                 <div class="summary-label">รอบการนับ</div>
                 <div class="summary-value summary-cycle">
@@ -74,7 +69,6 @@
             <div class="summary-icon">
                 <i class="bi bi-person-badge"></i>
             </div>
-
             <div>
                 <div class="summary-label">ผู้ตรวจสอบ</div>
                 <div class="summary-value">
@@ -87,7 +81,6 @@
             <div class="summary-icon">
                 <i class="bi bi-box-seam"></i>
             </div>
-
             <div>
                 <div class="summary-label">จำนวนรายการ</div>
                 <div class="summary-value">
@@ -98,6 +91,8 @@
     </div>
 
     <div class="detail-card">
+
+        {{-- Header --}}
         <div class="detail-card-header">
             <div>
                 <div class="detail-card-kicker">ITEMS</div>
@@ -106,10 +101,20 @@
                     รายการสินค้าที่ตรวจนับ
                 </h5>
             </div>
+
+            <button type="button"
+                    class="btn btn-export-excel"
+                    onclick="exportStockCheckExcel()">
+                <i class="bi bi-file-earmark-excel me-2"></i>
+                Export Excel
+            </button>
         </div>
 
+        {{-- Table --}}
         <div class="table-responsive detail-table-wrap">
-            <table class="table detail-table align-middle mb-0">
+            <table id="stockCheckTable"
+                   class="table detail-table align-middle mb-0">
+
                 <thead>
                     <tr>
                         <th style="width: 32%;">สินค้า</th>
@@ -126,6 +131,7 @@
                         @php
                             $isEqual = (float) $item->diff_qty === 0.0;
                             $isOver = (float) $item->diff_qty > 0;
+
                             $rowClass = $isEqual
                                 ? 'row-equal'
                                 : ($isOver ? 'row-over' : 'row-short');
@@ -189,12 +195,11 @@
                             </td>
                         </tr>
                     @empty
-                        <tr>
+                        <tr class="empty-data-row">
                             <td colspan="6" class="text-center py-5">
                                 <div class="detail-empty-icon">
                                     <i class="bi bi-inbox"></i>
                                 </div>
-
                                 <div class="detail-empty-title">
                                     ไม่พบรายการตรวจนับ
                                 </div>
@@ -206,10 +211,7 @@
         </div>
 
         <div class="detail-card-footer">
-            <span>
-                รายการทั้งหมด
-            </span>
-
+            <span>รายการทั้งหมด</span>
             <strong>
                 {{ number_format($check->items->count()) }} รายการ
             </strong>
@@ -413,6 +415,11 @@
     }
 
     .detail-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
         padding: 1rem 1.25rem;
         border-bottom: 1px solid var(--detail-border);
         background: linear-gradient(135deg, #202020, #111);
@@ -423,6 +430,27 @@
         color: #fff;
         font-size: 1rem;
         font-weight: 900;
+    }
+
+    /* Export Excel Button */
+    .btn-export-excel {
+        min-height: 42px;
+        padding: .65rem 1rem;
+        border: 1px solid #198754;
+        border-radius: 11px;
+        background: #198754;
+        color: #fff;
+        font-size: .85rem;
+        font-weight: 900;
+        transition: all .2s ease;
+    }
+
+    .btn-export-excel:hover {
+        background: #157347;
+        border-color: #157347;
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(25, 135, 84, .25);
     }
 
     .detail-table {
@@ -603,6 +631,150 @@
         .summary-grid {
             grid-template-columns: 1fr;
         }
+
+        .btn-export-excel {
+            width: 100%;
+        }
     }
 </style>
+
+<script>
+function exportStockCheckExcel() {
+    const table = document.getElementById('stockCheckTable');
+
+    if (!table) {
+        alert('ไม่พบตารางข้อมูล');
+        return;
+    }
+
+    // ตรวจสอบข้อมูลก่อน Export
+    const rows = table.querySelectorAll('tbody tr');
+
+    if (
+        rows.length === 0 ||
+        table.querySelector('.empty-data-row')
+    ) {
+        alert('ไม่มีข้อมูลสำหรับ Export');
+        return;
+    }
+
+    // สร้างตารางใหม่สำหรับ Excel
+    const exportTable = document.createElement('table');
+
+    // คัดลอกหัวตาราง
+    const thead = table.querySelector('thead').cloneNode(true);
+    exportTable.appendChild(thead);
+
+    // สร้างข้อมูลใหม่โดยไม่เอา HTML และ Icon ไปด้วย
+    const tbody = document.createElement('tbody');
+
+    table.querySelectorAll('tbody tr:not(.empty-data-row)').forEach(row => {
+        const newRow = document.createElement('tr');
+
+        row.querySelectorAll('td').forEach(cell => {
+            const newCell = document.createElement('td');
+
+            // ดึงเฉพาะข้อความ ไม่เอาไอคอน
+            newCell.textContent = cell.innerText
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            newRow.appendChild(newCell);
+        });
+
+        tbody.appendChild(newRow);
+    });
+
+    exportTable.appendChild(tbody);
+
+    // ข้อมูลส่วนหัวรายงาน
+    const cycle = @json($check->cycle);
+    const checkDate = @json(\Carbon\Carbon::parse($check->check_date)->format('d/m/Y'));
+    const checker = @json($check->user->name ?? '-');
+    const itemCount = @json($check->items->count());
+
+    // สร้าง HTML สำหรับ Excel
+    const html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office"
+          xmlns:x="urn:schemas-microsoft-com:office:excel"
+          xmlns="http://www.w3.org/TR/REC-html40">
+
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {
+                font-family: Tahoma, sans-serif;
+                font-size: 11pt;
+            }
+
+            h2 {
+                font-size: 18pt;
+                font-weight: bold;
+            }
+
+            .info {
+                font-size: 11pt;
+            }
+
+            table {
+                border-collapse: collapse;
+                width: 100%;
+            }
+
+            th {
+                background-color: #198754;
+                color: #ffffff;
+                font-weight: bold;
+                text-align: center;
+                border: 1px solid #333333;
+                padding: 10px;
+            }
+
+            td {
+                border: 1px solid #999999;
+                padding: 8px;
+                vertical-align: middle;
+            }
+
+            td:nth-child(n+2) {
+                text-align: center;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h2>รายงานตรวจนับสต็อก</h2>
+
+        <p class="info">รอบการตรวจนับ: ${cycle}</p>
+        <p class="info">วันที่ตรวจสอบ: ${checkDate}</p>
+        <p class="info">ผู้ตรวจสอบ: ${checker}</p>
+        <p class="info">จำนวนรายการ: ${itemCount} รายการ</p>
+
+        ${exportTable.outerHTML}
+
+    </body>
+    </html>`;
+
+    // สร้างไฟล์ Excel
+    const blob = new Blob(
+        ['\ufeff', html],
+        {
+            type: 'application/vnd.ms-excel;charset=utf-8;'
+        }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = `รายงานตรวจนับสต็อก_รอบที่_${cycle}.xls`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+</script>
+
 @endsection

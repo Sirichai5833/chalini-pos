@@ -478,7 +478,7 @@
                             </div>
 
                             <div class="mb-3">
-                                <label for="description" class="form-label">ของแถม / รายละเอียดเพิ่มเติม</label>
+                                <label for="description" class="form-label">ของแถม</label>
                                 <textarea
                                     name="description"
                                     id="description"

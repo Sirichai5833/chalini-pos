@@ -637,12 +637,6 @@
                                                 เลือกตำแหน่ง
                                             </option>
 
-                                            <option
-                                                value="owner"
-                                                {{ old('role') === 'owner' ? 'selected' : '' }}
-                                            >
-                                                เจ้าของร้าน
-                                            </option>
 
                                             <option
                                                 value="admin"
@@ -651,12 +645,6 @@
                                                 แอดมิน
                                             </option>
 
-                                            <option
-                                                value="manager"
-                                                {{ old('role') === 'manager' ? 'selected' : '' }}
-                                            >
-                                                ผู้จัดการ
-                                            </option>
 
                                             <option
                                                 value="staff"

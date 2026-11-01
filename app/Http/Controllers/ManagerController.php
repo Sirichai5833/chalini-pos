@@ -10,11 +10,232 @@ use Illuminate\Http\Request;
 
 class ManagerController extends Controller
 {
+    /**
+     * วิธีชำระเงิน QR / เงินโอนหน้าร้าน
+     */
+    private function storeTransferMethods(): array
+    {
+        return [
+            'qr',
+            'qrcode',
+            'qr_code',
+            'qr code',
+            'promptpay',
+            'prompt_pay',
+            'transfer',
+            'bank_transfer',
+            'bank transfer',
+            'โอน',
+            'โอนเงิน',
+            'โอนผ่านบัญชีธนาคาร',
+            'พร้อมเพย์',
+        ];
+    }
+
+    /**
+     * วิธีชำระเงิน QR / เงินโอนออนไลน์
+     */
+    private function onlineTransferMethods(): array
+    {
+        return [
+            'โอนผ่านบัญชีธนาคาร',
+            'โอนเงิน',
+            'transfer',
+            'bank_transfer',
+            'bank transfer',
+            'qr',
+            'qrcode',
+            'qr_code',
+            'qr code',
+            'promptpay',
+            'prompt_pay',
+            'พร้อมเพย์',
+        ];
+    }
+
+    /**
+     * วิธีชำระเงิน COD
+     */
+    private function onlineCodMethods(): array
+    {
+        return [
+            'เก็บเงินปลายทาง',
+            'cod',
+            'cash_on_delivery',
+        ];
+    }
+
+    /**
+     * สรุปยอดขายหน้าร้านตามกะ
+     */
+    private function summarizeStoreSales($shiftId): array
+    {
+        $query = Sale::query()
+            ->where('shift_id', $shiftId)
+            ->where('status', 'completed')
+            ->whereNull('cancelled_at');
+
+        $cash = (float) (clone $query)
+            ->where('payment_method', 'cash')
+            ->sum('total_price');
+
+        $qr = (float) (clone $query)
+            ->whereIn(
+                'payment_method',
+                $this->storeTransferMethods()
+            )
+            ->sum('total_price');
+
+        $card = (float) (clone $query)
+            ->where('payment_method', 'card')
+            ->sum('total_price');
+
+        $credit = (float) (clone $query)
+            ->where('payment_method', 'credit')
+            ->sum('total_price');
+
+        $total = (float) (clone $query)
+            ->sum('total_price');
+
+        $bills = (int) (clone $query)
+            ->count();
+
+        return [
+            'cash' => $cash,
+            'qr' => $qr,
+            'card' => $card,
+            'credit' => $credit,
+            'total' => $total,
+            'bills' => $bills,
+        ];
+    }
+
+    /**
+     * สรุปยอดขายออนไลน์ตามช่วงเวลา
+     */
+    private function summarizeOnlineSales($from, $to): array
+    {
+        $query = Order::query()
+            ->whereBetween('created_at', [$from, $to])
+            ->where('status', 'เสร็จสิ้น');
+
+        $qr = (float) (clone $query)
+            ->whereIn(
+                'payment_method',
+                $this->onlineTransferMethods()
+            )
+            ->sum('total_amount');
+
+        $cod = (float) (clone $query)
+            ->whereIn(
+                'payment_method',
+                $this->onlineCodMethods()
+            )
+            ->sum('total_amount');
+
+        $total = (float) (clone $query)
+            ->sum('total_amount');
+
+        $bills = (int) (clone $query)
+            ->count();
+
+        return [
+            'qr' => $qr,
+            'cod' => $cod,
+            'total' => $total,
+            'bills' => $bills,
+        ];
+    }
+
+    /**
+     * คำนวณเงินของกะ
+     */
+    private function calculateShiftMoney(
+        $shift,
+        array $store,
+        array $online
+    ): array {
+        $openingCash = (float) $shift->opening_cash;
+
+        $cashIn = (float) ($shift->cash_in ?? 0);
+        $cashOut = (float) ($shift->cash_out ?? 0);
+
+        // เงินสดที่รับจริง
+        $combinedCash =
+            $store['cash']
+            + $online['cod'];
+
+        // เงิน QR / เงินโอน
+        $combinedQr =
+            $store['qr']
+            + $online['qr'];
+
+        // เงินจากบัตรและเครดิต
+        $combinedOther =
+            $store['card']
+            + $store['credit'];
+
+        // ยอดขายทั้งหมด
+        $totalSales =
+            $combinedCash
+            + $combinedQr
+            + $combinedOther;
+
+        // เงินสดที่ควรมีในลิ้นชัก
+        $expectedCash =
+            $openingCash
+            + $combinedCash
+            + $cashIn
+            - $cashOut;
+
+        // ยอด QR ที่ควรได้รับ
+        $expectedQr = $combinedQr;
+
+        // เงินที่คาดว่าจะนำส่ง โดยเก็บเงินทอนตั้งต้นไว้
+        $estimatedRemit =
+            $expectedCash - $openingCash;
+
+        return [
+            'opening_cash' => $openingCash,
+
+            'cash_sales' => $store['cash'],
+            'qr_sales' => $store['qr'],
+
+            'online_qr_sales' => $online['qr'],
+            'online_cod_sales' => $online['cod'],
+
+            'combined_cash_sales' => $combinedCash,
+            'combined_qr_sales' => $combinedQr,
+            'combined_other_sales' => $combinedOther,
+
+            'total_sales' => $totalSales,
+
+            'offline_sales' => $store['total'],
+            'offline_bills' => $store['bills'],
+
+            'online_sales' => $online['total'],
+            'online_bills' => $online['bills'],
+
+            'total_bills' =>
+                $store['bills'] + $online['bills'],
+
+            'cash_in_total' => $cashIn,
+            'cash_out_total' => $cashOut,
+
+            'calculated_expected_cash' => $expectedCash,
+            'expected_cash' => $expectedCash,
+            'expected_qr' => $expectedQr,
+
+            'cash_to_keep' => $openingCash,
+            'cash_to_remit' => $estimatedRemit,
+        ];
+    }
+
     public function dashboard(Request $request)
     {
         /*
         |--------------------------------------------------------------------------
-        | 1. สรุปยอดขายหน้าร้านวันนี้
+        | 1. ยอดขายวันนี้
         |--------------------------------------------------------------------------
         */
 
@@ -34,23 +255,16 @@ class ManagerController extends Controller
             ->sum('total_price');
 
         $qrSales = (float) (clone $todaySales)
-            ->whereIn('payment_method', [
-                'qr',
-                'transfer',
-                'โอน',
-                'promptpay',
-            ])
+            ->whereIn(
+                'payment_method',
+                $this->storeTransferMethods()
+            )
             ->sum('total_price');
 
         /*
         |--------------------------------------------------------------------------
-        | 2. สรุปยอดขายออนไลน์วันนี้
+        | 2. ยอดขายออนไลน์วันนี้
         |--------------------------------------------------------------------------
-        |
-        | ตาราง orders ไม่มี payment_status
-        | จึงนับเฉพาะ status = เสร็จสิ้น
-        | และไม่รวม status = ยกเลิก
-        |
         */
 
         $todayOnlineOrders = Order::query()
@@ -64,15 +278,31 @@ class ManagerController extends Controller
             ->count();
 
         $onlineQrSales = (float) (clone $todayOnlineOrders)
-            ->where('payment_method', 'โอนผ่านบัญชีธนาคาร')
+            ->whereIn(
+                'payment_method',
+                $this->onlineTransferMethods()
+            )
             ->sum('total_amount');
 
         $onlineCodSales = (float) (clone $todayOnlineOrders)
-            ->where('payment_method', 'เก็บเงินปลายทาง')
+            ->whereIn(
+                'payment_method',
+                $this->onlineCodMethods()
+            )
             ->sum('total_amount');
 
-        $totalSales = $offlineTotalSales + $onlineTotalSales;
-        $totalBills = $offlineTotalBills + $onlineTotalBills;
+        $totalSales =
+            $offlineTotalSales + $onlineTotalSales;
+
+        $totalBills =
+            $offlineTotalBills + $onlineTotalBills;
+
+        // ยอดขายรวมแยกตามช่องทาง
+        $combinedCashSales =
+            $cashSales + $onlineCodSales;
+
+        $combinedQrSales =
+            $qrSales + $onlineQrSales;
 
         /*
         |--------------------------------------------------------------------------
@@ -80,124 +310,58 @@ class ManagerController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $validSale = static function ($query) {
-            $query
-                ->where('status', 'completed')
-                ->whereNull('cancelled_at');
-        };
-
         $openShifts = Shift::query()
             ->with([
                 'user',
                 'shiftType',
             ])
-            ->withCount([
-                'sales as sales_count' => $validSale,
-            ])
-            ->withSum([
-                'sales as sales_sum_total_price' => $validSale,
-            ], 'total_price')
-            ->withSum([
-                'sales as cash_sales_sum_total_price' => function ($query) {
-                    $query
-                        ->where('status', 'completed')
-                        ->whereNull('cancelled_at')
-                        ->where('payment_method', 'cash');
-                },
-            ], 'total_price')
-            ->withSum([
-                'sales as qr_sales_sum_total_price' => function ($query) {
-                    $query
-                        ->where('status', 'completed')
-                        ->whereNull('cancelled_at')
-                        ->whereIn('payment_method', [
-                            'qr',
-                            'transfer',
-                            'โอน',
-                            'promptpay',
-                        ]);
-                },
-            ], 'total_price')
             ->where('status', 'open')
             ->latest('opened_at')
             ->paginate(15);
 
         foreach ($openShifts as $shift) {
-            $shift->offline_sales = (float) (
-                $shift->sales_sum_total_price ?? 0
+
+            $store = $this->summarizeStoreSales(
+                $shift->id
             );
 
-            $shift->offline_bills = (int) (
-                $shift->sales_count ?? 0
+            $online = $this->summarizeOnlineSales(
+                $shift->opened_at,
+                now()
             );
 
-            $shift->cash_sales = (float) (
-                $shift->cash_sales_sum_total_price ?? 0
+            $money = $this->calculateShiftMoney(
+                $shift,
+                $store,
+                $online
             );
 
-            $shift->qr_sales = (float) (
-                $shift->qr_sales_sum_total_price ?? 0
-            );
+            foreach ($money as $key => $value) {
+                $shift->{$key} = $value;
+            }
 
             /*
-             * Order ไม่มี shift_id
-             * จึงจับยอดออนไลน์ด้วยช่วงเวลาเปิดกะถึงเวลาปัจจุบัน
+             * ยอดขายแยกตามประเภท
              */
-            $shiftOnlineOrders = Order::query()
-                ->whereBetween('created_at', [
-                    $shift->opened_at,
-                    now(),
-                ])
-                ->where('status', 'เสร็จสิ้น');
+            $shift->cash_sales = $store['cash'];
+            $shift->qr_sales = $store['qr'];
 
-            $shift->online_sales = (float) (clone $shiftOnlineOrders)
-                ->sum('total_amount');
+            $shift->online_qr_sales = $online['qr'];
+            $shift->online_cod_sales = $online['cod'];
 
-            $shift->online_bills = (int) (clone $shiftOnlineOrders)
-                ->count();
+            $shift->online_sales = $online['total'];
+            $shift->online_bills = $online['bills'];
 
-            $shift->online_qr_sales = (float) (clone $shiftOnlineOrders)
-                ->where(
-                    'payment_method',
-                    'โอนผ่านบัญชีธนาคาร'
-                )
-                ->sum('total_amount');
+            $shift->sales_count =
+                $store['bills'];
 
-            $shift->online_cod_sales = (float) (clone $shiftOnlineOrders)
-                ->where(
-                    'payment_method',
-                    'เก็บเงินปลายทาง'
-                )
-                ->sum('total_amount');
-
-            $shift->total_sales =
-                $shift->offline_sales
-                + $shift->online_sales;
-
-            $shift->total_bills =
-                $shift->offline_bills
-                + $shift->online_bills;
-
-            $cashIn = (float) ($shift->cash_in ?? 0);
-            $cashOut = (float) ($shift->cash_out ?? 0);
-
-            /*
-             * เงินสดที่ควรมีไม่นับยอดออนไลน์
-             * เพราะ QR และ COD ไม่ใช่เงินสดในลิ้นชัก
-             */
-            $shift->calculated_expected_cash =
-                (float) $shift->opening_cash
-                + $shift->cash_sales
-                + $cashIn
-                - $cashOut;
-
-            $shift->cash_in_total = $cashIn;
-            $shift->cash_out_total = $cashOut;
+            $shift->sales_sum_total_price =
+                $store['total'];
         }
 
         /*
         |--------------------------------------------------------------------------
-        | 4. ประวัติกะย้อนหลัง
+        | 4. กรองประวัติกะย้อนหลัง
         |--------------------------------------------------------------------------
         */
 
@@ -207,7 +371,9 @@ class ManagerController extends Controller
         $to = now()->endOfDay();
 
         switch ($range) {
+
             case 'yesterday':
+
                 $from = now()
                     ->subDay()
                     ->startOfDay();
@@ -215,26 +381,28 @@ class ManagerController extends Controller
                 $to = now()
                     ->subDay()
                     ->endOfDay();
+
                 break;
 
             case '7days':
+
                 $from = now()
                     ->subDays(6)
                     ->startOfDay();
 
-                $to = now()
-                    ->endOfDay();
+                $to = now()->endOfDay();
+
                 break;
 
             case 'month':
-                $from = now()
-                    ->startOfMonth();
 
-                $to = now()
-                    ->endOfDay();
+                $from = now()->startOfMonth();
+                $to = now()->endOfDay();
+
                 break;
 
             case 'custom':
+
                 if ($request->filled('from')) {
                     $from = Carbon::parse(
                         $request->from
@@ -246,8 +414,15 @@ class ManagerController extends Controller
                         $request->to
                     )->endOfDay();
                 }
+
                 break;
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | 5. ประวัติกะที่ปิดแล้ว
+        |--------------------------------------------------------------------------
+        */
 
         $closedShifts = Shift::query()
             ->with([
@@ -255,12 +430,6 @@ class ManagerController extends Controller
                 'shiftType',
                 'closedBy',
             ])
-            ->withCount([
-                'sales as sales_count' => $validSale,
-            ])
-            ->withSum([
-                'sales as offline_sales' => $validSale,
-            ], 'total_price')
             ->where('status', 'closed')
             ->whereBetween('opened_at', [$from, $to])
             ->latest('opened_at')
@@ -268,41 +437,107 @@ class ManagerController extends Controller
             ->withQueryString();
 
         foreach ($closedShifts as $shift) {
-            $closedAt = $shift->closed_at ?? $shift->opened_at;
 
-            $shiftOnlineOrders = Order::query()
-                ->whereBetween('created_at', [
-                    $shift->opened_at,
-                    $closedAt,
-                ])
-                ->where('status', 'เสร็จสิ้น');
+            $closedAt = $shift->closed_at
+                ?? $shift->opened_at;
 
-            $shift->online_sales = (float) (clone $shiftOnlineOrders)
-                ->sum('total_amount');
+            $store = $this->summarizeStoreSales(
+                $shift->id
+            );
 
-            $shift->online_bills = (int) (clone $shiftOnlineOrders)
-                ->count();
+            $online = $this->summarizeOnlineSales(
+                $shift->opened_at,
+                $closedAt
+            );
+
+            $money = $this->calculateShiftMoney(
+                $shift,
+                $store,
+                $online
+            );
+
+            foreach ($money as $key => $value) {
+                $shift->{$key} = $value;
+            }
+
+            /*
+             * เงินที่นับได้จริงตอนปิดกะ
+             */
+            $closingCash = (float) (
+                $shift->getRawOriginal('closing_cash') ?? 0
+            );
+
+            $closingQr = (float) (
+                $shift->getRawOriginal('closing_qr') ?? 0
+            );
+
+            $shift->closing_cash = $closingCash;
+            $shift->closing_qr = $closingQr;
+
+            /*
+             * คำนวณเงินขาด / เกินใหม่
+             */
+            $shift->cash_difference =
+                $closingCash - $money['calculated_expected_cash'];
+
+            $shift->qr_difference =
+                $closingQr - $money['expected_qr'];
+
+            /*
+             * เงินที่นำส่งจริงหลังเก็บเงินทอนตั้งต้น
+             */
+            $shift->cash_to_remit =
+                $closingCash - $money['opening_cash'];
+
+            $shift->cash_to_keep =
+                $money['opening_cash'];
 
             $shift->total_sales =
-                (float) ($shift->offline_sales ?? 0)
-                + $shift->online_sales;
+                $money['total_sales'];
+
+            $shift->total_bills =
+                $money['total_bills'];
+
+            $shift->offline_sales =
+                $store['total'];
+
+            $shift->online_sales =
+                $online['total'];
+
+            $shift->online_bills =
+                $online['bills'];
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | 6. ส่งข้อมูลไปยัง Dashboard
+        |--------------------------------------------------------------------------
+        */
 
         return view(
             'manager.dashboard',
             compact(
                 'totalSales',
                 'totalBills',
+
                 'offlineTotalSales',
                 'offlineTotalBills',
+
                 'cashSales',
                 'qrSales',
+
                 'onlineTotalSales',
                 'onlineTotalBills',
+
                 'onlineQrSales',
                 'onlineCodSales',
+
+                'combinedCashSales',
+                'combinedQrSales',
+
                 'openShifts',
                 'closedShifts',
+
                 'range'
             )
         );

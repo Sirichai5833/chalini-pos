@@ -9,6 +9,7 @@ use App\Models\ProductStockMovement;
 use App\Models\ProductStocks;
 use App\Models\ProductUnit;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 
 class StockController extends Controller
@@ -105,6 +106,7 @@ class StockController extends Controller
                                 'unit' => $bigUnit->unit_name,
                                 'unit_quantity' => $bigUnit->unit_quantity,
                                 'location' => 'warehouse',
+                                'user_id' => Auth::id(),
                                 'note' => 'แตกหน่วย',
                             ]);
 
@@ -115,6 +117,7 @@ class StockController extends Controller
                                 'unit' => $unit->unit_name,
                                 'unit_quantity' => $unit->unit_quantity,
                                 'location' => 'warehouse',
+                                'user_id' => Auth::id(),
                                 'note' => 'รับจากการแตกหน่วย',
                             ]);
                         }
@@ -142,6 +145,7 @@ class StockController extends Controller
                     'unit' => $unit->unit_name,
                     'unit_quantity' => $unit->unit_quantity,
                     'location' => 'warehouse',
+                    'user_id' => Auth::id(),
                     'note' => 'ย้ายไปหน้าร้าน',
                 ]);
 
@@ -152,6 +156,7 @@ class StockController extends Controller
                     'unit' => $unit->unit_name,
                     'unit_quantity' => $unit->unit_quantity,
                     'location' => 'store',
+                    'user_id' => Auth::id(),
                     'note' => '[ย้ายคลัง]ย้ายเข้าหน้าร้าน',
                 ]);
             }

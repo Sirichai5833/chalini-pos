@@ -1157,239 +1157,274 @@ private function normalizePublicImagePath(
         $product = Product::with('activities.causer')->findOrFail($id);
         return view('products.show-histroy', compact('product'));
     }
-    public function allHistory(Request $request)
-    {
-        $query = Activity::where('log_name', 'product')->with(['subject', 'causer']);
+   public function allHistory(Request $request)
+{
+    $query = Activity::where('log_name', 'product')
+        ->where('subject_type', Product::class)
+        ->with(['subject', 'causer']);
 
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-
-        if ($request->filled('event')) {
-            // ถ้ามีการเลือกประเภท event
-            $query->where('event', $request->event);
-        } else {
-            // ถ้าไม่เลือกประเภท → ตัด stock_added ออก
-            $query->where('event', '!=', 'stock_added');
-        }
-
-        $activities = $query->latest()->paginate(20);
-
-        return view('products.show-histroy', compact('activities'));
+    if ($request->filled('date_from')) {
+        $query->whereDate('created_at', '>=', $request->date_from);
     }
 
+    if ($request->filled('date_to')) {
+        $query->whereDate('created_at', '<=', $request->date_to);
+    }
+
+    if ($request->filled('event')) {
+        $query->where('event', $request->event);
+    } else {
+        $query->whereNotIn('event', [
+            'stock_added',
+        ]);
+    }
+
+    $activities = $query
+        ->latest()
+        ->paginate(20)
+        ->withQueryString();
+
+    return view(
+        'products.show-histroy',
+        compact('activities')
+    );
+}
 
 public function searchStockInHistory(Request $request)
 {
     $validated = $request->validate([
+        'received_by' => ['nullable', 'integer', 'exists:users,id'],
         'search' => ['nullable', 'string', 'max:255'],
         'receipt_number' => ['nullable', 'string', 'max:50'],
         'reference_number' => ['nullable', 'string', 'max:100'],
-        'supplier_id' => [
-            'nullable',
-            'integer',
-            'exists:suppliers,id',
-        ],
-        'location' => [
-            'nullable',
-            Rule::in(['warehouse', 'store']),
-        ],
-        'is_free' => [
-            'nullable',
-            Rule::in(['0', '1']),
-        ],
+        'supplier_id' => ['nullable', 'integer', 'exists:suppliers,id'],
+        'location' => ['nullable', Rule::in(['warehouse', 'store'])],
+        'is_free' => ['nullable', Rule::in(['0', '1'])],
         'from' => ['nullable', 'date'],
-        'to' => [
-            'nullable',
-            'date',
-            'after_or_equal:from',
-        ],
+        'to' => ['nullable', 'date', 'after_or_equal:from'],
         'print' => ['nullable', 'boolean'],
     ]);
 
     $search = trim((string) ($validated['search'] ?? ''));
-    $receiptNumber = trim(
-        (string) ($validated['receipt_number'] ?? '')
-    );
-    $referenceNumber = trim(
-        (string) ($validated['reference_number'] ?? '')
-    );
+    $receiptNumber = trim((string) ($validated['receipt_number'] ?? ''));
+    $referenceNumber = trim((string) ($validated['reference_number'] ?? ''));
+
+    $receivedBy = $validated['received_by'] ?? null;
     $supplierId = $validated['supplier_id'] ?? null;
     $location = $validated['location'] ?? null;
     $isFree = $validated['is_free'] ?? null;
     $from = $validated['from'] ?? null;
     $to = $validated['to'] ?? null;
+
     $isPrint = $request->boolean('print');
 
     /*
     |--------------------------------------------------------------------------
-    | แสดงเฉพาะการรับสินค้าเข้าจากเอกสารรับสินค้า
+    | Query ใบรับสินค้า: 1 แถวต่อ 1 ใบรับ
     |--------------------------------------------------------------------------
-    | stock_receipt_id ต้องไม่เป็น NULL จึงไม่รวม:
-    | - คืนสินค้าจากการยกเลิกขาย
-    | - ย้ายคลัง
-    | - ปรับยอดสต็อก
-    | - รายการเข้าอื่นที่ไม่ได้สร้างจากเอกสารรับสินค้า
     */
-    $query = ProductStockMovement::query()
+    $query = DB::table('stock_receipts as sr')
+        ->leftJoin('suppliers as s', 's.id', '=', 'sr.supplier_id')
+        ->leftJoin('users as u', 'u.id', '=', 'sr.received_by')
+        ->where('sr.status', 'completed')
         ->select([
-            'product_stock_movements.*',
-            'stock_receipts.receipt_number',
-            'stock_receipts.reference_number',
-            'stock_receipts.received_date',
-            'stock_receipts.supplier_id',
-            'suppliers.name as supplier_name',
+            'sr.id',
+            'sr.receipt_number',
+            'sr.supplier_id',
+            'sr.reference_number',
+            'sr.received_date',
+            'sr.received_by',
+            'sr.note',
+            'sr.status',
+            'sr.created_at',
+            's.name as supplier_name',
+            'u.name as received_by_name',
         ])
-        ->join(
-            'stock_receipts',
-            'stock_receipts.id',
-            '=',
-            'product_stock_movements.stock_receipt_id'
+        ->selectSub(
+            DB::table('stock_receipt_items as count_items')
+                ->selectRaw('COUNT(*)')
+                ->whereColumn('count_items.stock_receipt_id', 'sr.id'),
+            'item_count'
         )
-        ->leftJoin(
-            'suppliers',
-            'suppliers.id',
-            '=',
-            'stock_receipts.supplier_id'
-        )
-        ->with('product')
-        ->where('product_stock_movements.type', 'in')
-        ->whereNotNull(
-            'product_stock_movements.stock_receipt_id'
-        )
-        ->where('stock_receipts.status', 'completed')
-        ->when(
-            $search !== '',
-            function ($query) use ($search) {
-                $query->where(function ($filter) use ($search) {
-                    $filter
-                        ->whereHas(
-                            'product',
-                            function ($productQuery) use ($search) {
-                                $productQuery
-                                    ->where(
-                                        'name',
-                                        'like',
-                                        "%{$search}%"
-                                    )
-                                    ->orWhere(
-                                        'barcode',
-                                        'like',
-                                        "%{$search}%"
-                                    )
-                                    ->orWhereHas(
-                                        'productUnits',
-                                        fn ($unitQuery) =>
-                                            $unitQuery->where(
-                                                'barcode',
-                                                'like',
-                                                "%{$search}%"
-                                            )
-                                    );
-                            }
-                        )
-                        ->orWhere(
-                            'product_stock_movements.unit',
-                            'like',
-                            "%{$search}%"
-                        );
-                });
-            }
-        )
-        ->when(
-            $receiptNumber !== '',
-            fn ($query) =>
-                $query->where(
-                    'stock_receipts.receipt_number',
-                    'like',
-                    "%{$receiptNumber}%"
-                )
-        )
-        ->when(
-            $referenceNumber !== '',
-            fn ($query) =>
-                $query->where(
-                    'stock_receipts.reference_number',
-                    'like',
-                    "%{$referenceNumber}%"
-                )
-        )
-        ->when(
-            $supplierId,
-            fn ($query) =>
-                $query->where(
-                    'stock_receipts.supplier_id',
-                    $supplierId
-                )
-        )
-        ->when(
-            $location,
-            fn ($query) =>
-                $query->where(
-                    'product_stock_movements.location',
-                    $location
-                )
-        )
-        ->when(
-            $isFree !== null && $isFree !== '',
-            fn ($query) =>
-                $query->where(
-                    'product_stock_movements.is_free',
-                    (int) $isFree
-                )
-        )
-        ->when(
-            $from,
-            fn ($query) =>
-                $query->whereDate(
-                    'stock_receipts.received_date',
-                    '>=',
-                    $from
-                )
-        )
-        ->when(
-            $to,
-            fn ($query) =>
-                $query->whereDate(
-                    'stock_receipts.received_date',
-                    '<=',
-                    $to
-                )
-        )
-        ->orderByDesc('stock_receipts.received_date')
-        ->orderByDesc('product_stock_movements.id');
+        ->selectSub(
+            DB::table('stock_receipt_items as sum_items')
+                ->selectRaw('COALESCE(SUM(sum_items.quantity), 0)')
+                ->whereColumn('sum_items.stock_receipt_id', 'sr.id'),
+            'total_quantity'
+        );
 
-    $movements = $isPrint
+    // ค้นหาชื่อสินค้า บาร์โค้ด หรือหน่วยสินค้าในใบรับ
+    if ($search !== '') {
+        $query->whereExists(function ($subQuery) use ($search) {
+            $subQuery->selectRaw('1')
+                ->from('stock_receipt_items as ri')
+                ->join('products as p', 'p.id', '=', 'ri.product_id')
+                ->leftJoin(
+                    'product_units as pu',
+                    'pu.id',
+                    '=',
+                    'ri.product_unit_id'
+                )
+                ->whereColumn('ri.stock_receipt_id', 'sr.id')
+                ->where(function ($filter) use ($search) {
+                    $filter->where('p.name', 'like', "%{$search}%")
+                        ->orWhere('p.barcode', 'like', "%{$search}%")
+                        ->orWhere('pu.barcode', 'like', "%{$search}%")
+                        ->orWhere('pu.unit_name', 'like', "%{$search}%");
+                });
+        });
+    }
+
+    if ($receiptNumber !== '') {
+        $query->where(
+            'sr.receipt_number',
+            'like',
+            "%{$receiptNumber}%"
+        );
+    }
+
+    if ($referenceNumber !== '') {
+        $query->where(
+            'sr.reference_number',
+            'like',
+            "%{$referenceNumber}%"
+        );
+    }
+
+    if ($receivedBy !== null && $receivedBy !== '') {
+        $query->where('sr.received_by', $receivedBy);
+    }
+
+    if ($supplierId !== null && $supplierId !== '') {
+        $query->where('sr.supplier_id', $supplierId);
+    }
+
+    // กรองคลังสินค้า / หน้าร้าน
+    if ($location !== null && $location !== '') {
+        $query->whereExists(function ($subQuery) use ($location) {
+            $subQuery->selectRaw('1')
+                ->from('stock_receipt_items as ri')
+                ->whereColumn('ri.stock_receipt_id', 'sr.id')
+                ->where('ri.location', $location);
+        });
+    }
+
+    // กรองสินค้าแถม / ไม่ใช่สินค้าแถม
+    if ($isFree !== null && $isFree !== '') {
+        $query->whereExists(function ($subQuery) use ($isFree) {
+            $subQuery->selectRaw('1')
+                ->from('stock_receipt_items as ri')
+                ->whereColumn('ri.stock_receipt_id', 'sr.id')
+                ->where('ri.is_free', (int) $isFree);
+        });
+    }
+
+    if ($from) {
+        $query->whereDate('sr.received_date', '>=', $from);
+    }
+
+    if ($to) {
+        $query->whereDate('sr.received_date', '<=', $to);
+    }
+
+    $query->orderByDesc('sr.received_date')
+        ->orderByDesc('sr.id');
+
+    /*
+    |--------------------------------------------------------------------------
+    | แบ่งหน้า หรือแสดงทั้งหมดสำหรับพิมพ์
+    |--------------------------------------------------------------------------
+    */
+    $receipts = $isPrint
         ? $query->get()
         : $query->paginate(20)->withQueryString();
+
+    /*
+    |--------------------------------------------------------------------------
+    | ดึงรายละเอียดสินค้าของใบรับที่แสดงอยู่
+    |--------------------------------------------------------------------------
+    */
+    $receiptIds = $isPrint
+        ? $receipts->pluck('id')
+        : $receipts->getCollection()->pluck('id');
+
+    $itemsByReceipt = collect();
+
+    if ($receiptIds->isNotEmpty()) {
+        $itemsByReceipt = DB::table('stock_receipt_items as ri')
+            ->join('products as p', 'p.id', '=', 'ri.product_id')
+            ->leftJoin(
+                'product_units as pu',
+                'pu.id',
+                '=',
+                'ri.product_unit_id'
+            )
+            ->whereIn('ri.stock_receipt_id', $receiptIds)
+            ->select([
+                'ri.id',
+                'ri.stock_receipt_id',
+                'ri.product_id',
+                'ri.product_unit_id',
+                'ri.product_batch_id',
+                'ri.quantity',
+                'ri.unit_quantity',
+                'ri.location',
+                'ri.is_free',
+                'ri.lot_number',
+                'ri.expiry_date',
+                'p.name as product_name',
+                'p.barcode as product_barcode',
+                'pu.unit_name',
+                'pu.barcode as unit_barcode',
+            ])
+            ->orderBy('ri.id')
+            ->get()
+            ->groupBy('stock_receipt_id');
+    }
+
+    // แนบรายการสินค้าเข้าไปในแต่ละใบรับ
+    if ($isPrint) {
+        $receipts->each(function ($receipt) use ($itemsByReceipt) {
+            $receipt->items = $itemsByReceipt->get($receipt->id, collect());
+        });
+    } else {
+        $receipts->getCollection()->transform(
+            function ($receipt) use ($itemsByReceipt) {
+                $receipt->items = $itemsByReceipt->get(
+                    $receipt->id,
+                    collect()
+                );
+
+                return $receipt;
+            }
+        );
+    }
 
     $suppliers = DB::table('suppliers')
         ->where('is_active', true)
         ->orderBy('name')
         ->get(['id', 'name']);
 
-    return view(
-        'products.stock-in-history',
-        compact(
-            'movements',
-            'suppliers',
-            'search',
-            'receiptNumber',
-            'referenceNumber',
-            'supplierId',
-            'location',
-            'isFree',
-            'from',
-            'to',
-            'isPrint'
-        )
-    );
-}
+    $receivers = DB::table('users')
+        ->orderBy('name')
+        ->get(['id', 'name']);
 
+    return view('products.stock-in-history', compact(
+        'receipts',
+        'suppliers',
+        'receivers',
+        'search',
+        'receiptNumber',
+        'referenceNumber',
+        'supplierId',
+        'location',
+        'isFree',
+        'from',
+        'to',
+        'isPrint',
+        'receivedBy'
+    ));
+}
 public function movementHistory(Request $request)
 {
     $search = $request->input('search');

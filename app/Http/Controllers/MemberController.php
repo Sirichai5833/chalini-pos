@@ -258,7 +258,7 @@ class MemberController extends Controller
      */
     public function edit(User $member)
     {
-        abort_unless(auth()->user()?->role === 'admin', 403);
+        abort_unless(auth()->user()?->role === 'admin' || auth()->user()?->role === 'staff', 403);
 
         return view(
             'members.edit',
@@ -274,7 +274,7 @@ class MemberController extends Controller
         Request $request,
         User $member
     ) {
-        abort_unless($request->user()?->role === 'admin', 403);
+        abort_unless(auth()->user()?->role === 'admin' || auth()->user()?->role === 'staff', 403);
 
         $request->validate([
 
@@ -429,7 +429,7 @@ $member->phone =
      */
     public function destroy(User $member)
     {
-        abort_unless(auth()->user()?->role === 'admin', 403);
+        abort_unless(auth()->user()?->role === 'admin' || auth()->user()?->role === 'staff', 403);
 
         $member->delete();
 

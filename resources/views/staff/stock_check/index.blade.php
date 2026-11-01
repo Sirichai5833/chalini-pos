@@ -303,6 +303,33 @@
     </style>
 
     <div class="container-fluid py-4 stock-count-page">
+        @if (session('success'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'success',
+                title: 'บันทึกสำเร็จ!',
+                text: @json(session('success')),
+                confirmButtonText: 'ตกลง',
+                confirmButtonColor: '#198754'
+            });
+        });
+    </script>
+@endif
+
+@if (session('error'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'error',
+                title: 'บันทึกไม่สำเร็จ!',
+                text: @json(session('error')),
+                confirmButtonText: 'ตกลง',
+                confirmButtonColor: '#dc3545'
+            });
+        });
+    </script>
+@endif
         <section class="stock-count-hero">
             <div class="stock-count-hero-content">
                 <div class="stock-count-icon">
@@ -509,9 +536,44 @@
             });
 
         document
-            .querySelector('form')
-            .addEventListener('submit', function () {
-                const submitButton = this.querySelector(
+            const stockCountForm = document.querySelector(
+    'form[action="{{ route('staff.stock.check.store') }}"]'
+);
+
+let isConfirmed = false;
+
+stockCountForm.addEventListener('submit', function (event) {
+
+    // ป้องกันการส่งฟอร์มก่อนยืนยัน
+    if (!isConfirmed) {
+        event.preventDefault();
+
+        Swal.fire({
+            title: 'ยืนยันการตรวจนับสต็อก?',
+            text: 'คุณต้องการบันทึกผลการตรวจนับสต็อกใช่หรือไม่?',
+            icon: 'question',
+
+            showCancelButton: true,
+            confirmButtonText: 'ยืนยันบันทึก',
+            cancelButtonText: 'ตรวจสอบอีกครั้ง',
+
+            confirmButtonColor: '#198754',
+            cancelButtonColor: '#6c757d',
+
+            reverseButtons: true,
+            focusCancel: true,
+
+            customClass: {
+                popup: 'rounded-4',
+                confirmButton: 'rounded-3 px-4',
+                cancelButton: 'rounded-3 px-4'
+            }
+        }).then((result) => {
+
+            if (result.isConfirmed) {
+                isConfirmed = true;
+
+                const submitButton = stockCountForm.querySelector(
                     'button[type="submit"]'
                 );
 
@@ -520,6 +582,12 @@
                     submitButton.innerHTML =
                         '<i class="bi bi-hourglass-split me-2"></i>กำลังบันทึก...';
                 }
-            });
+
+                stockCountForm.submit();
+            }
+
+        });
+    }
+});
     </script>
 @endsection

@@ -297,7 +297,7 @@
 
                     $canSell = in_array($role, ['admin', 'owner', 'manager', 'staff'], true);
 
-                    $canManageProducts = in_array($role, ['admin', 'owner', 'manager'], true);
+                    $canManageProducts = in_array($role, ['admin', 'owner', 'manager', 'staff'], true);
 
                     $canViewStockAlerts = in_array($role, ['admin', 'owner', 'manager', 'staff'], true);
 
@@ -549,7 +549,12 @@
                         </li>
                     @endif
 
-                    @if ($canManageOnlineOrders)
+                   @if (
+    $canManageOnlineOrders &&
+    \App\Models\Shift::where('user_id', auth()->id())
+        ->where('status', 'open')
+        ->exists()
+)
                         <li class="nav-item mb-2">
                             <a class="nav-link d-flex justify-content-between align-items-center {{ request()->routeIs('orders.*') ? 'active' : '' }} text-white"
                                 data-bs-toggle="collapse" href="#collapseOnline" role="button" aria-expanded="false"

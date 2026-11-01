@@ -356,6 +356,62 @@
             color: #ffe46b !important;
         }
 
+        /* Product Image Gallery */
+        .product-image-wrap {
+            position: relative;
+            overflow: hidden;
+            aspect-ratio: 1 / .76;
+            border-bottom: 1px solid #292929;
+            background: linear-gradient(135deg, #202020, #101010);
+        }
+
+        .product-image-wrap .gallery-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity .2s ease;
+        }
+
+        .product-image-wrap .gallery-image[hidden] {
+            display: none !important;
+        }
+
+       .gallery-control {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    width: 35px;
+    height: 50px;
+    border: none;
+    background: rgba(0, 0, 0, .45);
+    color: #ffd43b;
+    font-size: 25px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.gallery-control:hover {
+    background: rgba(0, 0, 0, .8);
+    color: white;
+}
+
+.gallery-prev { left: 5px; }
+.gallery-next { right: 5px; }
+
+        .gallery-counter {
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+            z-index: 3;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, .75);
+            color: #fff;
+            font-size: .75rem;
+            font-weight: 700;
+        }
+
         @media (max-width: 767.98px) {
             .container-fluid.py-5.mb-3 {
                 border-radius: 0 0 22px 22px !important;
@@ -382,666 +438,670 @@
     </style>
 
 
-   @php
-    $onlineOpenTime = \Illuminate\Support\Facades\DB::table('settings')
-        ->where('key', 'open_time')
-        ->value('value');
+    @php
+        $onlineOpenTime = \Illuminate\Support\Facades\DB::table('settings')->where('key', 'open_time')->value('value');
 
-    $onlineCloseTime = \Illuminate\Support\Facades\DB::table('settings')
-        ->where('key', 'close_time')
-        ->value('value');
+        $onlineCloseTime = \Illuminate\Support\Facades\DB::table('settings')
+            ->where('key', 'close_time')
+            ->value('value');
 
-    try {
-        $onlineOpenTime = \Carbon\Carbon::parse(
-            $onlineOpenTime ?: '09:00'
-        )->format('H:i');
-    } catch (\Throwable $e) {
-        $onlineOpenTime = '09:00';
-    }
+        try {
+            $onlineOpenTime = \Carbon\Carbon::parse($onlineOpenTime ?: '09:00')->format('H:i');
+        } catch (\Throwable $e) {
+            $onlineOpenTime = '09:00';
+        }
 
-    try {
-        $onlineCloseTime = \Carbon\Carbon::parse(
-            $onlineCloseTime ?: '21:00'
-        )->format('H:i');
-    } catch (\Throwable $e) {
-        $onlineCloseTime = '21:00';
-    }
-@endphp
+        try {
+            $onlineCloseTime = \Carbon\Carbon::parse($onlineCloseTime ?: '21:00')->format('H:i');
+        } catch (\Throwable $e) {
+            $onlineCloseTime = '21:00';
+        }
+    @endphp
 
 
 
-   {{-- 🏪 Header ร้าน --}}
+    {{-- 🏪 Header ร้าน --}}
 
-<div class="container-fluid py-5 mb-3">
+    <div class="container-fluid py-5 mb-3">
 
 
-<div class="container text-center">
-    <h2 class="fw-bold text-success">
-        <i class="bi bi-shop-window me-2"></i>
-        ร้าน {{ $shopSettings->shop_name ?? 'pos' }}
-    </h2>
+        <div class="container text-center">
+            <h2 class="fw-bold text-success">
+                <i class="bi bi-shop-window me-2"></i>
+                ร้าน {{ $shopSettings->shop_name ?? 'pos' }}
+            </h2>
 
-    <p class="text-muted">
-    เลือกซื้อสินค้าที่ต้องการ จัดส่งถึงที่ไม่มีค่าบริการ
-    <br>
-
-    <i class="bi bi-clock-fill me-1"></i>
-    เปิดให้บริการ
-    {{ $onlineOpenTime }}–{{ $onlineCloseTime }} น.
-</p>
-</div>
-
-{{-- 🔔 System Alert --}}
-@if (!empty($systemAlert))
-    <div class="container-fluid bg-warning bg-opacity-25 py-2 mb-3  border-5">
-        <div class="container">
-
-            @if (
-                Auth::check() &&
-                Auth::user()->role === 'member' &&
-                Auth::user()->room_number === '601'
-            )
-
-                <form method="POST" action="{{ route('online.settings.updateAlert') }}">
-                    @csrf
-
-                    <div class="mb-2">
-                        <textarea
-                            name="system_alert"
-                            class="form-control"
-                            rows="2">{{ $systemAlert }}</textarea>
-                    </div>
-
-                    <button type="submit" class="btn btn-danger btn-sm">
-                        บันทึกข้อความแจ้งเตือน
-                    </button>
-                </form>
-
-            @else
-
-                <div class="text-danger fw-semibold">
-                    🔔 {{ $systemAlert }}
-                </div>
-
-            @endif
-
+            <i class="bi bi-clock-fill me-1"></i>
+            เปิดให้บริการ
+            {{ $onlineOpenTime }}–{{ $onlineCloseTime }} น.
+            </p>
         </div>
+
+        {{-- 🔔 System Alert --}}
+        @if (!empty($systemAlert))
+            <div class="container-fluid bg-warning bg-opacity-25 py-2 mb-3  border-5">
+                <div class="container">
+
+                    @if (Auth::check() && Auth::user()->role === 'member' && Auth::user()->room_number === '601')
+                        <form method="POST" action="{{ route('online.settings.updateAlert') }}">
+                            @csrf
+
+                            <div class="mb-2">
+                                <textarea name="system_alert" class="form-control" rows="2">{{ $systemAlert }}</textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-danger btn-sm">
+                                บันทึกข้อความแจ้งเตือน
+                            </button>
+                        </form>
+                    @else
+                        <div class="text-danger fw-semibold">
+                            🔔 {{ $systemAlert }}
+                        </div>
+                    @endif
+
+                </div>
+            </div>
+        @endif
+
+
     </div>
-@endif
+
+    {{-- 🏷️ หมวดหมู่ --}}
+
+    <div id="category-menu" class="mb-4 overflow-auto d-flex gap-2 pb-2" style="scroll-snap-type: x mandatory;">
 
 
-</div>
-
-{{-- 🏷️ หมวดหมู่ --}}
-
-<div id="category-menu"
-    class="mb-4 overflow-auto d-flex gap-2 pb-2"
-    style="scroll-snap-type: x mandatory;">
-
-
-<a href="{{ route('online.index') }}"
-    class="category-link btn btn-sm
+        <a href="{{ route('online.index') }}"
+            class="category-link btn btn-sm
     {{ request('category') ? 'btn-outline-secondary' : 'btn-orange' }}
     flex-shrink-0">
 
-    ทั้งหมด
+            ทั้งหมด
 
-</a>
+        </a>
 
-@foreach ($categories as $category)
-
-    <a href="{{ route('online.index', ['category' => $category->id]) }}"
-        class="category-link btn btn-sm
-        {{ request('category') == $category->id
-            ? 'btn-orange'
-            : 'btn-outline-secondary' }}
+        @foreach ($categories as $category)
+            <a href="{{ route('online.index', ['category' => $category->id]) }}"
+                class="category-link btn btn-sm
+        {{ request('category') == $category->id ? 'btn-orange' : 'btn-outline-secondary' }}
         flex-shrink-0">
 
-        {{ $category->name }}
+                {{ $category->name }}
 
-    </a>
-
-@endforeach
-
-
-</div>
-
-{{-- 🔍 ค้นหาสินค้า --}}
-
-<form method="GET"
-    action="{{ route('online.index') }}"
-    class="row mb-4 g-2">
+            </a>
+        @endforeach
 
 
-<div class="col-md-4">
+    </div>
 
-    <input
-        type="text"
-        name="search"
-        class="form-control"
-        placeholder="ค้นหาสินค้า..."
-        value="{{ request('search') }}">
+    {{-- 🔍 ค้นหาสินค้า --}}
 
-</div>
-
-<div class="col-md-2">
-
-    <button type="submit"
-        class="btn btn-orange w-100">
-
-        ค้นหา
-
-    </button>
-
-</div>
+    <form method="GET" action="{{ route('online.index') }}" class="row mb-4 g-2">
 
 
-</form>
+        <div class="col-md-4">
 
-{{-- 📦 รายการสินค้า --}}
+            <input type="text" name="search" class="form-control" placeholder="ค้นหาสินค้า..."
+                value="{{ request('search') }}">
 
-<div id="product-list">
+        </div>
+
+        <div class="col-md-2">
+
+            <button type="submit" class="btn btn-orange w-100">
+
+                ค้นหา
+
+            </button>
+
+        </div>
 
 
-<div class="row g-4">
+    </form>
 
-    @forelse($products as $product)
+    {{-- 📦 รายการสินค้า --}}
 
-        @php
+    <div id="product-list">
 
-            $totalStock =
-                (int) ($product->getAttribute('total_stock') ?? 0);
 
-            $unit =
-                $product->productUnits->first();
+        <div class="row g-4">
 
-            $isActive =
-                (bool) ($product->is_active ?? true);
+            @forelse($products as $product)
+                @php
 
-            /*
+                    $totalStock = (int) ($product->getAttribute('total_stock') ?? 0);
+
+                    $unit = $product->productUnits->first();
+
+                    $isActive = (bool) ($product->is_active ?? true);
+
+                    /*
             | สินค้าที่ปิดการขายจะไม่ถูกสร้างเป็น Card ในหน้านี้
             */
-            if (!$isActive) {
-                continue;
-            }
+                    if (!$isActive) {
+                        continue;
+                    }
+                @endphp
 
-        @endphp
 
+                <div class="col-6 col-md-4 col-lg-3">
 
-        <div class="col-6 col-md-4 col-lg-3">
-
-            <div class="card h-100 shadow-sm
+                    <div
+                        class="card h-100 shadow-sm
                 {{ $totalStock <= 0 ? 'card-out-of-stock' : '' }}
                 position-relative">
 
 
-                {{-- หมด --}}
-                @if ($totalStock <= 0)
-
-                    <span
-                        class="badge badge-out-of-stock
+                        {{-- หมด --}}
+                        @if ($totalStock <= 0)
+                            <span
+                                class="badge badge-out-of-stock
                         position-absolute top-0 start-0 m-2">
 
-                        ❌ หมด
-
-                    </span>
-
-                @endif
-
-
-                {{-- รูปสินค้า: โหลดเฉพาะรูปแรกเพื่อลดจำนวน request และทำให้หน้าเร็วขึ้น --}}
-               @php
-    $firstImage = $product->images->first();
-    $imageUrl = null;
-
-    if ($firstImage && filled($firstImage->image_path)) {
-        $imagePath = str_replace('\\', '/', $firstImage->image_path);
-        $imagePath = ltrim($imagePath, '/');
-
-        $imagePath = preg_replace(
-            '#^(public/storage/|storage/app/public/|public/|storage/)#',
-            '',
-            $imagePath
-        );
-
-        if (Storage::disk('public')->exists($imagePath)) {
-            $imageUrl = asset('storage/' . $imagePath);
-        }
-    }
-@endphp
-
-                <div class="product-image-wrap">
-                    @if ($imageUrl)
-                        <img
-                            src="{{ $imageUrl }}"
-                            alt="{{ $product->name }}"
-                            width="480"
-                            height="365"
-                            loading="lazy"
-                            decoding="async"
-                            fetchpriority="low">
-                    @else
-                        <div class="product-placeholder"><i class="bi bi-image"></i></div>
-                    @endif
-                </div>
-
-                {{-- รายละเอียด --}}
-                <div class="card-body d-flex flex-column">
-
-                    <h5 class="card-title">
-
-                        {{ $product->name }}
-
-                    </h5>
-
-
-                    @if ($unit)
-
-                        <p class="card-text mb-1">
-
-                            <span class="price fs-5 text-orange">
-
-                                {{ number_format($unit->price, 2) }}
-
-                                บาท
+                                ❌ หมด
 
                             </span>
-
-                            <span class="text-muted">
-
-                                / {{ $unit->unit_name }}
-
-                            </span>
-
-                        </p>
-
-                    @endif
-
-
-                    {{-- Add To Cart --}}
-                    <form
-                        action="{{ route('online.add') }}"
-                        method="POST"
-                        class="mt-auto add-to-cart-form">
-
-                        @csrf
-
-
-                        <input
-                            type="hidden"
-                            name="product_id"
-                            value="{{ $product->id }}">
-
-
-                        @if ($unit)
-
-                            <input
-                                type="hidden"
-                                name="product_unit_id"
-                                value="{{ $unit->id }}">
-
-
-                            <input
-                                type="hidden"
-                                name="price"
-                                value="{{ $unit->price }}">
-
                         @endif
 
 
-                        <input
-                            type="hidden"
-                            name="quantity"
-                            value="1">
+                        {{-- รูปสินค้า: โหลดเฉพาะรูปแรกเพื่อลดจำนวน request และทำให้หน้าเร็วขึ้น --}}
+                        {{-- รูปสินค้า Gallery --}}
+                        @php
+                            $galleryImages = $product->images
+                                ->map(function ($image) {
+                                    if (!filled($image->image_path)) {
+                                        return null;
+                                    }
+
+                                    $imagePath = str_replace('\\', '/', $image->image_path);
+                                    $imagePath = ltrim($imagePath, '/');
+
+                                    $imagePath = preg_replace(
+                                        '#^(public/storage/|storage/app/public/|public/|storage/)#',
+                                        '',
+                                        $imagePath,
+                                    );
+
+                                    if (!Storage::disk('public')->exists($imagePath)) {
+                                        return null;
+                                    }
+
+                                    return asset('storage/' . $imagePath);
+                                })
+                                ->filter()
+                                ->values();
+
+                            $galleryCount = $galleryImages->count();
+                            $galleryId = 'product-gallery-' . $product->id;
+                        @endphp
+
+                        <div class="product-image-wrap" id="{{ $galleryId }}">
+
+                            @if ($galleryCount > 0)
+                                @foreach ($galleryImages as $index => $imageUrl)
+                                    <img src="{{ $imageUrl }}" alt="{{ $product->name }} รูปที่ {{ $index + 1 }}"
+                                        class="gallery-image" width="480" height="365"
+                                        loading="{{ $index === 0 ? 'lazy' : 'lazy' }}" decoding="async"
+                                        @if ($index !== 0) hidden @endif>
+                                @endforeach
+
+                                {{-- ปุ่มเปลี่ยนรูป แสดงเมื่อมีมากกว่า 1 รูป --}}
+                                @if ($galleryCount > 1)
+                                    <button type="button"
+    class="gallery-control gallery-prev"
+    data-gallery-action="prev"
+    data-gallery-id="{{ $galleryId }}"
+    aria-label="รูปก่อนหน้า">
+    &#10094;
+</button>
+
+                                    <button type="button"
+    class="gallery-control gallery-next"
+    data-gallery-action="next"
+    data-gallery-id="{{ $galleryId }}"
+    aria-label="รูปถัดไป">
+    &#10095;
+</button>
+
+                                    <span class="gallery-counter" data-gallery-counter>
+                                        1 / {{ $galleryCount }}
+                                    </span>
+                                @endif
+                            @else
+                                <div class="product-placeholder">
+                                    <i class="bi bi-image"></i>
+                                </div>
+                            @endif
+
+                        </div>
+
+                        {{-- รายละเอียด --}}
+                        <div class="card-body d-flex flex-column">
+
+                            <h5 class="card-title">
+
+                                {{ $product->name }}
+
+                            </h5>
 
 
-                        @if ($totalStock <= 0)
+                            @if ($unit)
+                                <p class="card-text mb-1">
 
-                            <button
-                                type="button"
-                                class="btn btn-secondary w-100"
-                                disabled>
+                                    <span class="price fs-5 text-orange">
 
-                                สินค้าหมด
+                                        {{ number_format($unit->price, 2) }}
 
-                            </button>
+                                        บาท
 
-                        @else
+                                    </span>
 
-                            <button
-                                type="submit"
-                                class="btn btn-primary w-100">
+                                    <span class="text-muted">
 
-                                เพิ่มลงตะกร้า
+                                        / {{ $unit->unit_name }}
 
-                            </button>
+                                    </span>
 
-                        @endif
+                                </p>
+                            @endif
 
-                    </form>
+
+                            {{-- Add To Cart --}}
+                            <form action="{{ route('online.add') }}" method="POST" class="mt-auto add-to-cart-form">
+
+                                @csrf
+
+
+                                <input type="hidden" name="product_id" value="{{ $product->id }}">
+
+
+                                @if ($unit)
+                                    <input type="hidden" name="product_unit_id" value="{{ $unit->id }}">
+
+
+                                    <input type="hidden" name="price" value="{{ $unit->price }}">
+                                @endif
+
+
+                                <input type="hidden" name="quantity" value="1">
+
+
+                                @if ($totalStock <= 0)
+                                    <button type="button" class="btn btn-secondary w-100" disabled>
+
+                                        สินค้าหมด
+
+                                    </button>
+                                @else
+                                    <button type="submit" class="btn btn-primary w-100">
+
+                                        เพิ่มลงตะกร้า
+
+                                    </button>
+                                @endif
+
+                            </form>
+
+                        </div>
+
+                    </div>
 
                 </div>
 
-            </div>
+
+            @empty
+
+                <div class="col-12 text-center">
+
+                    <p>
+                        ไม่พบสินค้าในตอนนี้
+                    </p>
+
+                </div>
+            @endforelse
 
         </div>
 
 
-    @empty
+        {{-- Pagination --}}
+        <div class="mt-4 d-flex justify-content-center">
 
-        <div class="col-12 text-center">
-
-            <p>
-                ไม่พบสินค้าในตอนนี้
-            </p>
+            {{ $products->withQueryString()->links() }}
 
         </div>
 
-    @endforelse
 
-</div>
+    </div>
 
+    {{-- ⚡ AJAX เปลี่ยนหมวดหมู่ / Pagination / ค้นหา --}}
+    @push('scripts')
+        <script>
+            (() => {
+                /*
+                |--------------------------------------------------------------------------
+                | เพิ่มสินค้าลงตะกร้าแบบ AJAX
+                | ป้องกันการผูก Event ซ้ำและป้องกันการส่ง Request ซ้ำ
+                |--------------------------------------------------------------------------
+                */
+                if (window.onlineCartSubmitBound) {
+                    return;
+                }
 
-{{-- Pagination --}}
-<div class="mt-4 d-flex justify-content-center">
+                window.onlineCartSubmitBound = true;
 
-    {{ $products->withQueryString()->links() }}
+                document.addEventListener('submit', async function(event) {
+                    const form = event.target.closest('.add-to-cart-form');
 
-</div>
+                    if (!form) {
+                        return;
+                    }
 
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
 
-</div>
+                    // ป้องกันการส่งฟอร์มเดิมซ้ำขณะที่ Request แรกยังไม่เสร็จ
+                    if (form.dataset.submitting === 'true') {
+                        return;
+                    }
 
-{{-- ⚡ AJAX เปลี่ยนหมวดหมู่ / Pagination / ค้นหา --}}
-@push('scripts')
+                    const submitBtn = form.querySelector('button[type="submit"]');
 
-<script>
+                    if (!submitBtn || submitBtn.disabled) {
+                        return;
+                    }
 
-(() => {
-    /*
-    |--------------------------------------------------------------------------
-    | เพิ่มสินค้าลงตะกร้าแบบ AJAX
-    | ป้องกันการผูก Event ซ้ำและป้องกันการส่ง Request ซ้ำ
-    |--------------------------------------------------------------------------
-    */
-    if (window.onlineCartSubmitBound) {
-        return;
-    }
+                    form.dataset.submitting = 'true';
 
-    window.onlineCartSubmitBound = true;
+                    const originalText = submitBtn.innerHTML;
 
-    document.addEventListener('submit', async function (event) {
-        const form = event.target.closest('.add-to-cart-form');
-
-        if (!form) {
-            return;
-        }
-
-        event.preventDefault();
-        event.stopImmediatePropagation();
-
-        // ป้องกันการส่งฟอร์มเดิมซ้ำขณะที่ Request แรกยังไม่เสร็จ
-        if (form.dataset.submitting === 'true') {
-            return;
-        }
-
-        const submitBtn = form.querySelector('button[type="submit"]');
-
-        if (!submitBtn || submitBtn.disabled) {
-            return;
-        }
-
-        form.dataset.submitting = 'true';
-
-        const originalText = submitBtn.innerHTML;
-
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = `
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = `
             <span class="spinner-border spinner-border-sm me-1" role="status"></span>
             กำลังเพิ่ม...
         `;
 
-        try {
-            const csrfToken = form.querySelector('input[name="_token"]')?.value;
+                    try {
+                        const csrfToken = form.querySelector('input[name="_token"]')?.value;
 
-            if (!csrfToken) {
-                throw new Error('ไม่พบ CSRF token');
-            }
+                        if (!csrfToken) {
+                            throw new Error('ไม่พบ CSRF token');
+                        }
 
-            const response = await fetch(form.action, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: new FormData(form)
-            });
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: new FormData(form)
+                        });
 
-            const data = await response.json();
+                        const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(
-                    data.message || 'ไม่สามารถเพิ่มสินค้าลงตะกร้าได้'
-                );
-            }
+                        if (!response.ok) {
+                            throw new Error(
+                                data.message || 'ไม่สามารถเพิ่มสินค้าลงตะกร้าได้'
+                            );
+                        }
 
-            if (data.success) {
-                const cartBadge = document.querySelector('#cart-count');
+                        if (data.success) {
+                            const cartBadge = document.querySelector('#cart-count');
 
-                if (cartBadge && data.total_quantity !== undefined) {
-                    cartBadge.textContent = data.total_quantity;
-                }
+                            if (cartBadge && data.total_quantity !== undefined) {
+                                cartBadge.textContent = data.total_quantity;
+                            }
 
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'เพิ่มลงตะกร้าแล้ว!',
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 1500,
-                        timerProgressBar: true
-                    });
-                } else {
-                    alert('เพิ่มลงตะกร้าเรียบร้อย!');
-                }
-            }
-        } catch (error) {
-            console.error('Add to cart error:', error);
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'เพิ่มลงตะกร้าแล้ว!',
+                                    toast: true,
+                                    position: 'top-end',
+                                    showConfirmButton: false,
+                                    timer: 1500,
+                                    timerProgressBar: true
+                                });
+                            } else {
+                                alert('เพิ่มลงตะกร้าเรียบร้อย!');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Add to cart error:', error);
 
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'เกิดข้อผิดพลาด',
-                    text: error.message || 'ไม่สามารถเพิ่มสินค้าได้ กรุณาลองใหม่อีกครั้ง'
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'เกิดข้อผิดพลาด',
+                                text: error.message || 'ไม่สามารถเพิ่มสินค้าได้ กรุณาลองใหม่อีกครั้ง'
+                            });
+                        } else {
+                            alert(error.message || 'ไม่สามารถเพิ่มสินค้าได้ กรุณาลองใหม่อีกครั้ง');
+                        }
+                    } finally {
+                        form.dataset.submitting = 'false';
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    }
                 });
-            } else {
-                alert(error.message || 'ไม่สามารถเพิ่มสินค้าได้ กรุณาลองใหม่อีกครั้ง');
-            }
-        } finally {
-            form.dataset.submitting = 'false';
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
-        }
-    });
-})();
+            })();
 
-document.addEventListener('DOMContentLoaded', function () {
+            document.addEventListener('DOMContentLoaded', function() {
 
-    let loading = false;
+                let loading = false;
 
 
-    function fetchAndUpdate(url) {
+                function fetchAndUpdate(url) {
 
-        if (!url || loading) return;
+                    if (!url || loading) return;
 
-        loading = true;
+                    loading = true;
 
-        document.body.style.cursor = 'wait';
-
-
-        fetch(url, {
-
-            headers: {
-
-                'X-Requested-With': 'XMLHttpRequest',
-
-                'Accept': 'text/html'
-
-            }
-
-        })
-
-        .then(response => {
-
-            if (!response.ok) {
-
-                throw new Error('Network Error');
-
-            }
-
-            return response.text();
-
-        })
-
-        .then(html => {
-
-            const parser =
-                new DOMParser();
-
-            const doc =
-                parser.parseFromString(
-                    html,
-                    'text/html'
-                );
+                    document.body.style.cursor = 'wait';
 
 
-            const newProducts =
-                doc.querySelector('#product-list');
+                    fetch(url, {
+
+                            headers: {
+
+                                'X-Requested-With': 'XMLHttpRequest',
+
+                                'Accept': 'text/html'
+
+                            }
+
+                        })
+
+                        .then(response => {
+
+                            if (!response.ok) {
+
+                                throw new Error('Network Error');
+
+                            }
+
+                            return response.text();
+
+                        })
+
+                        .then(html => {
+
+                            const parser =
+                                new DOMParser();
+
+                            const doc =
+                                parser.parseFromString(
+                                    html,
+                                    'text/html'
+                                );
 
 
-            const currentProducts =
-                document.querySelector('#product-list');
+                            const newProducts =
+                                doc.querySelector('#product-list');
 
 
-            if (newProducts && currentProducts) {
-
-                currentProducts.innerHTML =
-                    newProducts.innerHTML;
-
-            }
+                            const currentProducts =
+                                document.querySelector('#product-list');
 
 
-            const newCategories =
-                doc.querySelector('#category-menu');
+                            if (newProducts && currentProducts) {
+
+                                currentProducts.innerHTML =
+                                    newProducts.innerHTML;
+
+                            }
 
 
-            const currentCategories =
-                document.querySelector('#category-menu');
+                            const newCategories =
+                                doc.querySelector('#category-menu');
 
 
-            if (newCategories && currentCategories) {
-
-                currentCategories.innerHTML =
-                    newCategories.innerHTML;
-
-            }
+                            const currentCategories =
+                                document.querySelector('#category-menu');
 
 
-            window.history.pushState(
-                {},
-                '',
-                url
-            );
+                            if (newCategories && currentCategories) {
+
+                                currentCategories.innerHTML =
+                                    newCategories.innerHTML;
+
+                            }
 
 
-            window.scrollTo({
+                            window.history.pushState({},
+                                '',
+                                url
+                            );
 
-                top: 0,
 
-                behavior: 'smooth'
+                            window.scrollTo({
+
+                                top: 0,
+
+                                behavior: 'smooth'
+
+                            });
+
+                        })
+
+                        .catch(error => {
+
+                            console.error(error);
+
+                            window.location.href = url;
+
+                        })
+
+                        .finally(() => {
+
+                            loading = false;
+
+                            document.body.style.cursor =
+                                'default';
+
+                        });
+
+                }
+
+
+                // หมวดหมู่ + Pagination
+                document.addEventListener('click', function(event) {
+
+                    const link =
+                        event.target.closest(
+                            '.category-link, #product-list .pagination a'
+                        );
+
+
+                    if (!link) return;
+
+
+                    event.preventDefault();
+
+
+                    fetchAndUpdate(
+                        link.href
+                    );
+
+                });
+
+
+                // Search
+                document.addEventListener('submit', function(event) {
+
+                    const form =
+                        event.target.closest(
+                            'form[action="{{ route('online.index') }}"]'
+                        );
+
+
+                    if (!form) return;
+
+
+                    event.preventDefault();
+
+
+                    const params =
+                        new URLSearchParams(
+                            new FormData(form)
+                        );
+
+
+                    const url =
+                        form.action +
+                        '?' +
+                        params.toString();
+
+
+                    fetchAndUpdate(url);
+
+                });
 
             });
+            // เปลี่ยนรูปสินค้าใน Gallery
+            document.addEventListener('click', function(event) {
 
-        })
+                const button = event.target.closest('[data-gallery-action]');
 
-        .catch(error => {
+                if (!button) return;
 
-            console.error(error);
+                const galleryId = button.dataset.galleryId;
+                const action = button.dataset.galleryAction;
 
-            window.location.href = url;
+                const gallery = document.getElementById(galleryId);
 
-        })
+                if (!gallery) return;
 
-        .finally(() => {
+                const images = Array.from(
+                    gallery.querySelectorAll('.gallery-image')
+                );
 
-            loading = false;
+                if (images.length <= 1) return;
 
-            document.body.style.cursor =
-                'default';
+                let currentIndex = images.findIndex(
+                    image => !image.hidden
+                );
 
-        });
+                if (currentIndex < 0) currentIndex = 0;
 
-    }
+                if (action === 'next') {
+                    currentIndex = (currentIndex + 1) % images.length;
+                } else {
+                    currentIndex = (currentIndex - 1 + images.length) % images.length;
+                }
 
+                images.forEach((image, index) => {
+                    image.hidden = index !== currentIndex;
+                });
 
-    // หมวดหมู่ + Pagination
-    document.addEventListener('click', function (event) {
+                const counter = gallery.querySelector('[data-gallery-counter]');
 
-        const link =
-            event.target.closest(
-                '.category-link, #product-list .pagination a'
-            );
+                if (counter) {
+                    counter.textContent = `${currentIndex + 1} / ${images.length}`;
+                }
 
-
-        if (!link) return;
-
-
-        event.preventDefault();
-
-
-        fetchAndUpdate(
-            link.href
-        );
-
-    });
-
-
-    // Search
-    document.addEventListener('submit', function (event) {
-
-        const form =
-            event.target.closest(
-                'form[action="{{ route('online.index') }}"]'
-            );
-
-
-        if (!form) return;
-
-
-        event.preventDefault();
-
-
-        const params =
-            new URLSearchParams(
-                new FormData(form)
-            );
-
-
-        const url =
-            form.action +
-            '?' +
-            params.toString();
-
-
-        fetchAndUpdate(url);
-
-    });
-
-});
-
-</script>
-
-@endpush
+            });
+        </script>
+    @endpush
 @endsection

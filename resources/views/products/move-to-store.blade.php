@@ -17,9 +17,14 @@
             </div>
 
             <div class="transfer-status">
-                <i class="fas fa-arrow-right-arrow-left"></i>
-                คลัง → หน้าร้าน
-            </div>
+    <i class="fas fa-arrow-right-arrow-left"></i>
+    คลัง → หน้าร้าน
+</div>
+
+<div class="transfer-status">
+    <i class="fas fa-user-circle"></i>
+    ผู้ทำรายการ: {{ auth()->user()->name ?? 'ไม่พบข้อมูล' }}
+</div>
         </div>
     </section>
 

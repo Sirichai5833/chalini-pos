@@ -515,7 +515,7 @@
         </div>
     @endif
 
-    @if ($cancelledTotal > 0)
+    {{-- @if ($cancelledTotal > 0)
         <div
             class="alert alert-danger no-print rounded-4 mb-3"
             role="alert"
@@ -525,7 +525,7 @@
             <strong>฿{{ number_format($cancelledTotal, 2) }}</strong>
             และไม่นำมารวมในยอดขายของรายงานนี้
         </div>
-    @endif
+    @endif --}}
 
     <div class="card filter-card mb-4 no-print rounded-4">
         <div class="card-body p-4">
@@ -586,7 +586,7 @@
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h6 class="kpi-label mb-1">กำไรสุทธิ (ไม่รวมยกเลิก)</h6>
+                                <h6 class="kpi-label mb-1">กำไรสุทธิ</h6>
                                 <h3 class="kpi-value mb-0">{{ number_format($netProfitDisplay, 2) }} ฿</h3>
                             </div>
                             <div class="stat-icon bg-success bg-opacity-10 text-success">
@@ -605,7 +605,7 @@
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h6 class="kpi-label mb-1">ต้นทุนสุทธิ (ไม่รวมยกเลิก)</h6>
+                                <h6 class="kpi-label mb-1">ต้นทุนสุทธิ</h6>
                                 <h3 class="kpi-value mb-0">{{ number_format($totalCostDisplay, 2) }} ฿</h3>
                             </div>
                             <div class="stat-icon bg-danger bg-opacity-10 text-danger">

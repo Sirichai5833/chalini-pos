@@ -408,6 +408,21 @@ body[data-bs-theme="dark"] {
 </style>
 
 <div class="receive-page">
+    @if (session('success'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'success',
+                title: 'รับสินค้าเข้าสำเร็จ!',
+                text: @json(session('success')),
+                confirmButtonText: 'ตกลง',
+                confirmButtonColor: '#eab308',
+                timer: 3000,
+                timerProgressBar: true
+            });
+        });
+    </script>
+@endif
     <div class="page-header">
         <div class="page-title">
             <div class="page-title-icon">

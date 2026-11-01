@@ -1,1047 +1,677 @@
+
 @extends('layouts.layout')
 
 @section('content')
+
 <style>
-    .shift-summary-page {
-        --ss-yellow: #ffc107;
-        --ss-yellow-soft: #ffe27a;
-        --ss-bg: #090909;
-        --ss-panel: #171717;
-        --ss-panel-soft: #202020;
-        --ss-border: #353535;
-        --ss-text: #f7f7f7;
-        --ss-muted: #a8a8a8;
-        --ss-green: #2ecc71;
-        --ss-red: #ff6b6b;
-        --ss-blue: #74b9ff;
-        color: var(--ss-text);
+    .shift-page {
+        --yellow: #ffc107;
+        --bg: #111;
+        --card: #1b1b1b;
+        --border: #333;
+        --muted: #aaa;
+        --green: #55d995;
+        --red: #ff8585;
+        --blue: #83bdff;
+        color: #f5f5f5;
     }
 
-    .shift-summary-page .page-shell {
-        max-width: 1280px;
-        margin: 0 auto;
+    .shift-page .container-fluid {
+        max-width: 1450px;
+        margin: auto;
     }
 
-    .shift-summary-page .hero {
+    .shift-page .page-header {
         display: flex;
-        align-items: center;
         justify-content: space-between;
-        gap: 1rem;
-        margin-bottom: 1.25rem;
-        padding: 1.4rem;
-        border: 1px solid rgba(255, 193, 7, .22);
-        border-radius: 24px;
-        background:
-            radial-gradient(
-                circle at 92% 8%,
-                rgba(255, 193, 7, .18),
-                transparent 28%
-            ),
-            linear-gradient(135deg, #202020, #0b0b0b);
-        box-shadow: 0 22px 52px rgba(0, 0, 0, .32);
+        align-items: center;
+        gap: 15px;
+        padding: 22px;
+        margin-bottom: 22px;
+        border: 1px solid #393328;
+        border-radius: 15px;
+        background: #1b1b1b;
     }
 
-    .shift-summary-page .hero-icon {
-        width: 64px;
-        height: 64px;
-        display: grid;
-        place-items: center;
-        flex-shrink: 0;
-        border-radius: 20px;
-        background: linear-gradient(
-            135deg,
-            var(--ss-yellow),
-            var(--ss-yellow-soft)
-        );
-        color: #111;
-        font-size: 1.65rem;
-    }
-
-    .shift-summary-page .hero h2 {
+    .shift-page .page-header h3 {
+        font-size: 1.3rem;
+        font-weight: 800;
         margin: 0;
         color: #fff;
-        font-size: 1.5rem;
-        font-weight: 900;
     }
 
-    .shift-summary-page .hero p {
-        margin: .35rem 0 0;
-        color: var(--ss-muted);
-        font-size: .84rem;
+    .shift-page .page-header p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: .85rem;
     }
 
-    .shift-summary-page .hero-date {
-        display: inline-flex;
-        align-items: center;
-        gap: .45rem;
-        padding: .55rem .8rem;
-        border: 1px solid rgba(255, 193, 7, .22);
-        border-radius: 999px;
-        background: rgba(255, 193, 7, .07);
-        color: var(--ss-yellow);
-        font-size: .76rem;
-        font-weight: 850;
+    .shift-page .today {
+        color: var(--yellow);
+        font-size: .85rem;
         white-space: nowrap;
     }
 
-    .shift-summary-page .section-head {
+    .shift-page .section-title {
         display: flex;
-        align-items: center;
         justify-content: space-between;
-        gap: .75rem;
-        margin: 1.25rem 0 .85rem;
+        align-items: center;
+        gap: 10px;
+        margin: 25px 0 13px;
     }
 
-    .shift-summary-page .section-title {
-        display: flex;
-        align-items: center;
-        gap: .55rem;
+    .shift-page .section-title h5 {
         margin: 0;
         color: #fff;
         font-size: 1rem;
-        font-weight: 900;
-    }
-
-    .shift-summary-page .section-title i {
-        color: var(--ss-yellow);
-    }
-
-    .shift-summary-page .count-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: .35rem;
-        padding: .4rem .65rem;
-        border-radius: 999px;
-        background: rgba(255, 193, 7, .09);
-        color: var(--ss-yellow);
-        font-size: .72rem;
-        font-weight: 850;
-    }
-
-    .shift-summary-page .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-        gap: .9rem;
-        margin-bottom: 1.25rem;
-    }
-
-    .shift-summary-page .kpi-card {
-        position: relative;
-        overflow: hidden;
-        padding: 1.05rem;
-        border: 1px solid var(--ss-border);
-        border-radius: 18px;
-        background: linear-gradient(180deg, #1b1b1b, #121212);
-        box-shadow: 0 16px 38px rgba(0, 0, 0, .25);
-    }
-
-    .shift-summary-page .kpi-card::before {
-        content: "";
-        position: absolute;
-        inset: 0 0 auto;
-        height: 3px;
-        background: var(--ss-yellow);
-    }
-
-    .shift-summary-page .kpi-icon {
-        width: 42px;
-        height: 42px;
-        display: grid;
-        place-items: center;
-        margin-bottom: .8rem;
-        border-radius: 13px;
-        background: rgba(255, 193, 7, .09);
-        color: var(--ss-yellow);
-        font-size: 1.1rem;
-    }
-
-    .shift-summary-page .kpi-label {
-        color: var(--ss-muted);
-        font-size: .72rem;
-    }
-
-    .shift-summary-page .kpi-value {
-        margin-top: .25rem;
-        color: #fff;
-        font-size: 1.25rem;
-        font-weight: 900;
-    }
-
-    .shift-summary-page .filter-card,
-    .shift-summary-page .table-card,
-    .shift-summary-page .shift-card {
-        overflow: hidden;
-        border: 1px solid var(--ss-border);
-        border-radius: 20px;
-        background: var(--ss-panel);
-        box-shadow: 0 18px 44px rgba(0, 0, 0, .26);
-    }
-
-    .shift-summary-page .filter-card {
-        margin-bottom: 1rem;
-    }
-
-    .shift-summary-page .card-header-custom {
-        padding: 1rem 1.15rem;
-        border-bottom: 1px solid var(--ss-border);
-        background: linear-gradient(135deg, #202020, #141414);
-    }
-
-    .shift-summary-page .card-title-custom {
-        display: flex;
-        align-items: center;
-        gap: .55rem;
-        margin: 0;
-        color: #fff;
-        font-size: .92rem;
-        font-weight: 850;
-    }
-
-    .shift-summary-page .card-title-custom i {
-        color: var(--ss-yellow);
-    }
-
-    .shift-summary-page .card-body-custom {
-        padding: 1.15rem;
-    }
-
-    .shift-summary-page .form-label {
-        color: #e8e8e8;
-        font-size: .78rem;
         font-weight: 800;
     }
 
-    .shift-summary-page .form-control,
-    .shift-summary-page .form-select {
-        min-height: 47px;
-        border: 1px solid #454545;
-        border-radius: 12px;
-        background: #0e0e0e;
-        color: #fff;
-        box-shadow: none;
+    .shift-page .section-title i {
+        color: var(--yellow);
+        margin-right: 5px;
     }
 
-    .shift-summary-page .form-control:focus,
-    .shift-summary-page .form-select:focus {
-        border-color: var(--ss-yellow);
-        background: #0a0a0a;
-        color: #fff;
-        box-shadow: 0 0 0 .2rem rgba(255, 193, 7, .1);
-    }
-
-    .shift-summary-page .form-select option {
-        background: #111;
-        color: #fff;
-    }
-
-    .shift-summary-page .btn-filter {
-        min-height: 47px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: .45rem;
-        width: 100%;
-        border: 1px solid var(--ss-yellow);
-        border-radius: 12px;
-        background: linear-gradient(
-            135deg,
-            var(--ss-yellow),
-            var(--ss-yellow-soft)
-        );
-        color: #111;
-        font-weight: 900;
-    }
-
-    .shift-summary-page .open-grid {
+    .shift-page .kpi-grid {
         display: grid;
-        gap: 1rem;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 13px;
     }
 
-    .shift-summary-page .shift-card-header {
+    .shift-page .kpi {
+        padding: 17px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 13px;
+    }
+
+    .shift-page .kpi-top {
         display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 1.15rem;
-        border-bottom: 1px solid var(--ss-border);
-        background:
-            radial-gradient(
-                circle at 92% 10%,
-                rgba(255, 193, 7, .12),
-                transparent 28%
-            ),
-            linear-gradient(135deg, #202020, #151515);
-    }
-
-    .shift-summary-page .shift-name {
-        color: #fff;
-        font-size: 1rem;
-        font-weight: 900;
-    }
-
-    .shift-summary-page .shift-meta {
-        margin-top: .3rem;
-        color: var(--ss-muted);
-        font-size: .73rem;
-    }
-
-    .shift-summary-page .status-open {
-        display: inline-flex;
         align-items: center;
-        gap: .35rem;
-        padding: .4rem .6rem;
-        border-radius: 999px;
-        background: rgba(46, 204, 113, .11);
-        color: #7ee2aa;
-        font-size: .7rem;
-        font-weight: 850;
-        white-space: nowrap;
+        justify-content: space-between;
+        margin-bottom: 15px;
     }
 
-    .shift-summary-page .shift-metrics {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: .75rem;
-        padding: 1rem;
-    }
-
-    .shift-summary-page .metric-box {
-        padding: .85rem;
-        border: 1px solid var(--ss-border);
-        border-radius: 14px;
-        background: var(--ss-panel-soft);
-    }
-
-    .shift-summary-page .metric-label {
-        color: var(--ss-muted);
-        font-size: .7rem;
-    }
-
-    .shift-summary-page .metric-value {
-        margin-top: .3rem;
-        color: #fff;
-        font-size: .95rem;
-        font-weight: 850;
-    }
-
-    .shift-summary-page .cash-summary {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: .75rem;
-        margin: 0 1rem 1rem;
-        padding: .9rem;
-        border: 1px solid rgba(255, 193, 7, .22);
-        border-radius: 15px;
-        background: rgba(255, 193, 7, .045);
-    }
-
-    .shift-summary-page .cash-summary .metric-box {
-        border: 0;
-        background: transparent;
-        padding: .45rem;
-    }
-
-    .shift-summary-page .text-positive {
-        color: #7ee2aa;
-    }
-
-    .shift-summary-page .text-negative {
-        color: #ff929c;
-    }
-
-    .shift-summary-page .text-blue {
-        color: #8ec5ff;
-    }
-
-    .shift-summary-page .empty-state {
-        padding: 2.5rem 1rem;
-        text-align: center;
-        color: var(--ss-muted);
-    }
-
-    .shift-summary-page .empty-icon {
-        width: 70px;
-        height: 70px;
-        display: grid;
-        place-items: center;
-        margin: 0 auto 1rem;
-        border-radius: 22px;
-        background: rgba(255, 193, 7, .08);
-        color: var(--ss-yellow);
-        font-size: 1.65rem;
-    }
-
-    .shift-summary-page .history-table {
-        margin: 0;
-        color: #e8e8e8;
-        vertical-align: middle;
-    }
-
-    .shift-summary-page .history-table thead th {
-        padding: .85rem;
-        border-bottom: 1px solid var(--ss-border);
-        background: #121212;
-        color: #bdbdbd;
-        font-size: .7rem;
-        font-weight: 850;
-        white-space: nowrap;
-    }
-
-    .shift-summary-page .history-table tbody td {
-        padding: .85rem;
-        border-color: #2f2f2f;
-        background: transparent;
-        color: #e7e7e7;
+    .shift-page .kpi-label {
+        color: var(--muted);
         font-size: .8rem;
     }
 
-    .shift-summary-page .history-table tbody tr:hover td {
-        background: rgba(255, 193, 7, .035);
+    .shift-page .kpi-icon {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: #302a19;
+        color: var(--yellow);
+        font-size: 1.1rem;
     }
 
-    .shift-summary-page .shift-code {
-        display: inline-flex;
-        padding: .32rem .5rem;
-        border: 1px solid rgba(255, 193, 7, .22);
-        border-radius: 8px;
-        background: rgba(255, 193, 7, .07);
-        color: var(--ss-yellow);
-        font-size: .7rem;
-        font-weight: 900;
+    .shift-page .kpi-value {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #fff;
     }
 
-    .shift-summary-page .difference-badge {
-        display: inline-flex;
-        padding: .34rem .55rem;
-        border-radius: 999px;
-        font-size: .68rem;
-        font-weight: 850;
+    .shift-page .panel {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+        margin-bottom: 18px;
     }
 
-    .shift-summary-page .difference-zero {
-        background: rgba(168, 168, 168, .11);
-        color: #d0d0d0;
+    .shift-page .panel-header {
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
     }
 
-    .shift-summary-page .difference-plus {
-        background: rgba(46, 204, 113, .11);
-        color: #7ee2aa;
+    .shift-page .panel-header h5 {
+        margin: 0;
+        color: #fff;
+        font-size: .95rem;
+        font-weight: 800;
     }
 
-    .shift-summary-page .difference-minus {
-        background: rgba(255, 107, 107, .11);
-        color: #ff929c;
+    .shift-page .panel-body {
+        padding: 17px;
     }
 
-    .shift-summary-page .pagination-wrap {
-        padding: 1rem 1.15rem;
-        border-top: 1px solid var(--ss-border);
+    .shift-page .count {
+        padding: 5px 10px;
+        border-radius: 20px;
+        background: #302a19;
+        color: var(--yellow);
+        font-size: .75rem;
+        font-weight: 700;
     }
 
-    @media (max-width: 991.98px) {
-        .shift-summary-page .kpi-grid,
-        .shift-summary-page .shift-metrics,
-        .shift-summary-page .cash-summary {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+    .shift-page .open-shift {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 13px;
+        background: #161616;
+    }
+
+    .shift-page .open-shift:last-child {
+        margin-bottom: 0;
+    }
+
+    .shift-page .open-header {
+        padding: 13px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .shift-page .staff-name {
+        font-weight: 800;
+        color: #fff;
+    }
+
+    .shift-page .shift-time {
+        color: var(--muted);
+        font-size: .78rem;
+        margin-top: 4px;
+    }
+
+    .shift-page .status-open {
+        color: var(--green);
+        background: #173126;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: .72rem;
+        white-space: nowrap;
+    }
+
+    .shift-page .shift-data {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+        padding: 15px;
+    }
+
+    .shift-page .data-item {
+        padding: 11px;
+        background: #222;
+        border-radius: 9px;
+    }
+
+    .shift-page .data-label {
+        color: var(--muted);
+        font-size: .73rem;
+        margin-bottom: 6px;
+    }
+
+    .shift-page .data-value {
+        color: #fff;
+        font-weight: 800;
+        font-size: .95rem;
+        overflow-wrap: anywhere;
+    }
+
+    .shift-page .green {
+        color: var(--green);
+    }
+
+    .shift-page .blue {
+        color: var(--blue);
+    }
+
+    .shift-page .filter-row {
+        display: flex;
+        align-items: end;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .shift-page .form-label {
+        color: #ddd;
+        font-size: .8rem;
+        font-weight: 700;
+    }
+
+    .shift-page .form-control,
+    .shift-page .form-select {
+        background: #111;
+        border: 1px solid #444;
+        color: #fff;
+        min-height: 42px;
+    }
+
+    .shift-page .form-select option {
+        background: #111;
+    }
+
+    .shift-page .btn-search {
+        min-height: 42px;
+        background: var(--yellow);
+        color: #111;
+        font-weight: 800;
+        border: 0;
+        padding: 0 22px;
+    }
+
+    .shift-page .table {
+        color: #eee;
+        margin: 0;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .shift-page .table th {
+        background: #151515;
+        color: #bbb;
+        font-size: .75rem;
+        padding: 13px;
+        border-color: var(--border);
+    }
+
+    .shift-page .table td {
+        background: transparent;
+        color: #eee;
+        font-size: .8rem;
+        padding: 13px;
+        border-color: var(--border);
+    }
+
+    .shift-page .table tbody tr:hover td {
+        background: #25231d;
+    }
+
+    .shift-page .shift-code {
+        color: var(--yellow);
+        background: #302a19;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-weight: 800;
+    }
+
+    .shift-page .difference {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 20px;
+        font-size: .72rem;
+        font-weight: 800;
+    }
+
+    .shift-page .diff-zero {
+        color: #ccc;
+        background: #333;
+    }
+
+    .shift-page .diff-plus {
+        color: var(--green);
+        background: #173126;
+    }
+
+    .shift-page .diff-minus {
+        color: var(--red);
+        background: #391d21;
+    }
+
+    .shift-page .empty {
+        text-align: center;
+        padding: 35px 15px;
+        color: var(--muted);
+    }
+
+    .shift-page .pagination-wrap {
+        padding: 15px;
+        border-top: 1px solid var(--border);
+    }
+
+    .shift-page .pagination {
+        margin: 0;
+    }
+
+    @media(max-width: 992px) {
+        .shift-page .kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .shift-page .shift-data {
+            grid-template-columns: repeat(2, 1fr);
         }
     }
 
-    @media (max-width: 767.98px) {
-        .shift-summary-page .hero,
-        .shift-summary-page .shift-card-header,
-        .shift-summary-page .section-head {
+    @media(max-width: 576px) {
+        .shift-page .page-header {
             align-items: flex-start;
             flex-direction: column;
         }
-    }
 
-    @media (max-width: 575.98px) {
-        .shift-summary-page .kpi-grid,
-        .shift-summary-page .shift-metrics,
-        .shift-summary-page .cash-summary {
-            grid-template-columns: 1fr;
+        .shift-page .kpi-value {
+            font-size: 1.1rem;
+        }
+
+        .shift-page .shift-data {
+            grid-template-columns: 1fr 1fr;
         }
     }
 </style>
 
-<div class="shift-summary-page py-4">
+<div class="shift-page py-4">
     <div class="container-fluid">
-        <div class="page-shell">
-            <section class="hero">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="hero-icon">
-                        <i class="bi bi-bar-chart-fill"></i>
-                    </div>
 
-                    <div>
-                        <h2>สรุปยอดขายแต่ละกะ</h2>
-                        <p>
-                            ตรวจสอบกะที่กำลังเปิด ยอดรับเงินจริงรวมทุกช่องทาง
-                            เงินสด QR/เงินโอน และประวัติปิดกะย้อนหลัง
-                        </p>
-                    </div>
-                </div>
+       
 
-                <div class="hero-date">
-                    <i class="bi bi-calendar3"></i>
-                    {{ now()->translatedFormat('d F Y') }}
-                </div>
-            </section>
+        {{-- กะที่เปิดอยู่ --}}
+        <div class="section-title">
+            <h5><i class="bi bi-clock-history"></i> กะที่กำลังเปิดอยู่</h5>
+            <span class="count">
+                {{ $openShifts->count() }} กะ
+            </span>
+        </div>
 
-            <div class="kpi-grid">
-                <div class="kpi-card">
-                    <div class="kpi-icon">
-                        <i class="bi bi-wallet2"></i>
-                    </div>
-                    <div class="kpi-label">ยอดขายวันนี้</div>
-                    <div class="kpi-value">
-                        ฿{{ number_format($totalSales ?? 0, 2) }}
-                    </div>
-                </div>
+        <div class="panel">
+            <div class="panel-body">
 
-                <div class="kpi-card">
-                    <div class="kpi-icon">
-                        <i class="bi bi-receipt"></i>
-                    </div>
-                    <div class="kpi-label">จำนวนบิลวันนี้</div>
-                    <div class="kpi-value">
-                        {{ number_format($totalBills ?? 0) }} บิล
-                    </div>
-                </div>
+                @forelse($openShifts as $shift)
+                    <div class="open-shift">
 
-                <div class="kpi-card">
-                    <div class="kpi-icon">
-                        <i class="bi bi-cash-stack"></i>
-                    </div>
-                    <div class="kpi-label">เงินสดรวม</div>
-                    <div class="kpi-value">
-                        ฿{{ number_format(
-                            $combinedCashSales
-                                ?? $cashSales
-                                ?? 0,
-                            2
-                        ) }}
-                    </div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-icon">
-                        <i class="bi bi-qr-code"></i>
-                    </div>
-                    <div class="kpi-label">QR / เงินโอนรวม</div>
-                    <div class="kpi-value">
-                        ฿{{ number_format(
-                            $combinedQrSales
-                                ?? $qrSales
-                                ?? 0,
-                            2
-                        ) }}
-                    </div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-icon">
-                        <i class="bi bi-cash-coin"></i>
-                    </div>
-                    <div class="kpi-label">ผลต่างเงินสดรวม</div>
-                    <div class="kpi-value">
-                        ฿{{ number_format($totalCashDifference ?? 0, 2) }}
-                    </div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-icon">
-                        <i class="bi bi-qr-code-scan"></i>
-                    </div>
-                    <div class="kpi-label">ผลต่าง QR / โอนรวม</div>
-                    <div class="kpi-value">
-                        ฿{{ number_format($totalQrDifference ?? 0, 2) }}
-                    </div>
-                </div>
-            </div>
-
-            <div class="section-head">
-                <h3 class="section-title">
-                    <i class="bi bi-clock-history"></i>
-                    กะที่กำลังเปิดอยู่
-                </h3>
-
-                <span class="count-badge">
-                    <i class="bi bi-circle-fill"></i>
-                    {{ $openShifts->count() }} กะ
-                </span>
-            </div>
-
-            <div class="open-grid">
-                @forelse ($openShifts as $shift)
-                    <section class="shift-card">
-                        <div class="shift-card-header">
+                        <div class="open-header">
                             <div>
-                                <div class="shift-name">
-                                    {{ $shift->shiftType->name
-                                        ?? 'ไม่ระบุชื่อกะ' }}
+                                <div class="staff-name">
+                                    <i class="bi bi-person-circle text-warning me-1"></i>
+                                    {{ $shift->user->name ?? 'ไม่ระบุพนักงาน' }}
                                 </div>
 
-                                <div class="shift-meta">
-                                    ผู้เปิดกะ:
-                                    <strong>
-                                        {{ $shift->user->name ?? '-' }}
-                                    </strong>
-                                    · เปิดเมื่อ
-                                    {{
-                                        optional($shift->opened_at)
-                                            ->format('d/m/Y H:i')
-                                        ?? '-'
-                                    }}
+                                <div class="shift-time">
+                                    เปิดกะเมื่อ
+                                    {{ optional($shift->opened_at)->format('d/m/Y H:i') ?? '-' }}
                                     น.
                                 </div>
                             </div>
 
                             <span class="status-open">
-                                <i class="bi bi-circle-fill"></i>
+                                <i class="bi bi-circle-fill me-1"></i>
                                 กำลังเปิด
                             </span>
                         </div>
 
-                        <div class="shift-metrics">
-                            <div class="metric-box">
-                                <div class="metric-label">เงินเริ่มต้น</div>
-                                <div class="metric-value">
-                                    ฿{{ number_format(
-                                        $shift->opening_cash ?? 0,
-                                        2
-                                    ) }}
+                        @php
+                            $cash = (float) (
+                                $shift->combined_cash_sales
+                                ?? (
+                                    ($shift->cash_sales ?? 0)
+                                    + ($shift->online_cod_sales ?? 0)
+                                )
+                            );
+
+                            $qr = (float) (
+                                $shift->combined_qr_sales
+                                ?? (
+                                    ($shift->qr_sales ?? 0)
+                                    + ($shift->online_qr_sales ?? 0)
+                                )
+                            );
+                        @endphp
+
+                        <div class="shift-data">
+                            <div class="data-item">
+                                <div class="data-label">เงินเริ่มต้น</div>
+                                <div class="data-value">
+                                    ฿{{ number_format($shift->opening_cash ?? 0, 2) }}
                                 </div>
                             </div>
 
-                            <div class="metric-box">
-                                <div class="metric-label">
-                                    ยอดขายรวมระหว่างกะ
-                                </div>
-                                <div class="metric-value text-positive">
-                                    ฿{{ number_format(
-                                        $shift->total_sales ?? 0,
-                                        2
-                                    ) }}
+                            <div class="data-item">
+                                <div class="data-label">ยอดขายรวม</div>
+                                <div class="data-value green">
+                                    ฿{{ number_format($shift->total_sales ?? 0, 2) }}
                                 </div>
                             </div>
 
-                            <div class="metric-box">
-                                <div class="metric-label">
-                                    เงินสดรวมทุกช่องทาง
-                                </div>
-                                <div class="metric-value">
-                                    ฿{{ number_format(
-                                        $shift->combined_cash_sales
-                                            ?? (
-                                                ($shift->cash_sales ?? 0)
-                                                + ($shift->online_cod_sales ?? 0)
-                                            ),
-                                        2
-                                    ) }}
+                            <div class="data-item">
+                                <div class="data-label">รับเงินสด</div>
+                                <div class="data-value">
+                                    ฿{{ number_format($cash, 2) }}
                                 </div>
                             </div>
 
-                            <div class="metric-box">
-                                <div class="metric-label">
-                                    QR / เงินโอนรวมทุกช่องทาง
+                            <div class="data-item">
+                                <div class="data-label">QR / เงินโอน</div>
+                                <div class="data-value blue">
+                                    ฿{{ number_format($qr, 2) }}
                                 </div>
-                                <div class="metric-value text-blue">
-                                    ฿{{ number_format(
-                                        $shift->combined_qr_sales
-                                            ?? (
-                                                ($shift->qr_sales ?? 0)
-                                                + ($shift->online_qr_sales ?? 0)
-                                            ),
-                                        2
-                                    ) }}
+                            </div>
+
+                            <div class="data-item">
+                                <div class="data-label">ระยะเวลาเปิดกะ</div>
+                                <div class="data-value">
+                                    {{ $shift->opened_at
+                                        ? $shift->opened_at->diffForHumans(now(), true)
+                                        : '-' }}
                                 </div>
                             </div>
                         </div>
-
-                        <div class="cash-summary">
-                            <div class="metric-box">
-                                <div class="metric-label">
-                                    เงินสดที่ควรมี
-                                </div>
-                                <div class="metric-value">
-                                    ฿{{ number_format(
-                                        $shift->calculated_expected_cash
-                                            ?? $shift->expected_cash
-                                            ?? 0,
-                                        2
-                                    ) }}
-                                </div>
-                            </div>
-
-                            <div class="metric-box">
-                                <div class="metric-label">
-                                    QR / โอนที่ควรได้รับ
-                                </div>
-                                <div class="metric-value text-blue">
-                                    ฿{{ number_format(
-                                        $shift->expected_qr
-                                            ?? $shift->combined_qr_sales
-                                            ?? 0,
-                                        2
-                                    ) }}
-                                </div>
-                            </div>
-
-                            <div class="metric-box">
-                                <div class="metric-label">Cash In / Out สุทธิ</div>
-                                <div class="metric-value">
-                                    ฿{{ number_format(
-                                        ($shift->cash_in_total ?? 0)
-                                        - ($shift->cash_out_total ?? 0),
-                                        2
-                                    ) }}
-                                </div>
-                            </div>
-
-                            <div class="metric-box">
-                                <div class="metric-label">
-                                    ระยะเวลาเปิดกะ
-                                </div>
-                                <div class="metric-value">
-                                    {{
-                                        $shift->opened_at
-                                            ? $shift->opened_at
-                                                ->diffForHumans(
-                                                    now(),
-                                                    true
-                                                )
-                                            : '-'
-                                    }}
-                                </div>
-                            </div>
-                        </div>
-                    </section>
+                    </div>
                 @empty
-                    <section class="shift-card">
-                        <div class="empty-state">
-                            <div class="empty-icon">
-                                <i class="bi bi-moon-stars"></i>
-                            </div>
-                            <h4 class="text-white fw-bold">
-                                ยังไม่มีกะที่กำลังเปิด
-                            </h4>
-                            <p class="mb-0">
-                                เมื่อมีการเปิดกะ ข้อมูลจะแสดงในส่วนนี้
-                            </p>
+                    <div class="empty">
+                        <i class="bi bi-moon-stars fs-1 d-block mb-2"></i>
+                        <strong>ยังไม่มีกะที่กำลังเปิด</strong>
+                        <div class="small mt-1">
+                            เมื่อพนักงานเปิดกะ ข้อมูลจะแสดงที่นี่
                         </div>
-                    </section>
+                    </div>
                 @endforelse
+
+            </div>
+        </div>
+
+        @if ($openShifts->hasPages())
+            <div class="mb-3">
+                {{ $openShifts->withQueryString()->links() }}
+            </div>
+        @endif
+
+        {{-- ประวัติกะ --}}
+        <div class="section-title">
+            <h5><i class="bi bi-archive"></i> ประวัติการปิดกะ</h5>
+        </div>
+
+        {{-- ตัวกรอง --}}
+        <div class="panel">
+            <div class="panel-header">
+                <h5><i class="bi bi-funnel text-warning me-2"></i>ค้นหาประวัติกะ</h5>
             </div>
 
-            @if ($openShifts->hasPages())
-                <div class="mt-3">
-                    {{ $openShifts->withQueryString()->links() }}
+            <div class="panel-body">
+                <form method="GET"
+                      action="{{ route('manager.dashboard') }}"
+                      class="filter-row">
+
+                    <div style="min-width:190px;">
+                        <label class="form-label">ช่วงเวลา</label>
+                        <select name="range"
+                                class="form-select"
+                                onchange="toggleCustomDate(this.value)">
+                            <option value="today" @selected($range === 'today')>วันนี้</option>
+                            <option value="yesterday" @selected($range === 'yesterday')>เมื่อวาน</option>
+                            <option value="7days" @selected($range === '7days')>7 วันที่ผ่านมา</option>
+                            <option value="month" @selected($range === 'month')>เดือนนี้</option>
+                            <option value="custom" @selected($range === 'custom')>กำหนดวันที่เอง</option>
+                        </select>
+                    </div>
+
+                    <div id="custom-date"
+                         class="d-flex gap-2 flex-wrap {{ $range !== 'custom' ? 'd-none' : '' }}">
+
+                        <div>
+                            <label class="form-label">ตั้งแต่</label>
+                            <input type="date" name="from"
+                                   value="{{ request('from') }}"
+                                   class="form-control">
+                        </div>
+
+                        <div>
+                            <label class="form-label">ถึง</label>
+                            <input type="date" name="to"
+                                   value="{{ request('to') }}"
+                                   class="form-control">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-search">
+                        <i class="bi bi-search me-1"></i> ค้นหา
+                    </button>
+
+                    <a href="{{ route('manager.dashboard') }}"
+                       class="btn btn-outline-secondary"
+                       style="min-height:42px; display:flex; align-items:center;">
+                        ล้างตัวกรอง
+                    </a>
+                </form>
+            </div>
+        </div>
+
+        {{-- ตารางประวัติ --}}
+        <div class="panel">
+            <div class="panel-header">
+                <h5>
+                    <i class="bi bi-table text-warning me-2"></i>
+                    รายการกะที่ปิดแล้ว
+                </h5>
+                <span class="count">
+                    {{ $closedShifts->total() }} รายการ
+                </span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>วันที่</th>
+                            <th>รหัสกะ</th>
+                            <th>พนักงาน</th>
+                            <th>เวลาเปิด–ปิด</th>
+                            <th class="text-end">ยอดขายรวม</th>
+                            <th class="text-end">เงินสด</th>
+                            <th class="text-end">QR / โอน</th>
+                            <th class="text-center">ผลต่างเงินสด</th>
+                            <th class="text-center">ผลต่าง QR</th>
+                            <th>ผู้ปิดกะ</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @forelse($closedShifts as $shift)
+                            @php
+                                $cashDifference = (float) ($shift->cash_difference ?? 0);
+                                $qrDifference = (float) ($shift->qr_difference ?? 0);
+
+                                $combinedCash = (float) (
+                                    $shift->combined_cash_sales
+                                    ?? (
+                                        ($shift->cash_sales ?? 0)
+                                        + ($shift->online_cod_sales ?? 0)
+                                    )
+                                );
+
+                                $combinedQr = (float) (
+                                    $shift->combined_qr_sales
+                                    ?? (
+                                        ($shift->qr_sales ?? 0)
+                                        + ($shift->online_qr_sales ?? 0)
+                                    )
+                                );
+                            @endphp
+
+                            <tr>
+                                <td>
+                                    {{ optional($shift->opened_at)->format('d/m/Y') ?? '-' }}
+                                </td>
+
+                                <td>
+                                    <span class="shift-code">
+                                        #{{ str_pad($shift->id, 5, '0', STR_PAD_LEFT) }}
+                                    </span>
+                                </td>
+
+                                <td>{{ $shift->user->name ?? '-' }}</td>
+
+                                <td>
+                                    {{ optional($shift->opened_at)->format('H:i') ?? '-' }}
+                                    –
+                                    {{ optional($shift->closed_at)->format('H:i') ?? '-' }}
+                                </td>
+
+                                <td class="text-end fw-bold">
+                                    ฿{{ number_format($shift->total_sales ?? 0, 2) }}
+                                </td>
+
+                                <td class="text-end">
+                                    ฿{{ number_format($combinedCash, 2) }}
+                                </td>
+
+                                <td class="text-end blue">
+                                    ฿{{ number_format($combinedQr, 2) }}
+                                </td>
+
+                                <td class="text-center">
+                                    @if($cashDifference > 0)
+                                        <span class="difference diff-plus">
+                                            +฿{{ number_format($cashDifference, 2) }}
+                                        </span>
+                                    @elseif($cashDifference < 0)
+                                        <span class="difference diff-minus">
+                                            -฿{{ number_format(abs($cashDifference), 2) }}
+                                        </span>
+                                    @else
+                                        <span class="difference diff-zero">฿0.00</span>
+                                    @endif
+                                </td>
+
+                                <td class="text-center">
+                                    @if($qrDifference > 0)
+                                        <span class="difference diff-plus">
+                                            +฿{{ number_format($qrDifference, 2) }}
+                                        </span>
+                                    @elseif($qrDifference < 0)
+                                        <span class="difference diff-minus">
+                                            -฿{{ number_format(abs($qrDifference), 2) }}
+                                        </span>
+                                    @else
+                                        <span class="difference diff-zero">฿0.00</span>
+                                    @endif
+                                </td>
+
+                                <td>{{ $shift->closedBy->name ?? '-' }}</td>
+                            </tr>
+
+                        @empty
+                            <tr>
+                                <td colspan="10">
+                                    <div class="empty">
+                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                        <strong>ไม่พบประวัติการปิดกะ</strong>
+                                        <div class="small mt-1">
+                                            ลองเลือกช่วงเวลาอื่นเพื่อค้นหา
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            @if($closedShifts->hasPages())
+                <div class="pagination-wrap">
+                    {{ $closedShifts->withQueryString()->links() }}
                 </div>
             @endif
-
-            <div class="section-head">
-                <h3 class="section-title">
-                    <i class="bi bi-archive-fill"></i>
-                    ประวัติกะย้อนหลัง
-                </h3>
-            </div>
-
-            <section class="filter-card">
-                <div class="card-header-custom">
-                    <h3 class="card-title-custom">
-                        <i class="bi bi-funnel-fill"></i>
-                        ค้นหาประวัติกะ
-                    </h3>
-                </div>
-
-                <div class="card-body-custom">
-                    <form
-                        method="GET"
-                        action="{{ route('manager.dashboard') }}"
-                        class="row g-3 align-items-end"
-                    >
-                        <div class="col-lg-3 col-md-4">
-                            <label class="form-label">ช่วงเวลา</label>
-                            <select
-                                name="range"
-                                class="form-select"
-                                onchange="toggleCustomDate(this.value)"
-                            >
-                                <option value="today" @selected($range === 'today')>
-                                    วันนี้
-                                </option>
-                                <option value="yesterday" @selected($range === 'yesterday')>
-                                    เมื่อวาน
-                                </option>
-                                <option value="7days" @selected($range === '7days')>
-                                    7 วันที่ผ่านมา
-                                </option>
-                                <option value="month" @selected($range === 'month')>
-                                    เดือนนี้
-                                </option>
-                                <option value="custom" @selected($range === 'custom')>
-                                    กำหนดช่วงวันที่เอง
-                                </option>
-                            </select>
-                        </div>
-
-                        <div
-                            id="custom-date"
-                            class="col-lg-6 col-md-5 {{ $range !== 'custom' ? 'd-none' : '' }}"
-                        >
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="form-label">ตั้งแต่</label>
-                                    <input
-                                        type="date"
-                                        name="from"
-                                        value="{{ request('from') }}"
-                                        class="form-control"
-                                    >
-                                </div>
-
-                                <div class="col-6">
-                                    <label class="form-label">ถึง</label>
-                                    <input
-                                        type="date"
-                                        name="to"
-                                        value="{{ request('to') }}"
-                                        class="form-control"
-                                    >
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-lg-3 col-md-3">
-                            <button type="submit" class="btn btn-filter">
-                                <i class="bi bi-search"></i>
-                                ค้นหา
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </section>
-
-            <section class="table-card">
-                <div class="card-header-custom">
-                    <h3 class="card-title-custom">
-                        <i class="bi bi-table"></i>
-                        รายการกะที่ปิดแล้ว
-                    </h3>
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table history-table">
-                        <thead>
-                            <tr>
-                                <th>วันที่</th>
-                                <th>รหัสกะ</th>
-                                <th>ประเภทกะ</th>
-                                <th>ผู้เปิดกะ</th>
-                                <th>เวลาเปิด–ปิด</th>
-                                <th class="text-end">เงินสดรวม</th>
-                                <th class="text-end">QR / โอนรวม</th>
-                                <th class="text-end">ยอดขายรวม</th>
-                                <th class="text-end">เงินสดควรมี</th>
-                                <th class="text-end">เงินสดจริง</th>
-                                <th class="text-center">ผลต่างเงินสด</th>
-                                <th class="text-end">QR ควรได้</th>
-                                <th class="text-end">QR ตรวจจริง</th>
-                                <th class="text-center">ผลต่าง QR</th>
-                                <th>ผู้ปิดกะ</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            @forelse ($closedShifts as $shift)
-                                @php
-                                    $difference =
-                                        (float) ($shift->cash_difference ?? 0);
-
-                                    $qrDifference =
-                                        (float) ($shift->qr_difference ?? 0);
-
-                                    $combinedCash =
-                                        (float) (
-                                            $shift->combined_cash_sales
-                                            ?? (
-                                                ($shift->cash_sales ?? 0)
-                                                + ($shift->online_cod_sales ?? 0)
-                                            )
-                                        );
-
-                                    $combinedQr =
-                                        (float) (
-                                            $shift->combined_qr_sales
-                                            ?? (
-                                                ($shift->qr_sales ?? 0)
-                                                + ($shift->online_qr_sales ?? 0)
-                                            )
-                                        );
-                                @endphp
-
-                                <tr>
-                                    <td>
-                                        {{
-                                            optional($shift->opened_at)
-                                                ->format('d/m/Y')
-                                            ?? '-'
-                                        }}
-                                    </td>
-
-                                    <td>
-                                        <span class="shift-code">
-                                            #{{ str_pad(
-                                                $shift->id,
-                                                5,
-                                                '0',
-                                                STR_PAD_LEFT
-                                            ) }}
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        {{ $shift->shiftType->name ?? '-' }}
-                                    </td>
-
-                                    <td>
-                                        {{ $shift->user->name ?? '-' }}
-                                    </td>
-
-                                    <td>
-                                        {{
-                                            optional($shift->opened_at)
-                                                ->format('H:i')
-                                            ?? '-'
-                                        }}
-                                        –
-                                        {{
-                                            optional($shift->closed_at)
-                                                ->format('H:i')
-                                            ?? '-'
-                                        }}
-                                    </td>
-
-                                    <td class="text-end">
-                                        ฿{{ number_format($combinedCash, 2) }}
-                                    </td>
-
-                                    <td class="text-end text-blue">
-                                        ฿{{ number_format($combinedQr, 2) }}
-                                    </td>
-
-                                    <td class="text-end fw-bold">
-                                        ฿{{ number_format(
-                                            $shift->total_sales ?? 0,
-                                            2
-                                        ) }}
-                                    </td>
-
-                                    <td class="text-end">
-                                        ฿{{ number_format(
-                                            $shift->expected_cash ?? 0,
-                                            2
-                                        ) }}
-                                    </td>
-
-                                    <td class="text-end">
-                                        ฿{{ number_format(
-                                            $shift->closing_cash ?? 0,
-                                            2
-                                        ) }}
-                                    </td>
-
-                                    <td class="text-center">
-                                        @if ($difference < 0)
-                                            <span class="difference-badge difference-minus">
-                                                -฿{{ number_format(
-                                                    abs($difference),
-                                                    2
-                                                ) }}
-                                            </span>
-                                        @elseif ($difference > 0)
-                                            <span class="difference-badge difference-plus">
-                                                +฿{{ number_format(
-                                                    $difference,
-                                                    2
-                                                ) }}
-                                            </span>
-                                        @else
-                                            <span class="difference-badge difference-zero">
-                                                ฿0.00
-                                            </span>
-                                        @endif
-                                    </td>
-
-                                    <td class="text-end text-blue">
-                                        ฿{{ number_format(
-                                            $shift->expected_qr ?? 0,
-                                            2
-                                        ) }}
-                                    </td>
-
-                                    <td class="text-end text-blue">
-                                        ฿{{ number_format(
-                                            $shift->closing_qr ?? 0,
-                                            2
-                                        ) }}
-                                    </td>
-
-                                    <td class="text-center">
-                                        @if ($qrDifference < 0)
-                                            <span class="difference-badge difference-minus">
-                                                -฿{{ number_format(
-                                                    abs($qrDifference),
-                                                    2
-                                                ) }}
-                                            </span>
-                                        @elseif ($qrDifference > 0)
-                                            <span class="difference-badge difference-plus">
-                                                +฿{{ number_format(
-                                                    $qrDifference,
-                                                    2
-                                                ) }}
-                                            </span>
-                                        @else
-                                            <span class="difference-badge difference-zero">
-                                                ฿0.00
-                                            </span>
-                                        @endif
-                                    </td>
-
-                                    <td>
-                                        {{ $shift->closedBy->name ?? '-' }}
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="15">
-                                        <div class="empty-state">
-                                            <div class="empty-icon">
-                                                <i class="bi bi-inbox"></i>
-                                            </div>
-                                            <h4 class="text-white fw-bold">
-                                                ไม่พบประวัติกะ
-                                            </h4>
-                                            <p class="mb-0">
-                                                ลองเปลี่ยนช่วงวันที่แล้วค้นหาใหม่
-                                            </p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                @if ($closedShifts->hasPages())
-                    <div class="pagination-wrap">
-                        {{ $closedShifts->withQueryString()->links() }}
-                    </div>
-                @endif
-            </section>
         </div>
+
     </div>
 </div>
 
@@ -1049,11 +679,10 @@
 function toggleCustomDate(value) {
     const box = document.getElementById('custom-date');
 
-    if (!box) {
-        return;
+    if (box) {
+        box.classList.toggle('d-none', value !== 'custom');
     }
-
-    box.classList.toggle('d-none', value !== 'custom');
 }
 </script>
+
 @endsection

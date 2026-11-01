@@ -120,24 +120,7 @@
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label>
-                                <i class="bi bi-clock-history me-1"></i> เลือกกะ
-                            </label>
-                            <select 
-                                name="shift_type_id" 
-                                class="form-select form-select-lg" {{-- ขยายขนาด select --}}
-                                required>
-                                <option value="" class="text-muted">=== กรุณาเลือกกะ ===</option>
-                                @foreach($shiftTypes as $shift)
-                                    <option value="{{ $shift->id }}">
-                                        {{ $shift->name }} 
-                                        &nbsp;&nbsp;
-                                        [{{ substr($shift->start_time, 0, 5) }} - {{ substr($shift->end_time, 0, 5) }}]
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                       
 
                         <div class="d-grid gap-2">
                             {{-- เปลี่ยน class btn-success เป็น btn-dy-yellow และทำให้เต็มความกว้าง --}}
